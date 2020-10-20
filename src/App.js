@@ -36,9 +36,10 @@ var solSite;
 var socketRoot;
 var urlRoot;
 var Intervals = []
-var defaultProgram = "JB2LCd9oV7xNemBSV8dJu6gkrpWQSrDPcfHUQAQnXRZu";
-var defaultChannel = "BoSJNDkt37kxQthSgvMqCER1dMzyqEUS34Kkp2YazEiq";
-
+//var defaultProgram = "JB2LCd9oV7xNemBSV8dJu6gkrpWQSrDPcfHUQAQnXRZu";
+//var defaultChannel = "BoSJNDkt37kxQthSgvMqCER1dMzyqEUS34Kkp2YazEiq";
+var defaultProgram = "77r8Axfy3vtX9nYHqbkyqPscQv3f4viikaxHUX9SzLox" // as program public key
+var defaultChannel = "33vYEKFihRYjwkfupzZWNTgKKd3tHN6Z98YU2bAixMnr"
  
 TimeAgo.addLocale(en)
 // Create formatter.
@@ -465,10 +466,10 @@ class App extends React.Component{
 			let p1 = stringToBytes(message.slice(0,512));
 			let p2 = stringToBytes(message.slice(512,1024));
 			let decoder = new TextDecoder(); 
-			let d1 = await decryptMessage(this.state.siteKeys.privateKey,new Uint8Array(p1));
-			let d2 = await decryptMessage(this.state.siteKeys.privateKey,new Uint8Array(p2));
-			let txt1 = decoder.decode( new Uint8Array(d1) );
-			let txt2 = decoder.decode( new Uint8Array(d2) );
+			let d1 = await decryptMessage(this.state.siteKeys.privateKey,p1);
+			let d2 = await decryptMessage(this.state.siteKeys.privateKey,p2);
+			let txt1 = decoder.decode( d1 );
+			let txt2 = decoder.decode( d2 );
 			console.log("rawMessage",txt1,txt2);
 			let packet = JSON.parse(txt1+txt2);
 			return packet
@@ -490,9 +491,9 @@ class App extends React.Component{
 				return notify("Message too large");
 			}
 			let packet = {
-				text:msg,
-				uuid:Math.random().toFixed(6).slice(2),
-				uuids:false,
+				t:msg,
+				u:Math.random().toFixed(6).slice(2),
+				us:false,
 			}
 			let faux_transaction = {
 				addSignature:function(key,signature){
@@ -500,16 +501,16 @@ class App extends React.Component{
 					this.key = key;
 				},
 				key:false,
-				message:packet.uuid,
+				message:packet.u,
 				serializeMessage:function(){return Buffer.from(this.message)},
 				signature:false,
 			}
 			await this.state.wallet.signTransaction(faux_transaction);
-			packet.uuids = new Uint8Array(faux_transaction.signature).toString();
+			packet.us = new Uint8Array(faux_transaction.signature).toString();
 			//pad message
 			console.log("Before padding length:",Buffer.from(JSON.stringify(packet)).length)
 			while(Buffer.from(JSON.stringify(packet)).length < 880){
-				packet.text += " ";
+				packet.t += " ";
 			}
 			msg = JSON.stringify(packet);
 			console.log(msg,msg.length,this.state.siteKeys.publicKey)
@@ -854,17 +855,17 @@ class App extends React.Component{
 	async writeChat(string,id){
 		//console.log("string length:",string.length);
 		//Timestamp
-		if(this.checkBroadCast(string)){return};
+		try{if(this.checkBroadCast(string)){return};}catch(e){console.log(e);}
 		let packet = await this.decodeMessage(string);
-		if(packet && packet.text){
-			string = packet.text.trim() + " 🔓";
+		if(packet && packet.t){
+			string = packet.t.trim() + " 🔓";
 			//Verify Message
 			let contacts = Object.keys(this.state.contacts);
 			let valid;
 			for(let i = 0;i < contacts.length;i++){
 				let pk = new PublicKey( contacts[i] );
-				let sig = packet.uuids.split(",");
-				valid = nacl.sign.detached.verify(Buffer.from(packet.uuid),Buffer.from(sig), pk.toBuffer() );
+				let sig = packet.us.split(",");
+				valid = nacl.sign.detached.verify(Buffer.from(packet.u),Buffer.from(sig), pk.toBuffer() );
 				if(valid){
 					this.setCurrentContact(contacts[i]);
 					string = string.slice(0,string.length-2)

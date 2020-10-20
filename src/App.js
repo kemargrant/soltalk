@@ -9,9 +9,9 @@ import bs58 from 'bs58';
 import nacl from 'tweetnacl';
 //Bootstrap imports
 import { 
-	Button,ButtonGroup,Card,Col,Container,
+	Button,ButtonGroup,Col,
 	FormControl,ListGroup,InputGroup,
-	Modal,ProgressBar,
+	ProgressBar,
 	Row 
 } from 'react-bootstrap';
 //Solana imports
@@ -30,50 +30,32 @@ import {
 import Wallet from '@project-serum/sol-wallet-adapter';
 import {sendAndConfirmTransaction} from './util/send-and-confirm-transaction';
 
-
-const pathToProgram = './util/program';
-var solSite;
 var socketRoot;
 var urlRoot;
 var Intervals = []
-//var defaultProgram = "JB2LCd9oV7xNemBSV8dJu6gkrpWQSrDPcfHUQAQnXRZu";
-//var defaultChannel = "BoSJNDkt37kxQthSgvMqCER1dMzyqEUS34Kkp2YazEiq";
-var defaultProgram = "77r8Axfy3vtX9nYHqbkyqPscQv3f4viikaxHUX9SzLox" // as program public key
-var defaultChannel = "33vYEKFihRYjwkfupzZWNTgKKd3tHN6Z98YU2bAixMnr"
+var defaultProgram = "JB2LCd9oV7xNemBSV8dJu6gkrpWQSrDPcfHUQAQnXRZu";
+var defaultChannel = "BoSJNDkt37kxQthSgvMqCER1dMzyqEUS34Kkp2YazEiq";
  
 TimeAgo.addLocale(en)
-// Create formatter.
+// Date formatter.
 const timeAgo = new TimeAgo('en-US')
-///
-
-
-function confirm(message){
-	return window.confirm(message);
-}
 
 if(window.location.href.search("localhost") > -1){
-	//urlRoot = "http://localhost:8899/"
 	urlRoot = "https://testnet.solana.com/";
-	//socketRoot = "ws://localhost:8900";
 	socketRoot = "ws://testnet.solana.com:8900";
-	solSite = "http://localhost:3000";
-	console.warn("Running Local")
+	console.log("Running Local");
 }
 else{
-	console.warn("Running Production")
-	//urlRoot = "http://localhost:8899/"
+	console.log("Running Production")
 	urlRoot = "https://testnet.solana.com/";
-	//socketRoot = "ws://localhost:8900";
 	socketRoot = "wss://testnet.solana.com";
 	//console.log = function(){}
 	//console.warn = function(){}
 
 }
 
-
-
 ///////////////////////////
-function stringToBytes ( str ) {
+function stringToBytes(str) {
 	try{str = atob(str);}catch(e){console.log(e);}
 	var ch, st, re = [];
 	for (var i = 0; i < str.length; i++ ) {
@@ -89,24 +71,7 @@ function stringToBytes ( str ) {
 	return Uint8Array.from(re);
 }
 
-function stringToBytesRaw ( res ) {
-	var buffer = new ArrayBuffer( res.length ), // res is this.response in your case
-    view   = new Uint8Array( buffer ),
-    len    = view.length,
-    fromCharCode = String.fromCharCode,
-    i, s, str; 
-	str = "";
 
-	for ( let i = len; i--; ) {
-	  view[i] = res[i].charCodeAt(0);
-	}
-
-	for ( let i = 0; i < len; ++i ) {
-	  str += fromCharCode( view[i] );
-	}    
-	console.log(buffer,view);
-	return view;
-}
 
 //Connect To the Network
 let connection: Connection;
@@ -116,50 +81,44 @@ async function establishConnection(): Promise<void> {
   console.log('Connection to cluster established:', urlRoot, version);
 }
 
-function addContact(pubKey,chatPublicKey){
+function addContact(solanaPublicKey,rsaPublicKey){
 	let contacts = window.localStorage.getItem("contacts");	
-	if(contacts){ contacts = JSON.parse(contacts); }
-	else{ contacts = {}; }
-	if(contacts[pubKey]){
+	contacts = contacts ? JSON.parse(contacts) : {} ;
+	if(contacts[solanaPublicKey]){
 		let overwrite = window.confirm("Update existing contact?");
 		if (!overwrite){return;}
 	}
-	contacts[pubKey] = {
-		publicKey:pubKey,
+	contacts[solanaPublicKey] = {
+		publicKey:solanaPublicKey,
 		channel:defaultChannel,
-		chatPublicKey,
+		chatPublicKey:rsaPublicKey,
 		programId:defaultProgram,
 		message:"",
-		time:new Date()
+		time:new Date().getTime()
 	}
-	console.log(pubKey,chatPublicKey,contacts[pubKey])
 	window.localStorage.setItem("contacts",JSON.stringify(contacts));	
 	return contacts;
 }
 
-function decryptMessage(privateKey,encryptedMessage) {
+function decryptMessage(rsaPrivateKey,encryptedMessage) {
 	if(typeof encryptedMessage !== "object"){encryptedMessage = Buffer.from(encryptedMessage);}
 	return window.crypto.subtle.decrypt(
-		{
-			name: "RSA-OAEP"
-		},
-		privateKey,
+		{name: "RSA-OAEP"},
+		rsaPrivateKey,
 		encryptedMessage
 	);
 }
 
-function encryptMessage(publicKey,message) {
+function encryptMessage(rsaPublicKey,message) {
 	if(typeof message === "string"){message = Buffer.from(message);}
 	return window.crypto.subtle.encrypt(
-		{
-			name: "RSA-OAEP"
-		},
-		publicKey,
+		{name: "RSA-OAEP"},
+		rsaPublicKey,
 		message
 	);
 }
 
-function getKeyPair(){
+function generateRSAKeyPair(){
 	return window.crypto.subtle.generateKey({
 		name: "RSA-OAEP",
 		modulusLength: 4096,
@@ -171,21 +130,10 @@ function getKeyPair(){
 	);
 }
 
-async function readFile(){
-	let program_text = await fetch("/program.so").then(r=>r.text());
-	let blob = new Blob([program_text], {type : 'binary'});
-	let reader = new FileReader();
-	reader.onload = function(evt) {
-		console.log(evt.target.result);
-	};
-	reader.readAsArrayBuffer(blob);
-}
-
 
 function getContacts(){
 	let contacts = window.localStorage.getItem("contacts");	
-	if(contacts){contacts = JSON.parse(contacts);}
-	else{contacts = {}}	
+	contacts = contacts ? JSON.parse(contacts) : {} ;
 	if( Object.keys(contacts).length < 1){
 		//Tom 
 		//contacts = addContact("CRBzvyRxKqBEfEinhp89kxykYHKyek5D9Yh5rh3kxzrC","");		
@@ -238,7 +186,7 @@ function notify(message){
 	return alert(message);
 }
 
-function plainTextBuffer(str){
+function padText(str){
 	if(Buffer.from(str).length > 1028){
 		while(Buffer.from(str).length < 1028){
 			str = str.slice(0,str.length - 1);
@@ -252,29 +200,18 @@ function plainTextBuffer(str){
 	return Buffer.from(str);
 }
 
-function removeContact(pubKey){
+function removeContact(solanaPublicKey){
 	let contacts = window.localStorage.getItem("contacts");	
-	if(contacts){contacts = JSON.parse(contacts);}
-	else{ contacts = {} }	
-	delete contacts[pubKey]
+	contacts = contacts ? JSON.parse(contacts) : {} ;
+	delete contacts[solanaPublicKey]
 	window.localStorage.setItem("contacts",JSON.stringify(contacts));	
 	return contacts;
 }
 
-function register(username,password){
-	return window.fetch(urlRoot+"register",{
-		method: "POST",
-		body: JSON.stringify({username,pass:password}),
-	})
-	.then(function(r){return r.json()})
-	.catch(console.warn);
+function updateContacts(contactsObject){
+	return window.localStorage.setItem("contacts",JSON.stringify(contactsObject));	
 }
 
-function updateContacts(obj){
-	return window.localStorage.setItem("contacts",JSON.stringify(obj));	
-}
-
-var myWallet;
 ////////////////////////
 
 class App extends React.Component{ 
@@ -297,7 +234,6 @@ class App extends React.Component{
 			siteKeys:false,
 			wallet:false,
 			ws:null,
-			
 		}
 		
 		this.addContact = this.addContact.bind(this);
@@ -344,15 +280,14 @@ class App extends React.Component{
 		}
 	}
 	
-	addContactPrompt(pubKey,chatPubKey){
-		let friends = Object.keys(this.state.contacts);
-		let existing = false;
-		let msg = `Add ${pubKey} ?`;
-		if( friends.indexOf(pubKey) > - 1){
+	addContactPrompt(rsaPublicKey,solanaPublicKey){
+		let contactsList = Object.keys(this.state.contacts);
+		let msg = `Add ${solanaPublicKey} ?`;
+		if( contactsList.indexOf(solanaPublicKey) > - 1){
 			msg.replace("Add","Update");
 		}
 		if(window.confirm(msg)){
-			addContact(pubKey,chatPubKey);
+			addContact(solanaPublicKey,rsaPublicKey);
 		}
 	}
 	
@@ -444,7 +379,7 @@ class App extends React.Component{
 	
 	async createLocalChatAccount(){
 		if(!this.state.siteKeys){
-			let keypair = await getKeyPair();
+			let keypair = await generateRSAKeyPair();
 			let exp = {
 				publicKey:await crypto.subtle.exportKey("jwk",keypair.publicKey),
 				privateKey:await crypto.subtle.exportKey("jwk",keypair.privateKey)
@@ -522,7 +457,6 @@ class App extends React.Component{
 			//this publickey should be the public key of the contact you want to message
 			let enc1 = await encryptMessage(publicContactKey,msg.slice(0,440));
 			let enc2 = await encryptMessage(publicContactKey,msg.slice(440,880));
-			let trial = 0
 			let encoded = new Uint8Array(1028);
 			encoded.set(new Uint8Array(enc1));
 			encoded.set(new Uint8Array(enc2),enc2.byteLength);
@@ -789,7 +723,7 @@ class App extends React.Component{
 		let programId = this.state.currentContact.programId ? this.state.currentContact.programId : defaultProgram ;
 		if(!programId){return notify("Unable to located Program ID");}
 		programId = new PublicKey(programId)
-		let buffer = isBroadcast ? plainTextBuffer(message) : await this.encodeMessage(message);
+		let buffer = isBroadcast ? padText(message) : await this.encodeMessage(message);
 		console.log("Buffer:",buffer);
 		var instruction = new TransactionInstruction({
 			keys: [{pubkey:this.state.currentContact.channel ? this.state.currentContact.channel : defaultChannel, isSigner: false, isWritable: true},{pubkey:this.state.payerAccount, isSigner: true, isWritable: false}],
@@ -832,7 +766,6 @@ class App extends React.Component{
 		wallet.on('connect', (publicKey) => {
 			console.log('Connected to sollet.io:' + publicKey.toBase58());
 			console.log(publicKey,wallet);
-			myWallet = wallet;
 			if(!this.state.ws){this.subscribe();}
 			this.setState({wallet,connection,payerAccount:publicKey},this.getBalance);
 		});

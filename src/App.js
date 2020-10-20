@@ -115,11 +115,6 @@ async function establishConnection(): Promise<void> {
   const version = await connection.getVersion();
   console.log('Connection to cluster established:', urlRoot, version);
 }
-async function genp(data){
-	let hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(data));
-	let hashArray = Array.from(new Uint8Array(hashBuffer));                    
-	return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
 
 function addContact(pubKey,chatPublicKey){
 	let contacts = window.localStorage.getItem("contacts");	
@@ -442,7 +437,6 @@ class App extends React.Component{
 			this.importKey(this.getLocalAccount());
 		}
 		let siteKeys = await getSiteKeys();
-		console.warn("sitekeys:",siteKeys);
 		if(Object.keys(siteKeys).length > 1){
 			this.setState({siteKeys});
 		}
@@ -455,7 +449,7 @@ class App extends React.Component{
 				publicKey:await crypto.subtle.exportKey("jwk",keypair.publicKey),
 				privateKey:await crypto.subtle.exportKey("jwk",keypair.privateKey)
 			}
-			this.setState({siteKeys:keypair	});
+			this.setState({siteKeys:keypair});
 			window.localStorage.setItem("siteKeys",JSON.stringify(exp));
 		}
 	}
@@ -569,16 +563,14 @@ class App extends React.Component{
 		if(!pk){return}
 		pk = pk.trim();
 		let secKey = pk;
-		console.log(pk);
 		let bytes = stringToBytes(secKey);
 		let localPayerAccount = new Account(bytes);
 		localPayerAccount.publicKey.toBase58 = function(){
 			return bs58.encode(localPayerAccount.publicKey);
 		}
-		//var x = [212,86,210,135,68,251,63,102,71,26,130,48,90,135,245,42,24,20,103,53,161,228,203,254,234,210,44,41,74,179,31,141,176,162,38,2,89,207,246,86,165,233,211,10,53,120,156,73,114,162,231,190,106,251,245,117,88,21,241,141,193,23,18,107]
+
 		console.log("local account imported:",localPayerAccount.publicKey.toBase58());
 		console.log(localPayerAccount);
-		//console.log("raw encode",bs58.encode(x));
 		let balance = await connection.getBalance(localPayerAccount.publicKey);
 
 		this.setState({localPayerAccount,localPayerBalance:balance});
@@ -729,7 +721,6 @@ class App extends React.Component{
 			}
 			if(Object.keys(contacts).length < 1){
 				//Auto subscribe to base channel
-				//let channel = "6VuoGmNobYyuskrAbHh625TPRpBDuL1kLGepK2SMt2e9";
 				let channel = defaultChannel;
 				uniqueChannels.push(channel);
 				message.id = uniqueChannels.length;

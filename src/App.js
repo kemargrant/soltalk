@@ -55,6 +55,13 @@ else{
 }
 
 ///////////////////////////
+
+/**
+* Convert string to Uint8Array
+* @method stringToBytes
+* @param {String} String to convert
+* @return {Uint8Array} Bytes representing the input string
+*/
 function stringToBytes(str) {
 	try{str = atob(str);}catch(e){console.log(e);}
 	var ch, st, re = [];
@@ -71,16 +78,28 @@ function stringToBytes(str) {
 	return Uint8Array.from(re);
 }
 
-
-
 //Connect To the Network
 let connection: Connection;
+
+/**
+* Connect to Solana network cluster
+* @method establishConnection
+* @return {null}
+*/
 async function establishConnection(): Promise<void> {
   connection = new Connection(urlRoot, 'recent');
   const version = await connection.getVersion();
   console.log('Connection to cluster established:', urlRoot, version);
+  return;
 }
 
+/**
+* Add contact to localStorage "contacts" object
+* @method addContact
+* @param {String} Solana public key
+* @param {String} RSA public key
+* @return {Object} Contacts {publicKey:{publicKey,channel,chatPublicKey,programId,message,time}...}
+*/
 function addContact(solanaPublicKey,rsaPublicKey){
 	let contacts = window.localStorage.getItem("contacts");	
 	contacts = contacts ? JSON.parse(contacts) : {} ;
@@ -100,6 +119,13 @@ function addContact(solanaPublicKey,rsaPublicKey){
 	return contacts;
 }
 
+/**
+* Use window.crypto.subtle to decrypt an encrypted message
+* @method decryptMessage
+* @param {String} window.crypto.subtle RSA private key
+* @param {String / Uint8Array } Encrypted messagge
+* @return {Promise} Should resolve to an ArrayBuffer
+*/
 function decryptMessage(rsaPrivateKey,encryptedMessage) {
 	if(typeof encryptedMessage !== "object"){encryptedMessage = Buffer.from(encryptedMessage);}
 	return window.crypto.subtle.decrypt(
@@ -109,6 +135,13 @@ function decryptMessage(rsaPrivateKey,encryptedMessage) {
 	);
 }
 
+/**
+* Use window.crypto.subtle to encrypt a message
+* @method encryptMessage
+* @param {String} window.crypto.subtle RSA public key
+* @param {String / Uint8Array } Message
+* @return {Promise} Should resolve to an ArrayBuffer
+*/
 function encryptMessage(rsaPublicKey,message) {
 	if(typeof message === "string"){message = Buffer.from(message);}
 	return window.crypto.subtle.encrypt(
@@ -118,6 +151,11 @@ function encryptMessage(rsaPublicKey,message) {
 	);
 }
 
+/**
+* Use window.crypto.subtle to encrypt a message
+* @method generateRSAKeyPair
+* @return {Promise} Should resolve to a window.crypto.subtle RSA key pair
+*/
 function generateRSAKeyPair(){
 	return window.crypto.subtle.generateKey({
 		name: "RSA-OAEP",
@@ -131,6 +169,11 @@ function generateRSAKeyPair(){
 }
 
 
+/**
+* Retrieve Contacts object from localStorage
+* @method getContacts
+* @return {Object} Contacts {publicKey:{publicKey,channel,chatPublicKey,programId,message,time}...}
+*/
 function getContacts(){
 	let contacts = window.localStorage.getItem("contacts");	
 	contacts = contacts ? JSON.parse(contacts) : {} ;
@@ -141,17 +184,28 @@ function getContacts(){
 	return contacts;
 }
 
-async function getSiteKeys(){
-	let kp = window.localStorage.getItem("siteKeys");	
-	if(kp){
-		kp = JSON.parse(kp);
-		kp.publicKey = await importPublicKey(kp.publicKey);
-		kp.privateKey = await importPrivateKey(kp.privateKey);
+/**
+* Retrieve window.crypto.subtle RSA keys from localStorage
+* @method getRSAKeys
+* @return {Promise} Should resolve to window.crypto.subtle key pair
+*/
+async function getRSAKeys(){
+	let rsaKeyPair = window.localStorage.getItem("rsaKeys");	
+	if(rsaKeyPair){
+		rsaKeyPair = JSON.parse(rsaKeyPair);
+		rsaKeyPair.publicKey = await importPublicKey(rsaKeyPair.publicKey);
+		rsaKeyPair.privateKey = await importPrivateKey(rsaKeyPair.privateKey);
 	}
-	else{kp = {}}
-	return kp;
+	else{rsaKeyPair = {}}
+	return rsaKeyPair;
 }
 
+/**
+* Convert JWK to window.crypto.subtle private key
+* @method importPrivateKey
+* @param {Object} JSON Web Private Key
+* @return {Promise} Should resolve to window.crypto.subtle private key
+*/
 function importPrivateKey(jwk) {
   return window.crypto.subtle.importKey(
     "jwk",
@@ -167,6 +221,12 @@ function importPrivateKey(jwk) {
   );
 }
 
+/**
+* Convert JWK to window.crypto.subtle public key
+* @method importPublicKey
+* @param {Object} JSON Web Public Key
+* @return {Promise} Should resolve to window.crypto.subtle public key
+*/
 function importPublicKey(jwk) {
   return window.crypto.subtle.importKey(
     "jwk",
@@ -182,10 +242,23 @@ function importPublicKey(jwk) {
   );
 }
 
+/**
+* Show notifiation message
+* @method notify
+* @param {String} Notification message
+* @return {null} 
+*/
 function notify(message){
-	return alert(message);
+	alert(message);
+	return;
 }
 
+/**
+* Pad string with spaces to fill 1028 bytes
+* @method padText
+* @param {String} String to pad
+* @return {Uint8Array} 
+*/
 function padText(str){
 	if(Buffer.from(str).length > 1028){
 		while(Buffer.from(str).length < 1028){
@@ -200,6 +273,12 @@ function padText(str){
 	return Buffer.from(str);
 }
 
+/**
+* Remove contact from localStorage Contacts object
+* @method removeContact
+* @param {String} Solana base58 public key 
+* @return {Object} Contacts {publicKey:{publicKey,channel,chatPublicKey,programId,message,time}...}
+*/
 function removeContact(solanaPublicKey){
 	let contacts = window.localStorage.getItem("contacts");	
 	contacts = contacts ? JSON.parse(contacts) : {} ;
@@ -208,8 +287,15 @@ function removeContact(solanaPublicKey){
 	return contacts;
 }
 
+/**
+* Upadate localStorage contacts object
+* @method updateContacts
+* @param {Object} Contacts {publicKey:{publicKey,channel,chatPublicKey,programId,message,time}...}
+* @return {null} 
+*/
 function updateContacts(contactsObject){
-	return window.localStorage.setItem("contacts",JSON.stringify(contactsObject));	
+	window.localStorage.setItem("contacts",JSON.stringify(contactsObject));	
+	return;
 }
 
 ////////////////////////
@@ -219,9 +305,7 @@ class App extends React.Component{
 		super(props);
 		this.state = {
 			characterCount:880-264,
-			currentContact:{
-				
-			},
+			currentContact:{},
 			contacts:[],
 			connected:[],
 			loading:false,
@@ -230,128 +314,172 @@ class App extends React.Component{
 			payerAccount:false,
 			payerAccountBalance:0,
 			providerUrl:'https://www.sollet.io/#origin='+window.location.origin+'&network=testnet',
+			rsaKeyPair:false,
 			showContactForm:false,
-			siteKeys:false,
 			wallet:false,
 			ws:null,
 		}
 		
 		this.addContact = this.addContact.bind(this);
+		this.appendChat = this.appendChat.bind(this);
+		
 		this.broadcastPresence = this.broadcastPresence.bind(this);
+		
 		this.cancelContactForm = this.cancelContactForm.bind(this);
-		this.checkBroadCast = this.checkBroadCast.bind(this);
-		this.createLocalChatAccount = this.createLocalChatAccount.bind(this);
-		this.decodeMessage = this.decodeMessage.bind(this);
-		this.disconnect = this.disconnect.bind(this);
-		this.encodeMessage = this.encodeMessage.bind(this);
+		this.checkBroadcast = this.checkBroadcast.bind(this);
+		this.connectWallet = this.connectWallet.bind(this);		
+		this.constructAndSendTransaction = this.constructAndSendTransaction.bind(this);
+
+		this.createRSAKeyPair = this.createRSAKeyPair.bind(this);
+		
+		this.decryptData = this.decryptData.bind(this);
+		this.disconnectWebSocket = this.disconnectWebSocket.bind(this);
+		
+		this.encryptMessage = this.encryptMessage.bind(this);
+		
 		this.getContacts = this.getContacts.bind(this);
 		this.getLocalAccount = this.getLocalAccount.bind(this);
+		
 		this.importKey = this.importKey.bind(this);
+		
 		this.loadProgram = this.loadProgram.bind(this);
-		this.createRoom = this.createRoom.bind(this);
+		this.loadProgramControlledAccount = this.loadProgramControlledAccount.bind(this);
+
+		this.parseAccountData = this.parseAccountData.bind(this);
+		this.promptContactAddition = this.promptContactAddition.bind(this);
+		
 		this.messageKeyUp = this.messageKeyUp.bind(this);
-		this.removeChatAccount = this.removeChatAccount.bind(this);
+		
 		this.removeContact = this.removeContact.bind(this);
+		this.removeRSAKeys = this.removeRSAKeys.bind(this);
+
 		this.sendMessage = this.sendMessage.bind(this);
 		this.setCurrentContact = this.setCurrentContact.bind(this);
 		this.showContactForm = this.showContactForm.bind(this);
 		this.subscribe = this.subscribe.bind(this);
-		this.transact = this.transact.bind(this);
-		this.walletAdapter = this.walletAdapter.bind(this);
-		this.writeChat = this.writeChat.bind(this);
-		this.writeChatFromContact = this.writeChatFromContact.bind(this);
-		this.writeLogs = this.writeLogs.bind(this);
+		
+		
+		this.writeLog= this.writeLog.bind(this);
+		
 		this.unsubscribe = this.subscribe.bind(this);
 		this.updateCharacterCount = this.updateCharacterCount.bind(this);
 	}
 	
-	addContact(pubKey=false,chatPubKey=false){
-		if(!pubKey){
-			let new_solana_key = document.getElementById("new_contact_key");
-			let new_chat_key = document.getElementById("new_chat_key");
-			if(new_solana_key && new_solana_key.value.length === 44){
-				addContact(new_solana_key.value,new_chat_key.value);
+	/**
+	* Add contact from input form or input parameters
+	* @method addContact
+	* @param {String} Solana public key default null
+	* @param {String} RSA public key default null
+	* @return {Null}
+	*/
+	addContact(solanaPublicKey=null,rsaPublicKey=null){
+		if(!solanaPublicKey && !rsaPublicKey){
+			//Add contact from form
+			let solanaPublicKey = document.getElementById("new_contact_key");
+			let rsaPublicKey = document.getElementById("new_chat_key");
+			if(solanaPublicKey && solanaPublicKey.length === 44){
+				addContact(solanaPublicKey.value,rsaPublicKey.value);
 				this.cancelContactForm();
-				this.getContacts();
 			}
 		}
 		else{
-			addContact(pubKey,chatPubKey)
+			addContact(solanaPublicKey,rsaPublicKey)
 		}
+		this.getContacts();
+		return;
 	}
 	
-	addContactPrompt(rsaPublicKey,solanaPublicKey){
-		let contactsList = Object.keys(this.state.contacts);
-		let msg = `Add ${solanaPublicKey} ?`;
-		if( contactsList.indexOf(solanaPublicKey) > - 1){
-			msg.replace("Add","Update");
+	/**
+	* Add message to chat interface
+	* @method appendChat
+	* @param {String} Message
+	* @param {String} Transaction ID
+	* @return {Null}
+	*/
+	appendChat(string,txid){
+		let time = document.createElement("p");
+		time.setAttribute("class","fromStamp");
+		time.innerHTML = new Date().toString().split("GMT")[0];
+		//Message
+		let div = document.createElement("div");
+		if(txid){
+			div.setAttribute("class","msgSelf");
 		}
-		if(window.confirm(msg)){
-			addContact(solanaPublicKey,rsaPublicKey);
+		else{
+			div.setAttribute("class","msgContact");
 		}
+		let msg = document.createElement("p");
+		msg.setAttribute("class","fromMessage");
+		msg.innerHTML = string.trim();
+		if(txid){
+			let network = this.state.providerUrl.split("=");
+			network = network[network.length - 1];
+			msg.innerHTML += `<br/> <a href='https://explorer.solana.com/tx/${txid}?cluster=${network}' target='_blank'> ${txid.slice(0,10)} </a> `
+		}
+		let chat = document.getElementById("chat");
+		div.appendChild(time);
+		div.appendChild(msg);
+		chat.appendChild(div);
+		chat.scrollTo(0,chat.scrollHeight);	
+		return;
 	}
 	
+	
+	/**
+	* Send a presence message
+	* @method broadcastPresence
+	* @return {Promise} Should resolve to a confirmed transaction object {context:{slot},value:{err}}
+	*/	
 	async broadcastPresence(){
 		if(!this.state.wallet){
-			return notify("Connect Wallet to Sign Message");
+			await this.connectWallet();
 		}
-		let kp = this.state.siteKeys;
-		let chat_publicKey = await crypto.subtle.exportKey("jwk",kp.publicKey);
-		console.log(chat_publicKey);
+		let rsaPublicKey_JWK = await crypto.subtle.exportKey("jwk",this.state.rsaKeyPair.publicKey);
 		let transaction = {
 			addSignature:function(key,signature){
 				this.signature = signature;
 				this.key = key;
 			},
 			key:false,
-			message: this.state.payerAccount.toBase58()+" "+chat_publicKey.n,
-			serializeMessage:function(){return Buffer.from(this.message)},
+			message: this.state.payerAccount.toBase58()+" "+ rsaPublicKey_JWK.n,
+			serializeMessage:function(){
+				return Buffer.from(this.message);
+			},
 			signature:false,
 		}
-		let signed = await this.state.wallet.signTransaction(transaction);
-		let valid = nacl.sign.detached.verify(transaction.serializeMessage(),transaction.signature,transaction.key.toBuffer());
-		this.transact(transaction.message+" "+transaction.signature.join(","),true);
-		console.log(signed,"is valid?",valid);
-		console.log(transaction.message.length,transaction.signature.length,transaction.signature);
-
+		await this.state.wallet.signTransaction(transaction);
+		let presence = transaction.message+" "+transaction.signature.join(",");
+		return this.constructAndSendTransaction(presence,true);
 	}
 	
+	/**
+	* Hide form to add a new contact
+	* @method cancelContactForm
+	* @return {Null}
+	*/	
 	cancelContactForm(){
-		return this.setState({showContactForm:false});
+		this.setState({showContactForm:false});
+		return;
 	}
 	
-	checkBroadCast(message){
+	
+	/**
+	* Check if message is a valid broadcast message
+	* @method checkBroadcast
+	* @param {String} Message
+	* @return {Boolean}
+	*/	
+	checkBroadcast(message){
 		let isBroadcast = false;
 		try{
 			message = message.split(" ");
-			let contacts = this.state.contacts;
-			let friends = Object.keys(contacts);
-			let stranger = message[0]
 			let valid;
 			let str = message[0] + " " + message[1];
 			let sig = Buffer.from(message[2].split(","));
-			valid = nacl.sign.detached.verify(Buffer.from(str),sig,new PublicKey(stranger).toBuffer());
+			valid = nacl.sign.detached.verify(Buffer.from(str),sig,new PublicKey(message[0]).toBuffer());
 			isBroadcast = valid;
-			if(valid && friends.indexOf(stranger) > -1){
-				if(valid){
-					console.log("Valid Broadcast from:",stranger);
-					if(window.confirm("Update contact: " +stranger+ " chat public key?")){
-						contacts[stranger].chatPublicKey = message[1];
-						updateContacts(contacts);
-					}
-				}
-			}
-			else if(valid && this.state.payerAccount && (stranger !== this.state.payerAccount.toBase58()) ){
-				if(window.confirm("Add new contact:"+ stranger)){
-					this.addContact(stranger,message[1]);
-					this.getContacts()
-				}
-			}
-			else if(valid && !this.state.payerAccount){
-				if(window.confirm("Add new contact:"+ stranger)){
-					this.addContact(stranger,message[1]);
-					this.getContacts()
-				}
+			if(valid){
+				this.promptContactAddition(message[0],message[1])
 			}
 		}
 		catch(e){
@@ -360,48 +488,128 @@ class App extends React.Component{
 		return isBroadcast;
 	}
 	
+	/**
+	* Standard react component
+	*/		
 	async componentDidMount(){
 		establishConnection().catch(console.warn);;	
-		let myContacts = this.getContacts();
-		this.subscribe(myContacts);
+		let contacts = this.getContacts();
+		this.subscribe(contacts);
 		//Set current contact
-		if(Object.keys(myContacts).length > 0){
-			this.setCurrentContact(myContacts[Object.keys(myContacts)[0]]);
+		if(Object.keys(contacts).length > 0){
+			this.setCurrentContact(contacts[Object.keys(contacts)[0]]);
 		}
 		if(this.getLocalAccount()){
 			this.importKey(this.getLocalAccount());
 		}
-		let siteKeys = await getSiteKeys();
-		if(Object.keys(siteKeys).length > 1){
-			this.setState({siteKeys});
+		let rsaKeyPair = await getRSAKeys();
+		if(Object.keys(rsaKeyPair).length > 1){
+			this.setState({rsaKeyPair});
 		}
 	}
 	
-	async createLocalChatAccount(){
-		if(!this.state.siteKeys){
-			let keypair = await generateRSAKeyPair();
-			let exp = {
-				publicKey:await crypto.subtle.exportKey("jwk",keypair.publicKey),
-				privateKey:await crypto.subtle.exportKey("jwk",keypair.privateKey)
+	/**
+	* Connect to Solana wallet using sollet wallet adapter
+	* @method connectWallet
+	* @return {Promise} Resolve to boolean
+	*/	
+	connectWallet(){
+		return new Promise((resolve,reject)=>{
+			let network = this.state.providerUrl.split("=");
+			network = network[network.length - 1];
+			let connection = new Connection(clusterApiUrl(network));
+			let wallet = new Wallet(this.state.providerUrl);
+			wallet.on('connect', (publicKey) => {
+				console.warn('Connected to sollet.io:' + publicKey.toBase58(),"on",network);
+				return this.setState({wallet,connection,payerAccount:publicKey},()=>{
+					this.getBalance();
+					if(!this.state.ws){this.subscribe();}
+					return resolve(true);
+				});
+			});
+			wallet.on('disconnect', () => {
+				console.warn('Wallet Disconnected');
+				this.setState({wallet:false,payerAccount:false});
+			});
+			wallet.connect();
+		})
+	}
+	
+	/**
+	* Construct and send transaction to the network
+	* @method constructAndSendTransaction
+	* @param {String} Message to send
+	* @param {Boolean} Is this a broadcast message?
+	* @return {Promise} Should resolve to a confirmed transaction object {context:{slot},value:{err}}
+	*/	
+	async constructAndSendTransaction(message,isBroadcast=false){
+		if(!message || message.length < 1){return notify("Unable to send blank message");}
+		let programId = this.state.currentContact.programId ? this.state.currentContact.programId : defaultProgram ;
+		programId = new PublicKey(programId)
+		let buffer = isBroadcast ? padText(message) : await this.encryptMessage(message);
+		let instruction = new TransactionInstruction({
+			keys: [
+				{pubkey:this.state.currentContact.channel ? this.state.currentContact.channel : defaultChannel, isSigner: false, isWritable: true},
+				{pubkey:this.state.payerAccount, isSigner: true, isWritable: false}
+			],
+			programId,
+			data: buffer
+		});
+		let _transaction =  new Transaction().add(instruction);
+		let { blockhash } = await this.state.connection.getRecentBlockhash();
+		_transaction.recentBlockhash = blockhash;
+		_transaction.setSigners(this.state.payerAccount);
+		let signed = await this.state.wallet.signTransaction(_transaction);
+		console.log(_transaction);
+		console.log("serialized",signed.serialize(),signed.serialize().length);
+		let txid = await this.state.connection.sendRawTransaction(signed.serialize());
+		//Update input box
+		if(!isBroadcast){
+			this.appendChat(message,txid);
+			let input = document.getElementById("newMessage");
+			input.disabled = false;
+			input.value = "";
+			this.updateCharacterCount();
+		}
+		//
+		return this.state.connection.confirmTransaction(txid);		
+	}	
+	
+	/**
+	* Create local RSA key pair
+	* @method createRSAKeyPair
+	* @return {null}
+	*/	
+	async createRSAKeyPair(){
+		if(!this.state.rsaKeyPair){
+			let rsaKeyPair = await generateRSAKeyPair();
+			let exportedKeys= {
+				publicKey:await crypto.subtle.exportKey("jwk",rsaKeyPair.publicKey),
+				privateKey:await crypto.subtle.exportKey("jwk",rsaKeyPair.privateKey)
 			}
-			this.setState({siteKeys:keypair});
-			window.localStorage.setItem("siteKeys",JSON.stringify(exp));
+			this.setState({rsaKeyPair});
+			window.localStorage.setItem("rsaKeys",JSON.stringify(exportedKeys));
 		}
+		return;
 	}
 	
-	async decodeMessage(message){
+	/**
+	* Decrypt an encrypted data field
+	* @method decryptData
+	* @return {Promise} Should resolve to message object {t,u,us}
+	*/	
+	async decryptData(data){
 		try{
-			console.log("decoding",message);
-			let p1 = stringToBytes(message.slice(0,512));
-			let p2 = stringToBytes(message.slice(512,1024));
+			let p1 = stringToBytes(data.slice(0,512));
+			let p2 = stringToBytes(data.slice(512,1024));
 			let decoder = new TextDecoder(); 
-			let d1 = await decryptMessage(this.state.siteKeys.privateKey,p1);
-			let d2 = await decryptMessage(this.state.siteKeys.privateKey,p2);
+			let d1 = await decryptMessage(this.state.rsaKeyPair.privateKey,Buffer.from(p1));
+			let d2 = await decryptMessage(this.state.rsaKeyPair.privateKey,Buffer.from(p2));
 			let txt1 = decoder.decode( d1 );
 			let txt2 = decoder.decode( d2 );
-			console.log("rawMessage",txt1,txt2);
 			let packet = JSON.parse(txt1+txt2);
-			return packet
+			console.log("json_message:",packet);
+			return packet;
 		}
 		catch(e){
 			console.log(e);
@@ -409,15 +617,28 @@ class App extends React.Component{
 		}
 	}
 	
-	disconnect(){
+	/**
+	* Disconnect from RPC websocket endpoint
+	* @method disconnectWebSocket
+	* @return {null}
+	*/		
+	disconnectWebSocket(){
 		this.state.ws.close();
-		return this.setState({ws:false,connected:[]});
+		this.setState({ws:false,connected:[]});
+		return;
 	}
 	
-	async encodeMessage(msg){
+	
+	/**
+	* Transform a text message into an encrypted byte array
+	* @method encryptMessage
+	* @param {String} Text message
+	* @return {Promise} Should resolve to an encrypted Uint8Array(1028). // [512,512,4]
+	*/		
+	async encryptMessage(msg){
 		try{
 			if(msg.length > 1028){
-				return notify("Message too large");
+				return notify("Message size violation");
 			}
 			let packet = {
 				t:msg,
@@ -437,12 +658,10 @@ class App extends React.Component{
 			await this.state.wallet.signTransaction(faux_transaction);
 			packet.us = new Uint8Array(faux_transaction.signature).toString();
 			//pad message
-			console.log("Before padding length:",Buffer.from(JSON.stringify(packet)).length)
 			while(Buffer.from(JSON.stringify(packet)).length < 880){
 				packet.t += " ";
 			}
 			msg = JSON.stringify(packet);
-			console.log(msg,msg.length,this.state.siteKeys.publicKey)
 			// 
 			let jwk = {
 				alg: "RSA-OAEP-256",
@@ -450,18 +669,16 @@ class App extends React.Component{
 				ext: true,
 				key_ops: ["encrypt"],
 				kty: "RSA",
-				n:""
+				n:this.state.currentContact.chatPublicKey
 			}
-			jwk.n = this.state.currentContact.chatPublicKey;
+			//The public key of the recipient
 			let publicContactKey = await importPublicKey(jwk);
-			//this publickey should be the public key of the contact you want to message
 			let enc1 = await encryptMessage(publicContactKey,msg.slice(0,440));
 			let enc2 = await encryptMessage(publicContactKey,msg.slice(440,880));
-			let encoded = new Uint8Array(1028);
-			encoded.set(new Uint8Array(enc1));
-			encoded.set(new Uint8Array(enc2),enc2.byteLength);
-			//EncryptMessage
-			return encoded;
+			let encryptedBytes = new Uint8Array(1028);
+			encryptedBytes.set(new Uint8Array(enc1));
+			encryptedBytes.set(new Uint8Array(enc2),enc2.byteLength);
+			return encryptedBytes;
 		}
 		catch(e){
 			console.log(e);
@@ -470,101 +687,110 @@ class App extends React.Component{
 		
 	}
 	
+	/**
+	* Update the balance of the connected sollet wallet
+	* @method getBalance
+	* @return {null} 
+	*/			
 	async getBalance(){
 		let balance = await connection.getBalance(this.state.payerAccount);
 		this.setState({payerAccountBalance:balance / LAMPORTS_PER_SOL});
+		return;
 	}
 	
+	/**
+	* Update and retrieve contacts store in localStorage
+	* @method getContacts
+	* @return {Object} Return contacts object
+	*/
 	getContacts(){
 		let contacts = getContacts();
 		this.setState({contacts});
 		return contacts;
 	}
-	
+
+	/**
+	* Get Solana private key from localStorage
+	* @method getLocalAccount
+	* @return {String} Return base64 Solana private key
+	*/
 	getLocalAccount(){
 		let localAccount = window.localStorage.getItem("myAccount");
 		return localAccount;
 	}
 	
-	async importKey(localAccount = false){
-		let pk;
+	
+	/**
+	* Import user Solana private key and save to localStorage
+	* @method importKey
+	* @param {String} base64 Solana private key
+	* @return {null}
+	*/	
+	async importKey(localAccount){
+		let privateKey;
 		if(localAccount){
-			pk = localAccount;
+			privateKey = localAccount;
 		}
 		else{
-			pk = window.prompt("Import base64 Private Key?");
+			privateKey = window.prompt("Import base64 Private Key?");
 		}
-		if(!pk){return}
-		pk = pk.trim();
-		let secKey = pk;
-		let bytes = stringToBytes(secKey);
+		if(!privateKey){return}
+		privateKey = privateKey.trim();
+		let bytes = stringToBytes(privateKey);
 		let localPayerAccount = new Account(bytes);
 		localPayerAccount.publicKey.toBase58 = function(){
 			return bs58.encode(localPayerAccount.publicKey);
 		}
-
 		console.log("local account imported:",localPayerAccount.publicKey.toBase58());
-		console.log(localPayerAccount);
-		let balance = await connection.getBalance(localPayerAccount.publicKey);
-
-		this.setState({localPayerAccount,localPayerBalance:balance});
-		window.localStorage.setItem("myAccount",secKey);
-		
+		let localPayerBalance = await connection.getBalance(localPayerAccount.publicKey);
+		this.setState({localPayerAccount,localPayerBalance});
+		window.localStorage.setItem("myAccount",privateKey);
+		return;		
 	}
 	
-	//Load the soltalk to Solana Chain
+	/**
+	* Load a new program onto the network
+	* @method loadProgram
+	* @return {Promise} Should resolve to object {ProgramID,succ}
+	*/
 	async loadProgram(){
-		let program_text = await fetch("/program.so").then(r=>r.blob());
-		console.log(program_text,program_text.length);
-		//let data = new Blob([program_text], {type : 'binary'});
-		//console.log("binary data:",data);
-		let buffer2 = await program_text.arrayBuffer();
-		
-		//buffer2 = buffer2.Uint8Array;
-		console.log("buffer from data",buffer2);
-		
-		var programAccount = new Account();
+		let program = await fetch("/program.so").then(r=>r.blob());
+		let buffer = await program.arrayBuffer();	
+		let programAccount = new Account();
 		let programId = programAccount.publicKey;
-		//let la1 = await connection.getBalance(this.state.localPayerAccount.publicKey);
-		//console.log("Balance:",la1, la1/ LAMPORTS_PER_SOL);
-		console.log('Loading Program To:', programId.toBase58());
-		let loaded;
-		try{
-			loaded = await BpfLoader.load(
+		let loaded = await BpfLoader.load(
 			connection,
 			this.state.localPayerAccount,
 			programAccount,
-			Buffer.from(buffer2),
+			Buffer.from(buffer),
 			BPF_LOADER_DEPRECATED_PROGRAM_ID,
-			);
-		}
-		catch(e){
-			console.log(e);
-		}
-		console.log("loaded ?",loaded);
-		//let la2 = await connection.getBalance(this.state.localPayerAccount.publicKey);
-		//console.log("Deploy Cost--->lamport:",la1-la2,"aka",(la1-la2) / LAMPORTS_PER_SOL);  
+		);
+		let info = {succ:loaded,ProgramID:programId.toBase58()};
+		console.log(info);
+		if(info.succ){this.setState({latestProgram:info.ProgramID})};
+		return info;
 	}
-	
-	//Load an account to be used as a shared File
-	async createRoom(){
-		const chatRoomAccount = new Account();
-		const chatRoomPubkey = chatRoomAccount.publicKey;
-		console.log('Creating account', chatRoomPubkey.toBase58());
-		const lamports = await connection.getMinimumBalanceForRentExemption(1028);
-		console.log("Mininum lamports for free account:",lamports,lamports / LAMPORTS_PER_SOL);
+
+	/**
+	* Create an account controlled by a user prompted program
+	* @method loadProgramControlledAccount
+	* @return {Promise} Should resolve to base58 public key of the new Account
+	*/	
+	async loadProgramControlledAccount(){
+		let chatRoomAccount = new Account();
+		let chatRoomPubkey = chatRoomAccount.publicKey;
+		let lamports = await connection.getMinimumBalanceForRentExemption(1028);
+		console.log("Mininum lamports for rent free account:",lamports / LAMPORTS_PER_SOL);
 		let ppid = window.prompt("Program Address")
 		if(!ppid){return}
-		console.log("using ",ppid,"as program public key");
-		let programId = new PublicKey(ppid);
-		const instruction = SystemProgram.createAccount({
+		let programId = new PublicKey(ppid.trim());
+		let instruction = SystemProgram.createAccount({
 			fromPubkey: this.state.localPayerAccount.publicKey,
 			newAccountPubkey:chatRoomAccount.publicKey,
 			lamports,
 			space:1028,
 			programId,
 		});
-		////
 		let transaction = new Transaction().add(instruction);
 		try{
 			await sendAndConfirmTransaction(
@@ -577,75 +803,191 @@ class App extends React.Component{
 		}
 		catch(e){
 			notify("Error Creating Account");
-			console.log(e);
+			console.error(e);
+			return null;
 		}
-		let pk = chatRoomPubkey.toBase58();
-		notify(pk +" channel created");
-	    console.log("new room:",pk);
+		let publicKey = chatRoomPubkey.toBase58();
+		this.setState({latestAccount:publicKey});
+		console.log("Account:",publicKey,"created");
+	    return publicKey ;
 	}
-					
+
+	/**
+	* Send message or update the characters user can input
+	* @method messageKeyUp
+	* @param {evt} KeyUp event
+	* @return {Null}
+	*/
 	messageKeyUp(evt){
 		this.updateCharacterCount();
 		if(evt.keyCode === 13){
 			evt.currentTarget.disabled = true;
-			return this.sendMessage();
+			this.sendMessage();
 		}
+		return;
 	}
-
-	removeChatAccount(){
+	
+	/**
+	* Parse Solana Account data field
+	* @method parseAccountData
+	* @param {String} base64 Account data
+	* @return {Null}
+	*/
+	async parseAccountData(data){
+		data = atob(data);
+		try{
+			if(this.checkBroadcast(data)){return};
+		}
+		catch(e){
+			console.log(e);
+		}
+		let packet = await this.decryptData(data);
+		if(packet && packet.t){
+			let string = packet.t.trim() + " 🔓";
+			//Verify Message
+			let contacts = Object.keys(this.state.contacts);
+			let solanaPublicKey;
+			let uuid = Buffer.from(packet.u);
+			let uuid_signature = Buffer.from(packet.us.split(","));
+			let valid;
+			for(let i = 0;i < contacts.length;i++){
+				solanaPublicKey = new PublicKey( contacts[i] );
+				valid = nacl.sign.detached.verify(uuid,uuid_signature,solanaPublicKey.toBuffer());
+				if(valid){
+					this.setCurrentContact(contacts[i]);
+					string = string.slice(0,string.length-2)
+					string += " 🔒"
+					break;
+				}
+			}
+			this.appendChat(string,null);
+		}
+		return;
+	}
+	
+	/**
+	* Prompt user to add a new contact
+	* @method promptContactAddition
+	* @param {String} Solana public key
+	* @param {String} RSA public key
+	* @return {Null}
+	*/	
+	promptContactAddition(solanaPublicKey,rsaPublicKey){
+		let contacts = Object.keys(this.state.contacts);
+		if( contacts.indexOf(solanaPublicKey) > -1 ){
+			console.log("Valid Broadcast from:",solanaPublicKey);
+			if(window.confirm("Update contact: " +solanaPublicKey+ " chat public key?")){
+				contacts[solanaPublicKey].chatPublicKey = rsaPublicKey;
+				updateContacts(contacts);
+				this.getContact();
+			}
+		}
+		else if( this.state.payerAccount && (solanaPublicKey !== this.state.payerAccount.toBase58()) ){
+			if(window.confirm("Add new contact:"+ solanaPublicKey)){
+				this.addContact(solanaPublicKey,rsaPublicKey);
+				this.getContacts()
+			}
+		}
+		else if( !this.state.payerAccount ){
+			if(window.confirm("Add new contact:"+ solanaPublicKey)){
+				this.addContact(solanaPublicKey,rsaPublicKey);
+				this.getContacts()
+			}
+		}
+		return;
+	}	
+	
+	/**
+	* Delete RSA keys from localStorage upon user confirmation
+	* @method removeRSAKeys
+	* @return {Null}
+	*/	
+	removeRSAKeys(){
 		if(!window.confirm("Clear local chat account keys?")){return;}
-		window.localStorage.removeItem("siteKeys");
-		return this.setState({siteKeys:false});
+		window.localStorage.removeItem("rsaKeys");
+		this.setState({rsaKeyPair:false});
+		return;
 	}
 
+	/**
+	* Remove contact from contacts list on user confirmation
+	* @method removeContact
+	* @return {Null}
+	*/	
 	removeContact(pubKey){
 		if(window.confirm("Remove Contact?")){
 			let contacts = removeContact(pubKey);
-			return this.setState({contacts});
+			this.setState({contacts});
 		}
+		return;
 	}
 
+	/**
+	* Send encrypted message to the network
+	* @method sendMessage
+	* @return {Promise} Should resolve to a boolean
+	*/	
 	async sendMessage(){	
 		let message = document.getElementById("newMessage");	
 		if(!this.state.connection){
 			message.disabled = false;
-			return this.walletAdapter();
+			await this.connectWallet();
 		} 
 		if(!this.state.ws){
 			message.disabled = false;
 			return notify("Please subscribe to a chat first");
 		}
-		//this.setState({loading:true,loadingMessage:"sending transaction"});
-		return this.transact(message.value)
-		.then((confirmed)=>{
-			console.log("transaction confirmed",confirmed);
-			if(confirmed && confirmed.context){
-				let msg = document.getElementById(confirmed.context.slot);
-				if(msg){msg.setAttribute("style","background:white");}
+		return this.constructAndSendTransaction(message.value)
+		.then((transaction)=>{
+			console.log("transaction",transaction);
+			if(transaction && transaction.context){
+				let msg = document.getElementById(transaction.context.slot);
+				if(msg){
+					msg.setAttribute("class","msgSelf");
+				}
 				else{
 					console.log("Unable to confirm message");
 				}
 			}
 		})
-		.catch((e)=>{console.warn("Error sending message:",e)})
+		.catch((e)=>{
+			notify("Error sending message")
+			console.warn("Error sending message:",e);
+		})
 		.finally(()=>{
 			if(message.disabled){message.disabled = false;}
 			this.updateCharacterCount();
-			//this.setState({loading:false,loadingMessage:""});
 		});
 	}
 	
+	/**
+	* Set the 'currentContact' state
+	* @method setCurrentContact (contact object)
+	* @return {Null}
+	*/	
 	setCurrentContact(contact){
-		return this.setState({currentContact:contact});
+		this.setState({currentContact:contact});
+		return;
 	}
 	
+	/**
+	* Show form to add a new contact
+	* @method showContactForm
+	* @return {Null}
+	*/	
 	showContactForm(){
 		this.setState({showContactForm:true});
+		return;
 	}
 	
+	/**
+	* Connect to rpc websocket endpoint and monitor Account data
+	* @method subscribe
+   *  @param {Object} Contact object
+	* @return {Null}
+	*/	
 	subscribe(contacts){
 		const attachChannels = (_ws)=>{
-			let pubKey;
 			let uniqueChannels = this.state.connected.slice(0);
 			let message = {
 				"jsonrpc":"2.0", 
@@ -655,15 +997,13 @@ class App extends React.Component{
 			}
 			if(Object.keys(contacts).length < 1){
 				//Auto subscribe to base channel
-				let channel = defaultChannel;
-				uniqueChannels.push(channel);
+				uniqueChannels.push(defaultChannel);
 				message.id = uniqueChannels.length;
-				message.params = [ channel,{"encoding":"jsonParsed"} ]; 
+				message.params = [defaultChannel,{"encoding":"jsonParsed"} ]; 
 				_ws.send(JSON.stringify(message));
 			}
 			else{
 				Object.keys(contacts).map(async(key)=>{
-					console.log(contacts[key])
 					if(!contacts[key].channel){return}
 					if(_ws.send && uniqueChannels.indexOf(contacts[key].channel) < 0){
 						uniqueChannels.push(contacts[key].channel);
@@ -674,10 +1014,11 @@ class App extends React.Component{
 				})
 			}
 			this.setState({connected:uniqueChannels});	
-			console.log("Connected Channels:",uniqueChannels);		
+			console.log("Subscribed to Accounts::",uniqueChannels);		
+			return;
 		}	
 		const onOpen = (obj)=>{
-			console.log("socket open",obj);
+			console.log("Websocket open",obj);
 			let ws = obj.target;
 			this.setState({ws},this.getBlockHash);
 			let heartbeat = setInterval( ()=>ws.send(JSON.stringify({"jsonrpc":"2.0","method":"ping","params":null})),4998);
@@ -687,11 +1028,11 @@ class App extends React.Component{
 		const onMessage = (evt)=> {
 			try{
 				console.log("socket Message:",evt.data);
-				this.writeLogs(evt.data);
+				this.writeLog(evt.data);
 				let account = JSON.parse(evt.data);
 				if(account.params){
 					let accountData = account.params.result.value.data;
-					this.writeChat(atob(accountData[0]),account.params.result.context.slot);
+					this.parseAccountData(accountData[0]);
 				}
 			}
 			catch(e){
@@ -715,128 +1056,26 @@ class App extends React.Component{
 		websocket.onopen = onOpen;
 		websocket.onclose = onClose;
 		websocket.onmessage = onMessage;
-		websocket.onerror = console.error	
+		websocket.onerror = onError;
+		return;	
 	}
-	
-	async transact(message,isBroadcast=false){
-		if(!message || message.length < 1){return}
-		let programId = this.state.currentContact.programId ? this.state.currentContact.programId : defaultProgram ;
-		if(!programId){return notify("Unable to located Program ID");}
-		programId = new PublicKey(programId)
-		let buffer = isBroadcast ? padText(message) : await this.encodeMessage(message);
-		console.log("Buffer:",buffer);
-		var instruction = new TransactionInstruction({
-			keys: [{pubkey:this.state.currentContact.channel ? this.state.currentContact.channel : defaultChannel, isSigner: false, isWritable: true},{pubkey:this.state.payerAccount, isSigner: true, isWritable: false}],
-			programId,
-			data: buffer
-		});
-		let _transaction =  new Transaction().add(instruction);
-		let { blockhash } = await this.state.connection.getRecentBlockhash();
-		_transaction.recentBlockhash = blockhash;
-		_transaction.setSigners(this.state.payerAccount);
-		console.log(_transaction);
-		try{
-			let signed = await this.state.wallet.signTransaction(_transaction);
-			console.log("serialized",signed.serialize(),signed.serialize().length);
-			let txid = await this.state.connection.sendRawTransaction(signed.serialize());
-			console.log("confirming transaction:",txid,new Date().getTime());
-			console.log("broadcast:",isBroadcast);
-			//Update input box
-			if(!isBroadcast){
-				this.writeChatFromContact(message,Math.random().toFixed(5),false,txid)
-				//this.setState({loadingMessage:"confirming transaction"});
-				let input = document.getElementById("newMessage");
-				input.disabled = false;
-				input.value = "";
-				this.updateCharacterCount();
-			}
-			//
-			return this.state.connection.confirmTransaction(txid);
-		}
-		catch(e){
-			console.log(e);
-		}
 		
-	}
-	
-	async walletAdapter(isMessage=false){
-		let connection = new Connection(clusterApiUrl('testnet'));
-		let providerUrl = this.state.providerUrl;
-		let wallet = new Wallet(providerUrl);
-		wallet.on('connect', (publicKey) => {
-			console.log('Connected to sollet.io:' + publicKey.toBase58());
-			console.log(publicKey,wallet);
-			if(!this.state.ws){this.subscribe();}
-			this.setState({wallet,connection,payerAccount:publicKey},this.getBalance);
-		});
-		wallet.on('disconnect', () => {
-			console.log('Disconnected');
-			this.setState({wallet:false,payerAccount:false});
-		});
-		await wallet.connect();
-	}
-	
-	async writeChat(string,id){
-		//console.log("string length:",string.length);
-		//Timestamp
-		try{if(this.checkBroadCast(string)){return};}catch(e){console.log(e);}
-		let packet = await this.decodeMessage(string);
-		if(packet && packet.t){
-			string = packet.t.trim() + " 🔓";
-			//Verify Message
-			let contacts = Object.keys(this.state.contacts);
-			let valid;
-			for(let i = 0;i < contacts.length;i++){
-				let pk = new PublicKey( contacts[i] );
-				let sig = packet.us.split(",");
-				valid = nacl.sign.detached.verify(Buffer.from(packet.u),Buffer.from(sig), pk.toBuffer() );
-				if(valid){
-					this.setCurrentContact(contacts[i]);
-					string = string.slice(0,string.length-2)
-					string += " 🔒"
-					break;
-				}
-			}
-			
-		}
-		else{
-			return;
-		}
-		return this.writeChatFromContact(string,id,true,false)
-	}
-	
-	writeChatFromContact(string,id,inbound=false,txid){
-		let time = document.createElement("p");
-		time.setAttribute("class","fromStamp");
-		time.innerHTML = new Date().toString().split("GMT")[0];
-		//Message
-		let div = document.createElement("div");
-		if(inbound){
-			div.setAttribute("class","msgHolderO");
-		}
-		else{
-			div.setAttribute("class","msgHolder");
-		}
-		let msg = document.createElement("p");
-		msg.setAttribute("class","fromMessage");
-		//msg.setAttribute("style","background:orange");
-		//msg.setAttribute("id",id);
-		msg.innerHTML = string.trim();
-		if(txid){
-			msg.innerHTML += `<br/> <a href='https://explorer.solana.com/tx/${txid}?cluster=testnet' target='_blank'> ${txid.slice(0,10)} </a> `
-		}
-		let chat = document.getElementById("chat");
-		div.appendChild(time);
-		div.appendChild(msg);
-		chat.appendChild(div);
-		chat.scrollTo(0,chat.scrollHeight);	
-	}
-	
-	writeLogs(string){
-		document.getElementById("logs").value = string;
+	/**
+	* Add log message to text element
+	* @method writeLog
+	* @param {String} Message to log
+	* @return {Null}
+	*/	
+	writeLog(log){
+		document.getElementById("logs").value = log;
 		return;
 	}
 	
+	/**
+	* Update the # of characters the user can send
+	* @method updateCharacterCount
+	* @return {Null}
+	*/
 	updateCharacterCount(){
 		let message = document.getElementById("newMessage");
 		let count = message.value ? message.value.length : 0;
@@ -845,12 +1084,19 @@ class App extends React.Component{
 			message.value = message.value.slice(0,880-264);
 			remaining = 0;
 		}
-		this.setState({characterCount: remaining });
+		this.setState({characterCount:remaining});
+		return;
 	}
 	
-	unsubscribe(){
-		let message = {"jsonrpc":"2.0", "id":1, "method":"accountUnsubscribe", "params":[0]}
-		this.state.ws.send(JSON.stringify(message));
+	/**
+   * Unsubscribe from updates to a Solana Account
+   * @method unsubscribe
+   * @param {Number} ID of Account to unsubscribe. Default 1
+   * @return {Null}
+   */
+	unsubscribe(id=1){
+		let rpcMessage = {"jsonrpc":"2.0", "id":id, "method":"accountUnsubscribe", "params":[0]}
+		this.state.ws.send(JSON.stringify(rpcMessage));
 		return;
 	}	
 		
@@ -865,14 +1111,14 @@ class App extends React.Component{
 						this.state.payerAccount ? 
 						<div id="solletAccount">
 							<p> 
-								<img className="avatar" src={"https://robohash.org/"+this.state.payerAccount.toBase58()+"?size=64x64"} />
+								<img alt="accountImg" className="avatar" src={"https://robohash.org/"+this.state.payerAccount.toBase58()+"?size=128x128"} />
 									{this.state.payerAccount.toBase58()}
 								<br/>	{this.state.payerAccountBalance} SOL 
 								<br/>{this.state.providerUrl} 
 							</p>
 						</div>
 						: 
-						<Button id="connectWalletButton" size="sm" onClick={this.walletAdapter}>CONNECT WALLET</Button> 
+						<Button id="connectWalletButton" size="sm" onClick={this.connectWallet}>CONNECT WALLET</Button> 
 					}
 				</div>
 				<ListView 
@@ -890,26 +1136,29 @@ class App extends React.Component{
 				<div className="topBar">
 					<Row>
 						<Col sm={3} md={2}>
-							{this.state.currentContact.pubKey ? <img src={"https://robohash.org/"+this.state.currentContact.pubKey+"?size=64x64"} /> : null }
+							{this.state.currentContact.pubKey ? <img alt="contactImg" src={"https://robohash.org/"+this.state.currentContact.pubKey+"?size=128x128"} /> : null }
 						</Col>
-						<Col sm={9} md={10}>
+						<Col sm={0} md={2}>
+							<b>SolTalk Alpha</b>
+						</Col>
+						<Col sm={9} md={8}>
 						    {
 								this.state.currentContact.channel ?
 								<div>
-									channel: <a href={'https://explorer.solana.com/address/'+this.state.currentContact.channel+'?cluster=testnet'} target="_blank">{this.state.currentContact.channel}</a>
+									channel: <a rel="noopener noreferrer" href={'https://explorer.solana.com/address/'+this.state.currentContact.channel+'?cluster=testnet'} target="_blank">{this.state.currentContact.channel}</a>
 									<br/>
-									newtwork:  <a href={'https://explorer.solana.com/address/'+this.state.currentContact.programId+'?cluster=testnet'} target="_blank">{this.state.currentContact.programId} </a>
+									newtwork:  <a rel="noopener noreferrer" href={'https://explorer.solana.com/address/'+this.state.currentContact.programId+'?cluster=testnet'} target="_blank">{this.state.currentContact.programId} </a>
 								</div>
 								:null
 							}
 
 						  {
-							  (this.state.siteKeys && this.state.siteKeys.publicKey) ? 
+							  (this.state.rsaKeyPair && this.state.rsaKeyPair.publicKey) ? 
 							  <div>
 								<Button size="sm" onClick={this.broadcastPresence}>Broadcast Presence</Button>
-								<Button size="sm" variant="danger" onClick={this.removeChatAccount}>Dispose Chat Keys</Button>
+								<Button size="sm" variant="danger" onClick={this.removeRSAKeys}>Dispose Chat Keys</Button>
 							   </div>: 
-							   <Button onClick={this.createLocalChatAccount}>Create Chat Keys</Button> 
+							   <Button onClick={this.createRSAKeyPair}>Create RSA key pair</Button> 
 						   }
 						</Col>
 					</Row>		
@@ -948,11 +1197,16 @@ class App extends React.Component{
 				{ 
 					this.state.localPayerAccount ?
 					<div>
-						<p> {this.state.localPayerAccount.publicKey.toBase58()}  {this.state.localPayerBalance / LAMPORTS_PER_SOL} </p>
+						<p> 
+							LocalAccount: <b>{this.state.localPayerAccount.publicKey.toBase58()}</b>  
+							<br/>balance:<b>{this.state.localPayerBalance / LAMPORTS_PER_SOL}</b>
+							<br/> Program: {this.state.latestProgram ? this.state.latestProgram : null}
+							<br/> Account: {this.state.latestAccount ? this.state.latestAccount : null}		
+						</p>				
 						<ButtonGroup> 
 							<Button variant="warning" onClick={this.loadProgram}>Deploy Chat</Button>
 							<Button variant="danger" onClick={()=>this.importKey()}>Import New Private Key</Button>
-							<Button onClick={this.createRoom}> Launch a new room </Button>
+							<Button onClick={this.loadProgramControlledAccount}> Launch a new room </Button>
 						</ButtonGroup>
 					</div>
 					:<Button variant="danger" onClick={()=>{this.importKey()}}>Import Private Key </Button>
@@ -973,7 +1227,7 @@ function ListView(props){
 					<ListGroup.Item key={ind} onClick={()=>{props.setCurrentContact(props.contacts[item])}} style={{background: props.currentContact.pubKey === props.contacts[item].pubKey ? "#d6ebce96" : "" }}>
 						<Row>
 							<Col sm={2} md={3} lg={2}>
-								<img className="contactImg" src={"https://robohash.org/"+props.contacts[item].pubKey+"?size=64x64"} />
+								<img alt="contactImg" className="contactImg" src={"https://robohash.org/"+props.contacts[item].pubKey+"?size=128x128"} />
 							</Col>
 							<Col sm={10} md={9} lg={10}>
 								<p className="contactTime">
@@ -987,7 +1241,7 @@ function ListView(props){
 									{props.contacts[item].message}
 								</p>
 							</Col>
-							<Button variant="default" size="sm" onClick={()=>props.removeContact(item)}>❌</Button>
+							<Button variant="default" size="sm" onClick={()=>props.removeContact(item)}><span role="img" aria-label="x">❌</span></Button>
 						</Row>	
 					</ListGroup.Item>
 				))

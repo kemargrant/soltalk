@@ -9,7 +9,7 @@ import bs58 from 'bs58';
 import nacl from 'tweetnacl';
 //Bootstrap imports
 import { 
-	Button,ButtonGroup,Col,
+	Badge,Button,ButtonGroup,Col,
 	FormControl,ListGroup,
 	InputGroup,
 	ProgressBar,
@@ -114,7 +114,7 @@ function addContact(solanaPublicKey,rsaPublicKey){
 		channel:defaultChannel,
 		chatPublicKey:rsaPublicKey,
 		programId:defaultProgram,
-		message:"",
+		message:0,
 		time:new Date().getTime()
 	}
 	window.localStorage.setItem("contacts",JSON.stringify(contacts));	
@@ -352,6 +352,7 @@ class App extends React.Component{
 		this.appendFile = this.appendFile.bind(this);
 		this.appendImage = this.appendImage.bind(this);
 
+		this.badgeContact = this.badgeContact.bind(this);
 		this.broadcastPresence = this.broadcastPresence.bind(this);
 		
 		this.cancelContactForm = this.cancelContactForm.bind(this);
@@ -428,9 +429,10 @@ class App extends React.Component{
 	* @method appendChat
 	* @param {String} Message
 	* @param {String} Transaction ID
+	* @param {String} Solana public key
 	* @return {Null}
 	*/
-	appendChat(string,txid){
+	appendChat(string,txid,solanaPublicKey){
 		let time = document.createElement("p");
 		time.setAttribute("class","fromStamp");
 		time.innerHTML = new Date().toString().split("GMT")[0];
@@ -455,6 +457,11 @@ class App extends React.Component{
 		div.appendChild(msg);
 		chat.appendChild(div);
 		chat.scrollTo(0,chat.scrollHeight);	
+		if(solanaPublicKey && (solanaPublicKey !== this.state.currentContact.publicKey)){
+			let contacts = this.state.contacts;
+			contacts[solanaPublicKey].message += 1;
+			updateContacts(contacts);
+		}
 		return;
 	}
 	
@@ -530,6 +537,22 @@ class App extends React.Component{
 	}
 		
 	/**
+	* Update message field of contact
+	* @method badgeContact
+	* @param {String} Solana base58 public key
+	* @return {Null}
+	*/
+	badgeContact(solanaPublicKey){
+		let contacts = this.state.contacts;
+		if( this.state.currentContact.publicKey !== solanaPublicKey && contacts[solanaPublicKey]){
+			contacts[solanaPublicKey].message++;
+		}
+		updateContacts(contacts);
+		this.setState(contacts);
+		return;
+	}
+			
+	/**
 	* Send a presence message
 	* @method broadcastPresence
 	* @return {Promise} Should resolve to a confirmed transaction object {context:{slot},value:{err}}
@@ -603,11 +626,11 @@ class App extends React.Component{
 	*/		
 	async componentDidMount(){
 		establishConnection().catch(console.warn);;	
-		let contacts = this.getContacts();
+		let contacts = await this.getContacts();
 		this.subscribe(contacts);
 		//Set current contact
 		if(Object.keys(contacts).length > 0){
-			this.setCurrentContact(contacts[Object.keys(contacts)[0]]);
+			this.setCurrentContact( contacts[ Object.keys(contacts)[0] ] );
 		}
 		if(this.getLocalAccount()){
 			this.importKey(this.getLocalAccount());
@@ -986,12 +1009,13 @@ class App extends React.Component{
 	/**
 	* Update and retrieve contacts store in localStorage
 	* @method getContacts
-	* @return {Object} Return contacts object
+	* @return {Promise} Should resolve Contacts object
 	*/
 	getContacts(){
-		let contacts = getContacts();
-		this.setState({contacts});
-		return contacts;
+		return new Promise((resolve,reject)=>{
+			let contacts = getContacts();
+			return this.setState({contacts},()=>{return resolve(contacts);});
+		})
 	}
 
 	/**
@@ -1149,7 +1173,7 @@ class App extends React.Component{
 				valid = nacl.sign.detached.verify(uuid,uuid_signature,solanaPublicKey.toBuffer());
 				if(valid){
 					sender = contacts[i] ;
-					this.setCurrentContact(sender);
+					this.badgeContact(sender);
 					if(packet.t){
 						string += " 🔒"
 					}
@@ -1157,7 +1181,7 @@ class App extends React.Component{
 				}
 			}
 			if(packet.t){
-				this.appendChat(string,null);
+				this.appendChat(string,null,sender);
 			}
 			else if(packet.f){
 				this.appendFile(packet,sender);
@@ -1310,7 +1334,10 @@ class App extends React.Component{
 	* @return {Null}
 	*/	
 	setCurrentContact(contact){
-		this.setState({currentContact:contact});
+		let contacts = this.state.contacts;
+		contacts[contact.publicKey].message = 0;
+		updateContacts(contacts);
+		this.setState({currentContact:contact,contacts});
 		return;
 	}
 	
@@ -1481,7 +1508,7 @@ class App extends React.Component{
    * @return {Null}
    */	
 	updateInputBox(message,txid){
-		this.appendChat(message,txid);
+		this.appendChat(message,txid,null);
 		let input = document.getElementById("newMessage");
 		input.disabled = false;
 		input.value = "";
@@ -1643,12 +1670,13 @@ function ListView(props){
 								<p className="contactTime">
 									{timeAgo.format(new Date(props.contacts[item].time),'round')}
 								</p>
+																{
+									props.contacts[item].message > 0 ?   <Badge variant="info"> {props.contacts[item].message} </Badge>:null
+								}
 								<p className="contactInfo">
 									{props.contacts[item].publicKey}
 									<br/>
 									{props.contacts[item].chatPublicKey}
-									<br/>
-									{props.contacts[item].message}
 								</p>
 							</Col>
 						</Row>	

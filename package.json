@@ -4,7 +4,7 @@
   "private": true,
   "dependencies": {
     "@project-serum/sol-wallet-adapter": "^0.1.1",
-    "@solana/web3.js": "^0.78.3",
+    "@solana/web3.js": "^0.78.4",
     "@testing-library/jest-dom": "^4.2.4",
     "@testing-library/react": "^9.5.0",
     "@testing-library/user-event": "^7.2.1",

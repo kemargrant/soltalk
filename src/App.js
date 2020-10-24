@@ -10,7 +10,8 @@ import nacl from 'tweetnacl';
 //Bootstrap imports
 import { 
 	Button,ButtonGroup,Col,
-	FormControl,ListGroup,InputGroup,
+	FormControl,ListGroup,
+	InputGroup,
 	ProgressBar,
 	Row 
 } from 'react-bootstrap';
@@ -35,7 +36,8 @@ var urlRoot;
 var Intervals = []
 var defaultProgram = "JB2LCd9oV7xNemBSV8dJu6gkrpWQSrDPcfHUQAQnXRZu";
 var defaultChannel = "BoSJNDkt37kxQthSgvMqCER1dMzyqEUS34Kkp2YazEiq";
- 
+var FILES = {}
+
 TimeAgo.addLocale(en)
 // Date formatter.
 const timeAgo = new TimeAgo('en-US')
@@ -322,7 +324,9 @@ class App extends React.Component{
 		
 		this.addContact = this.addContact.bind(this);
 		this.appendChat = this.appendChat.bind(this);
-		
+		this.appendFile = this.appendFile.bind(this);
+		this.appendImage = this.appendImage.bind(this);
+
 		this.broadcastPresence = this.broadcastPresence.bind(this);
 		
 		this.cancelContactForm = this.cancelContactForm.bind(this);
@@ -335,6 +339,7 @@ class App extends React.Component{
 		this.decryptData = this.decryptData.bind(this);
 		this.disconnectWebSocket = this.disconnectWebSocket.bind(this);
 		
+		this.encryptFile = this.encryptFile.bind(this);
 		this.encryptMessage = this.encryptMessage.bind(this);
 		
 		this.getContacts = this.getContacts.bind(this);
@@ -353,6 +358,7 @@ class App extends React.Component{
 		this.removeContact = this.removeContact.bind(this);
 		this.removeRSAKeys = this.removeRSAKeys.bind(this);
 
+		this.sendFile = this.sendFile.bind(this);
 		this.sendMessage = this.sendMessage.bind(this);
 		this.setCurrentContact = this.setCurrentContact.bind(this);
 		this.showContactForm = this.showContactForm.bind(this);
@@ -361,6 +367,7 @@ class App extends React.Component{
 		
 		this.writeLog= this.writeLog.bind(this);
 		
+		this.uploadFile = this.uploadFile.bind(this);
 		this.unsubscribe = this.subscribe.bind(this);
 		this.updateCharacterCount = this.updateCharacterCount.bind(this);
 	}
@@ -424,7 +431,77 @@ class App extends React.Component{
 		return;
 	}
 	
+	/**
+	* Add image to chat interface
+	* @method appendImage
+	* @param {String} Image src
+	* @param {String} Solana public key of contact ?
+	* @return {Null}
+	*/
+	appendImage(src,inbound){
+		let time = document.createElement("p");
+		time.setAttribute("class","fromStamp");
+		time.innerHTML = new Date().toString().split("GMT")[0];
+		//Message
+		let div = document.createElement("div");
+		let msg = document.createElement("img");
+		if(!inbound){
+			div.setAttribute("class","msgSelf");
+		}
+		else{
+			div.setAttribute("class","msgContact");
+			msg.innerHTML = "file from:"+inbound;
+		}
+		let chat = document.getElementById("chat");
+		div.appendChild(time);
+		div.appendChild(msg);
+		chat.appendChild(div);
+		chat.scrollTo(0,chat.scrollHeight);
+		msg.src = src;
+		return;			
+	}
 	
+	
+	/**
+	* Append file to chat window
+	* @method appendFile
+	* @param {Object} Part of file packet {f,u,us,c,p}
+	* @param {String} Solana base58 public key
+	* @return {Null}
+	*/
+	appendFile(packet,solanaPublicKey){
+		console.log("Process File from:",solanaPublicKey);
+		if(!solanaPublicKey){return console.log("Sender not in known contacts");}
+		if(!FILES[solanaPublicKey]){
+			FILES[solanaPublicKey] = {}
+		}
+		FILES[solanaPublicKey][packet.p] = packet
+		let parts = Object.keys( FILES[solanaPublicKey] ).length;
+		let rawFile = "";
+		let blob;
+		let objectURL;
+		let fileType = {
+			"jpg":"image/jpeg",
+			"png":"image/png"
+		}
+		//Check if we have the complete file
+		if(packet.c === parts){
+			//Assemble the file
+			for(let i =0;i < parts;i++){
+				rawFile += FILES[solanaPublicKey][i+1].f;
+			}
+			rawFile = Buffer.from(rawFile.split(","));
+			blob = new Blob([ rawFile ], {type : fileType[  FILES[solanaPublicKey][1].e ]});
+			objectURL = URL.createObjectURL(blob);
+		}
+		else{
+			return;
+		}
+		this.appendImage(objectURL,solanaPublicKey)
+		delete FILES[solanaPublicKey];
+		return;
+	}
+		
 	/**
 	* Send a presence message
 	* @method broadcastPresence
@@ -537,6 +614,39 @@ class App extends React.Component{
 	
 	/**
 	* Construct and send transaction to the network
+	* @method constructAndSendFile
+	* @param {Array} Array of encrypted Uint8Arrays
+	* @return {Promise} Should resolve to an array of confirmed transactions object [ {context:{slot},value:{err}}, ... ]
+	*/	
+	async constructAndSendFile(encryptedBytesArray){
+		if(!encryptedBytesArray || encryptedBytesArray.length < 1){return notify("Unable to send blank file");}
+		let programId = this.state.currentContact.programId ? this.state.currentContact.programId : defaultProgram ;
+		programId = new PublicKey(programId);
+		let transactions = [];
+		for(let i = 0;i < encryptedBytesArray.length; i++){
+			let instruction = new TransactionInstruction({
+				keys: [
+					{pubkey:this.state.currentContact.channel ? this.state.currentContact.channel : defaultChannel, isSigner: false, isWritable: true},
+					{pubkey:this.state.payerAccount, isSigner: true, isWritable: false}
+				],
+				programId,
+				data: encryptedBytesArray[i]
+			});
+			let _transaction =  new Transaction().add(instruction);
+			let { blockhash } = await this.state.connection.getRecentBlockhash();
+			_transaction.recentBlockhash = blockhash;
+			_transaction.setSigners(this.state.payerAccount);
+			let signed = await this.state.wallet.signTransaction(_transaction);
+			console.log(_transaction);
+			console.log("serialized",signed.serialize(),signed.serialize().length);
+			let txid = await this.state.connection.sendRawTransaction(signed.serialize());
+			transactions.push(this.state.connection.confirmTransaction(txid));		
+		}
+		return transactions;	
+	}	
+		
+	/**
+	* Construct and send transaction to the network
 	* @method constructAndSendTransaction
 	* @param {String} Message to send
 	* @param {Boolean} Is this a broadcast message?
@@ -545,7 +655,7 @@ class App extends React.Component{
 	async constructAndSendTransaction(message,isBroadcast=false){
 		if(!message || message.length < 1){return notify("Unable to send blank message");}
 		let programId = this.state.currentContact.programId ? this.state.currentContact.programId : defaultProgram ;
-		programId = new PublicKey(programId)
+		programId = new PublicKey(programId);
 		let buffer = isBroadcast ? padText(message) : await this.encryptMessage(message);
 		let instruction = new TransactionInstruction({
 			keys: [
@@ -628,6 +738,101 @@ class App extends React.Component{
 		return;
 	}
 	
+	/**
+	* Transform a text message into an encrypted byte array
+	* @method encryptFile
+	* @param {ArrayBuffer} ArrayBuffer of file
+	* @param {String} File name
+	* @param {String} File type  
+	* @return {Promise} Should resolve to multiple encrypted Uint8Array(1028). // [512,512,4]
+	*/		
+	async encryptFile(file,name){
+		try{
+			let packet = {
+				f:0,
+				p:"",
+				c:"",
+				u:Math.random().toFixed(6).slice(2),
+				us:false,
+			}
+			let faux_transaction = {
+				addSignature:function(key,signature){
+					this.signature = signature;
+					this.key = key;
+				},
+				key:false,
+				message:packet.u,
+				serializeMessage:function(){return Buffer.from(this.message)},
+				signature:false,
+			}
+			file = new Uint8Array(file).toString();
+			let extension = name.split(".");
+			extension = extension.length > 0 ? extension[extension.length - 1] : "";
+			let standardSize = Math.floor((880 - 275 - 7)/1.02); //598
+			let packets = []
+			let totalPieces = 0;
+			for (let i = 0; i*standardSize < file.length; i++){
+				let obj = {}
+				obj.u = Math.random().toFixed(6).slice(2);
+				obj.p = i+1;
+				if(i === 0){
+					obj.e = extension;
+				}
+				if(i*standardSize+standardSize < file.length){
+					obj.f = file.slice(i*standardSize,i*standardSize+standardSize);
+				}
+				else{
+					obj.f = file.slice(i*standardSize);
+				}
+				packets.push(obj);
+				totalPieces++;
+			}
+			if(!window.confirm("Are you ready to sign "+packets.length+" transactions?")){return false};
+			console.log(packets.length," packets to send");
+			//Sign message (Overhead)
+			for(let i = 0;i < packets.length;i++){
+				faux_transaction.message = packets[i].u;
+				await this.state.wallet.signTransaction(faux_transaction);
+				packets[i].us = new Uint8Array(faux_transaction.signature).toString();
+				packets[i].c = totalPieces;
+				if(Buffer.from(JSON.stringify(packets[i])).length > 880){
+					//TODO: Recurse and reduce standardSize variable
+					return notify("Unable to send file");
+				}				
+				console.log( Buffer.from(JSON.stringify(packets[i])).length )
+			}
+			let encryptedBytesArray = [];
+			let encryptedBytes;
+			let enc1;
+			let enc2;
+			let msg;
+			let jwk = {
+				alg: "RSA-OAEP-256",
+				e: "AQAB",
+				ext: true,
+				key_ops: ["encrypt"],
+				kty: "RSA",
+				n:this.state.currentContact.chatPublicKey
+			}
+			//The public key of the recipient
+			let publicContactKey = await importPublicKey(jwk);
+			for(let j =0;j < packets.length;j++){
+				msg = JSON.stringify(packets[j]);
+				enc1 = await encryptMessage(publicContactKey,msg.slice(0,440));
+				enc2 = await encryptMessage(publicContactKey,msg.slice(440,880));
+				encryptedBytes = new Uint8Array(1028);
+				encryptedBytes.set(new Uint8Array(enc1));
+				encryptedBytes.set(new Uint8Array(enc2),enc2.byteLength);
+				encryptedBytesArray.push(encryptedBytes);
+			}
+			console.log(encryptedBytesArray);
+			return encryptedBytesArray;
+		}
+		catch(e){
+			console.log(e);
+			return null;
+		}
+	}
 	
 	/**
 	* Transform a text message into an encrypted byte array
@@ -842,11 +1047,12 @@ class App extends React.Component{
 			console.log(e);
 		}
 		let packet = await this.decryptData(data);
-		if(packet && packet.t){
-			let string = packet.t.trim() + " 🔓";
+		if(packet && (packet.t || packet.f)){
+			let string = packet.t ? packet.t.trim() : "";
 			//Verify Message
 			let contacts = Object.keys(this.state.contacts);
 			let solanaPublicKey;
+			let sender;
 			let uuid = Buffer.from(packet.u);
 			let uuid_signature = Buffer.from(packet.us.split(","));
 			let valid;
@@ -854,13 +1060,20 @@ class App extends React.Component{
 				solanaPublicKey = new PublicKey( contacts[i] );
 				valid = nacl.sign.detached.verify(uuid,uuid_signature,solanaPublicKey.toBuffer());
 				if(valid){
-					this.setCurrentContact(contacts[i]);
-					string = string.slice(0,string.length-2)
-					string += " 🔒"
+					sender = contacts[i] ;
+					this.setCurrentContact(sender);
+					if(packet.t){
+						string += " 🔒"
+					}
 					break;
 				}
 			}
-			this.appendChat(string,null);
+			if(packet.t){
+				this.appendChat(string,null);
+			}
+			else if(packet.f){
+				this.appendFile(packet,sender);
+			}
 		}
 		return;
 	}
@@ -923,9 +1136,33 @@ class App extends React.Component{
 	}
 
 	/**
+	* Send encrypted file to the network
+	* @method sendFile
+	* @param {Array} Array of encrypted Uint8Arrays
+	* @return {Promise} Should resolve to an array of confirmed transactions object [ {context:{slot},value:{err}}, ... ]
+	*/	
+	async sendFile(encryptedBytesArray){	
+		if(!this.state.connection){
+			await this.connectWallet();
+		} 
+		if(!this.state.ws){
+			return notify("Please subscribe to a chat first");
+		}
+		return this.constructAndSendFile(encryptedBytesArray)
+		.then((transactions)=>{
+			console.log("transaction",transactions);
+			return transactions;
+		})
+		.catch((e)=>{
+			notify("Error sending file")
+			console.warn("Error sending file:",e);
+		})
+	}
+
+	/**
 	* Send encrypted message to the network
 	* @method sendMessage
-	* @return {Promise} Should resolve to a boolean
+	* @return {null}
 	*/	
 	async sendMessage(){	
 		let message = document.getElementById("newMessage");	
@@ -937,7 +1174,7 @@ class App extends React.Component{
 			message.disabled = false;
 			return notify("Please subscribe to a chat first");
 		}
-		return this.constructAndSendTransaction(message.value)
+		this.constructAndSendTransaction(message.value)
 		.then((transaction)=>{
 			console.log("transaction",transaction);
 			if(transaction && transaction.context){
@@ -1058,7 +1295,7 @@ class App extends React.Component{
 		websocket.onmessage = onMessage;
 		websocket.onerror = onError;
 		return;	
-	}
+	}	
 		
 	/**
 	* Add log message to text element
@@ -1070,6 +1307,7 @@ class App extends React.Component{
 		document.getElementById("logs").value = log;
 		return;
 	}
+	
 	
 	/**
 	* Update the # of characters the user can send
@@ -1087,6 +1325,34 @@ class App extends React.Component{
 		this.setState({characterCount:remaining});
 		return;
 	}
+	
+	/**
+	* Upload and send a local image file to peer
+	* @method uploadFile
+	* @param {Event} 
+	* @return {null} 
+	*/
+	uploadFile(evt){
+		let input = evt.target;
+		let imageSRC = null;
+		let pageReader = new FileReader();
+		let bufferReader = new FileReader();		
+		pageReader.onload = function(){
+			let dataURL = pageReader.result;
+			imageSRC = dataURL;
+		}; 
+		bufferReader.onload = async ()=>{
+			let encryptedBytesArray = await this.encryptFile(bufferReader.result,input.files[0].name);
+			if(encryptedBytesArray){
+				this.sendFile(encryptedBytesArray).then(()=>{
+					this.appendImage(imageSRC,false);
+				});
+			}
+		};      
+		pageReader.readAsDataURL(input.files[0]);	
+		bufferReader.readAsArrayBuffer(input.files[0])	
+		return;
+	}		
 	
 	/**
    * Unsubscribe from updates to a Solana Account
@@ -1180,6 +1446,7 @@ class App extends React.Component{
 						/>
 						<InputGroup.Append>
 						  <Button onClick={this.sendMessage}> SEND </Button>
+						  <input onChange={this.uploadFile} type="file" accept="image/png, image/jpeg"/>						  
 						</InputGroup.Append>
 					</InputGroup>						
 				</Row>
@@ -1226,8 +1493,9 @@ function ListView(props){
 				Object.keys(props.contacts).length > 0 && Object.keys(props.contacts).map((item,ind)=>(
 					<ListGroup.Item key={ind} onClick={()=>{props.setCurrentContact(props.contacts[item])}} style={{background: props.currentContact.pubKey === props.contacts[item].pubKey ? "#d6ebce96" : "" }}>
 						<Row>
-							<Col sm={2} md={3} lg={2}>
-								<img alt="contactImg" className="contactImg" src={"https://robohash.org/"+props.contacts[item].pubKey+"?size=128x128"} />
+							<Col sm={2} md={3} lg={2}>							
+								<img alt="contactImg" className="contactImg" src={"https://robohash.org/"+props.contacts[item].pubKey+"?size=256x256"} />
+								<Button variant="danger" size="sm" onClick={()=>props.removeContact(item)}> remove </Button>
 							</Col>
 							<Col sm={10} md={9} lg={10}>
 								<p className="contactTime">
@@ -1241,7 +1509,6 @@ function ListView(props){
 									{props.contacts[item].message}
 								</p>
 							</Col>
-							<Button variant="default" size="sm" onClick={()=>props.removeContact(item)}><span role="img" aria-label="x">❌</span></Button>
 						</Row>	
 					</ListGroup.Item>
 				))

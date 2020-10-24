@@ -85,11 +85,11 @@ body {
 
 .contactImg{
 	background:rgba(100,100,100,0.1);
-	border:1px dotted black;
+	border:0px dotted black;
 	border-radius:5em;
-	height:45px;
 	margin:0px;
 	padding:0px;
+	width:64px;
 }
 
 .contactInfo{
@@ -142,7 +142,7 @@ body {
 	width:100%;
 }
 
-.msgHolder{
+.msgContact{
 	background:whitesmoke;
 	border-radius:0.9em;
 	color:black;
@@ -151,17 +151,13 @@ body {
 	text-align:left;
 }
 
-.msgHolderO{
+.msgSelf{
     background: lightblue;
     border-radius: 0.9em;
     margin: 1em;
     color: red;
     padding: 0.5em;
     text-align: right;
-}
-
-#newMessage{
-	
 }
 
 #newMessage:focus{outline:none!important;}
@@ -192,6 +188,10 @@ body {
 	overflow-x:hidden;
 	overflow-y:auto-scroll;
 	width:100%;
+}
+
+.unconfirmed{
+	background:lightblue;
 }
 
 ::-webkit-scrollbar {

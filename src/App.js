@@ -1633,7 +1633,7 @@ function ListView(props){
 		<ListGroup className="contactCol">
 			{
 				Object.keys(props.contacts).length > 0 && Object.keys(props.contacts).map((item,ind)=>(
-					<ListGroup.Item key={ind} onClick={()=>{props.setCurrentContact(props.contacts[item])}} style={{background: props.currentContact.pubKey === props.contacts[item].pubKey ? "#d6ebce96" : "" }}>
+					<ListGroup.Item key={ind} onClick={()=>{props.setCurrentContact(props.contacts[item])}} style={{background: props.currentContact.publicKey === props.contacts[item].publicKey ? "#d6ebce96" : "" }}>
 						<Row>
 							<Col sm={2} md={3} lg={2}>							
 								<img alt="contactImg" className="contactImg" src={"https://robohash.org/"+props.contacts[item].publicKey+"?size=256x256"} />

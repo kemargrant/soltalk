@@ -127,6 +127,15 @@ body {
 	padding-right:0px;
 }
 
+#importedAccount{
+	font-size:small;
+}
+
+#importedAccount p{
+	text-align:left;	
+	word-break:break-word;
+}
+
 #logRow{
 	display:block;
 	height:10vh;

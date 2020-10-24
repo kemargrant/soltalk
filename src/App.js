@@ -245,6 +245,19 @@ function importPublicKey(jwk) {
 }
 
 /**
+* Sign a message sting locally
+* @method localSign
+* @param {String} Message to sign
+* @return {Uint8Array} Return Uint8Array of the signature
+*/
+function localSign(message,Account){
+	message = Buffer.from(message);
+	let privateKey = new Uint8Array(Account.secretKey);
+	let signature = nacl.sign.detached(message,privateKey);
+	return new Uint8Array(signature);
+}
+
+/**
 * Show notifiation message
 * @method notify
 * @param {String} Notification message
@@ -290,6 +303,16 @@ function removeContact(solanaPublicKey){
 }
 
 /**
+* Pause function execution
+* @method sleep
+* @param {Number} Time in ms to sleep
+* @return {Promise} Resolve to undefined
+*/
+async function sleep(ms){
+	return await new Promise((resolve,reject)=>{ return setTimeout(resolve,ms) });
+}
+
+/**
 * Upadate localStorage contacts object
 * @method updateContacts
 * @param {Object} Contacts {publicKey:{publicKey,channel,chatPublicKey,programId,message,time}...}
@@ -311,6 +334,8 @@ class App extends React.Component{
 			contacts:[],
 			connected:[],
 			loading:false,
+			loadingMessage:"",
+			loadingValue:0,
 			localPayerAccount:false,
 			localPayerBalance:0,
 			payerAccount:false,
@@ -356,6 +381,7 @@ class App extends React.Component{
 		this.messageKeyUp = this.messageKeyUp.bind(this);
 		
 		this.removeContact = this.removeContact.bind(this);
+		this.removeImportedAccount = this.removeImportedAccount.bind(this);		
 		this.removeRSAKeys = this.removeRSAKeys.bind(this);
 
 		this.sendFile = this.sendFile.bind(this);
@@ -370,6 +396,7 @@ class App extends React.Component{
 		this.uploadFile = this.uploadFile.bind(this);
 		this.unsubscribe = this.subscribe.bind(this);
 		this.updateCharacterCount = this.updateCharacterCount.bind(this);
+		this.updateInputBox = this.updateInputBox.bind(this);
 	}
 	
 	/**
@@ -508,7 +535,7 @@ class App extends React.Component{
 	* @return {Promise} Should resolve to a confirmed transaction object {context:{slot},value:{err}}
 	*/	
 	async broadcastPresence(){
-		if(!this.state.wallet){
+		if(!this.state.wallet && !this.state.localPayerAccount){
 			await this.connectWallet();
 		}
 		let rsaPublicKey_JWK = await crypto.subtle.exportKey("jwk",this.state.rsaKeyPair.publicKey);
@@ -518,13 +545,20 @@ class App extends React.Component{
 				this.key = key;
 			},
 			key:false,
-			message: this.state.payerAccount.toBase58()+" "+ rsaPublicKey_JWK.n,
+			message:"",
 			serializeMessage:function(){
 				return Buffer.from(this.message);
 			},
 			signature:false,
 		}
-		await this.state.wallet.signTransaction(transaction);
+		if(this.state.payerAccount){
+			transaction.message = this.state.payerAccount.toBase58()+" "+ rsaPublicKey_JWK.n;
+			await this.state.wallet.signTransaction(transaction);
+		}
+		else{
+			transaction.message = this.state.localPayerAccount.publicKey.toBase58()+" "+ rsaPublicKey_JWK.n;
+			transaction.signature = localSign(transaction.message,this.state.localPayerAccount); 
+		}
 		let presence = transaction.message+" "+transaction.signature.join(",");
 		return this.constructAndSendTransaction(presence,true);
 	}
@@ -538,7 +572,6 @@ class App extends React.Component{
 		this.setState({showContactForm:false});
 		return;
 	}
-	
 	
 	/**
 	* Check if message is a valid broadcast message
@@ -556,7 +589,7 @@ class App extends React.Component{
 			valid = nacl.sign.detached.verify(Buffer.from(str),sig,new PublicKey(message[0]).toBuffer());
 			isBroadcast = valid;
 			if(valid){
-				this.promptContactAddition(message[0],message[1])
+				this.promptContactAddition(message[0],message[1]);
 			}
 		}
 		catch(e){
@@ -623,25 +656,50 @@ class App extends React.Component{
 		let programId = this.state.currentContact.programId ? this.state.currentContact.programId : defaultProgram ;
 		programId = new PublicKey(programId);
 		let transactions = [];
+		this.setState({loading:true,loadingMessage:"Sending File"});
 		for(let i = 0;i < encryptedBytesArray.length; i++){
-			let instruction = new TransactionInstruction({
-				keys: [
-					{pubkey:this.state.currentContact.channel ? this.state.currentContact.channel : defaultChannel, isSigner: false, isWritable: true},
-					{pubkey:this.state.payerAccount, isSigner: true, isWritable: false}
-				],
-				programId,
-				data: encryptedBytesArray[i]
-			});
-			let _transaction =  new Transaction().add(instruction);
-			let { blockhash } = await this.state.connection.getRecentBlockhash();
-			_transaction.recentBlockhash = blockhash;
-			_transaction.setSigners(this.state.payerAccount);
-			let signed = await this.state.wallet.signTransaction(_transaction);
-			console.log(_transaction);
-			console.log("serialized",signed.serialize(),signed.serialize().length);
-			let txid = await this.state.connection.sendRawTransaction(signed.serialize());
-			transactions.push(this.state.connection.confirmTransaction(txid));		
+			if(this.state.payerAccount){
+				let instruction = new TransactionInstruction({
+					keys: [
+						{pubkey:this.state.currentContact.channel ? this.state.currentContact.channel : defaultChannel, isSigner: false, isWritable: true},
+						{pubkey:this.state.payerAccount, isSigner: true, isWritable: false}
+					],
+					programId,
+					data: encryptedBytesArray[i]
+				});
+				let _transaction =  new Transaction().add(instruction);
+				let { blockhash } = await this.state.connection.getRecentBlockhash();
+				_transaction.recentBlockhash = blockhash;
+				_transaction.setSigners(this.state.payerAccount);
+				let signed = await this.state.wallet.signTransaction(_transaction);
+				let txid = await this.state.connection.sendRawTransaction(signed.serialize());
+				transactions.push(this.state.connection.confirmTransaction(txid));
+			}
+			else{
+				let instruction = new TransactionInstruction({
+					keys: [
+						{pubkey:this.state.currentContact.channel ? new PublicKey(this.state.currentContact.channel) : new PublicKey(defaultChannel), isSigner: false, isWritable: true},
+						{pubkey:this.state.localPayerAccount.publicKey , isSigner: true, isWritable: false}
+					],
+					programId,
+					data: encryptedBytesArray[i]
+				});
+				let _transaction =  new Transaction().add(instruction);	
+				let { blockhash } = await connection.getRecentBlockhash();
+				_transaction.recentBlockhash = blockhash;				
+				_transaction.sign(this.state.localPayerAccount);
+				let tx = await sendAndConfirmTransaction(
+					'',
+					connection,
+					_transaction,
+					this.state.localPayerAccount,
+				);
+				transactions.push(tx);
+				this.setState({loadingValue:(100*transactions.length)/encryptedBytesArray.length});
+				sleep(400);
+			}		
 		}
+		this.setState({loading:false,loadingMessage:""});
 		return transactions;	
 	}	
 		
@@ -657,32 +715,47 @@ class App extends React.Component{
 		let programId = this.state.currentContact.programId ? this.state.currentContact.programId : defaultProgram ;
 		programId = new PublicKey(programId);
 		let buffer = isBroadcast ? padText(message) : await this.encryptMessage(message);
-		let instruction = new TransactionInstruction({
-			keys: [
-				{pubkey:this.state.currentContact.channel ? this.state.currentContact.channel : defaultChannel, isSigner: false, isWritable: true},
-				{pubkey:this.state.payerAccount, isSigner: true, isWritable: false}
-			],
-			programId,
-			data: buffer
-		});
-		let _transaction =  new Transaction().add(instruction);
-		let { blockhash } = await this.state.connection.getRecentBlockhash();
-		_transaction.recentBlockhash = blockhash;
-		_transaction.setSigners(this.state.payerAccount);
-		let signed = await this.state.wallet.signTransaction(_transaction);
-		console.log(_transaction);
-		console.log("serialized",signed.serialize(),signed.serialize().length);
-		let txid = await this.state.connection.sendRawTransaction(signed.serialize());
-		//Update input box
-		if(!isBroadcast){
-			this.appendChat(message,txid);
-			let input = document.getElementById("newMessage");
-			input.disabled = false;
-			input.value = "";
-			this.updateCharacterCount();
+		let txid;
+		if(this.state.payerAccount){	
+			let instruction = new TransactionInstruction({
+				keys: [
+					{pubkey:this.state.currentContact.channel ? this.state.currentContact.channel : defaultChannel, isSigner: false, isWritable: true},
+					{pubkey:this.state.payerAccount, isSigner: true, isWritable: false}
+				],
+				programId,
+				data: buffer
+			});
+			let _transaction =  new Transaction().add(instruction);
+			let { blockhash } = await this.state.connection.getRecentBlockhash();
+			_transaction.recentBlockhash = blockhash;		
+			_transaction.setSigners(this.state.payerAccount);
+			let signed = await this.state.wallet.signTransaction(_transaction);
+			let tx = await this.state.connection.sendRawTransaction(signed.serialize());
+			if(!isBroadcast){this.updateInputBox(message,tx);}
+			let txid = this.state.connection.confirmTransaction(tx);	
 		}
-		//
-		return this.state.connection.confirmTransaction(txid);		
+		else{
+			let instruction = new TransactionInstruction({
+				keys: [
+					{pubkey:this.state.currentContact.channel ? new PublicKey(this.state.currentContact.channel) : new PublicKey(defaultChannel), isSigner: false, isWritable: true},
+					{pubkey:this.state.localPayerAccount.publicKey , isSigner: true, isWritable: false}
+				],
+				programId,
+				data: buffer
+			});
+			let _transaction =  new Transaction().add(instruction);	
+			let { blockhash } = await connection.getRecentBlockhash();
+			_transaction.recentBlockhash = blockhash;				
+			_transaction.sign(this.state.localPayerAccount);
+			let txid = await sendAndConfirmTransaction(
+				'',
+				connection,
+				_transaction,
+				this.state.localPayerAccount,
+			);
+			if(!isBroadcast){ this.updateInputBox(message,txid);}
+		}	
+		return txid;
 	}	
 	
 	/**
@@ -787,19 +860,22 @@ class App extends React.Component{
 				packets.push(obj);
 				totalPieces++;
 			}
-			if(!window.confirm("Are you ready to sign "+packets.length+" transactions?")){return false};
-			console.log(packets.length," packets to send");
+			if(!window.confirm("Sign and send "+packets.length+" transactions?")){return false};
 			//Sign message (Overhead)
 			for(let i = 0;i < packets.length;i++){
 				faux_transaction.message = packets[i].u;
-				await this.state.wallet.signTransaction(faux_transaction);
-				packets[i].us = new Uint8Array(faux_transaction.signature).toString();
+				if(this.state.payerAccount){
+					await this.state.wallet.signTransaction(faux_transaction);
+					packets[i].us = new Uint8Array(faux_transaction.signature).toString();
+				}
+				else{
+					packets[i].us = localSign(packets[i].u,this.state.localPayerAccount).toString();
+				}
 				packets[i].c = totalPieces;
 				if(Buffer.from(JSON.stringify(packets[i])).length > 880){
 					//TODO: Recurse and reduce standardSize variable
 					return notify("Unable to send file");
 				}				
-				console.log( Buffer.from(JSON.stringify(packets[i])).length )
 			}
 			let encryptedBytesArray = [];
 			let encryptedBytes;
@@ -825,7 +901,6 @@ class App extends React.Component{
 				encryptedBytes.set(new Uint8Array(enc2),enc2.byteLength);
 				encryptedBytesArray.push(encryptedBytes);
 			}
-			console.log(encryptedBytesArray);
 			return encryptedBytesArray;
 		}
 		catch(e){
@@ -860,8 +935,13 @@ class App extends React.Component{
 				serializeMessage:function(){return Buffer.from(this.message)},
 				signature:false,
 			}
-			await this.state.wallet.signTransaction(faux_transaction);
-			packet.us = new Uint8Array(faux_transaction.signature).toString();
+			if(this.state.payerAccount){
+				await this.state.wallet.signTransaction(faux_transaction);
+				packet.us = new Uint8Array(faux_transaction.signature).toString();
+			}
+			else{
+				packet.us = localSign(packet.u,this.state.localPayerAccount).toString();
+			}
 			//pad message
 			while(Buffer.from(JSON.stringify(packet)).length < 880){
 				packet.t += " ";
@@ -945,7 +1025,7 @@ class App extends React.Component{
 		let localPayerAccount = new Account(bytes);
 		localPayerAccount.publicKey.toBase58 = function(){
 			return bs58.encode(localPayerAccount.publicKey);
-		}
+		}	
 		console.log("local account imported:",localPayerAccount.publicKey.toBase58());
 		let localPayerBalance = await connection.getBalance(localPayerAccount.publicKey);
 		this.setState({localPayerAccount,localPayerBalance});
@@ -1086,29 +1166,48 @@ class App extends React.Component{
 	* @return {Null}
 	*/	
 	promptContactAddition(solanaPublicKey,rsaPublicKey){
-		let contacts = Object.keys(this.state.contacts);
-		if( contacts.indexOf(solanaPublicKey) > -1 ){
+		let contactsList = Object.keys(this.state.contacts);
+		let contacts = this.state.contacts;
+		if( contactsList.indexOf(solanaPublicKey) > -1 ){
 			console.log("Valid Broadcast from:",solanaPublicKey);
 			if(window.confirm("Update contact: " +solanaPublicKey+ " chat public key?")){
 				contacts[solanaPublicKey].chatPublicKey = rsaPublicKey;
 				updateContacts(contacts);
-				this.getContact();
+				this.getContacts();
 			}
 		}
 		else if( this.state.payerAccount && (solanaPublicKey !== this.state.payerAccount.toBase58()) ){
 			if(window.confirm("Add new contact:"+ solanaPublicKey)){
 				this.addContact(solanaPublicKey,rsaPublicKey);
-				this.getContacts()
+				this.getContacts();
 			}
 		}
-		else if( !this.state.payerAccount ){
+		else if( this.state.localPayerAccount && (solanaPublicKey !== this.state.localPayerAccount.publicKey.toBase58()) ){
 			if(window.confirm("Add new contact:"+ solanaPublicKey)){
 				this.addContact(solanaPublicKey,rsaPublicKey);
-				this.getContacts()
+				this.getContacts();
+			}
+		}
+		else if( !this.state.payerAccount && !this.state.localPayerAccount){
+			if(window.confirm("Add new contact:"+ solanaPublicKey)){
+				this.addContact(solanaPublicKey,rsaPublicKey);
+				this.getContacts();
 			}
 		}
 		return;
 	}	
+	
+	/**
+	* Remove imported Solana Account
+	* @method removeImportedAccount
+	* @return {Null}
+	*/	
+	removeImportedAccount(){
+		if(!window.confirm("Remove Imported Solana Account?")){return;}
+		window.localStorage.removeItem("myAccount");
+		this.setState({localPayerAccount:false,localPayerBalance:0});
+		return;
+	}
 	
 	/**
 	* Delete RSA keys from localStorage upon user confirmation
@@ -1142,7 +1241,7 @@ class App extends React.Component{
 	* @return {Promise} Should resolve to an array of confirmed transactions object [ {context:{slot},value:{err}}, ... ]
 	*/	
 	async sendFile(encryptedBytesArray){	
-		if(!this.state.connection){
+		if(!this.state.connection && !this.state.localPayerAccount){
 			await this.connectWallet();
 		} 
 		if(!this.state.ws){
@@ -1166,7 +1265,7 @@ class App extends React.Component{
 	*/	
 	async sendMessage(){	
 		let message = document.getElementById("newMessage");	
-		if(!this.state.connection){
+		if(!this.state.connection && !this.state.localPayerAccount){
 			message.disabled = false;
 			await this.connectWallet();
 		} 
@@ -1365,16 +1464,31 @@ class App extends React.Component{
 		this.state.ws.send(JSON.stringify(rpcMessage));
 		return;
 	}	
+
+	/**
+   * Clear the user input form
+   * @method updateInputBox
+   * @param {String} User text message
+   * @param {String} Transaction ID
+   * @return {Null}
+   */	
+	updateInputBox(message,txid){
+		this.appendChat(message,txid);
+		let input = document.getElementById("newMessage");
+		input.disabled = false;
+		input.value = "";
+		this.updateCharacterCount();
+	}
 		
 	render(){
 	  return (
 		<div className="App">
-		{ this.state.loading ? <ProgressBar id="progressBar" striped animated now={99} label={this.state.loadingMessage}/> : null }
+		{ this.state.loading ? <ProgressBar id="progressBar" striped animated now={this.state.loadingValue} label={this.state.loadingMessage}/> : null }
 		<Row className="grid">
 			<Col sm={2} md={3} className="leftCol">
 				<div className="topBar">
 					{ 
-						this.state.payerAccount ? 
+						this.state.payerAccount? 
 						<div id="solletAccount">
 							<p> 
 								<img alt="accountImg" className="avatar" src={"https://robohash.org/"+this.state.payerAccount.toBase58()+"?size=128x128"} />
@@ -1383,8 +1497,28 @@ class App extends React.Component{
 								<br/>{this.state.providerUrl} 
 							</p>
 						</div>
-						: 
-						<Button id="connectWalletButton" size="sm" onClick={this.connectWallet}>CONNECT WALLET</Button> 
+						:null
+					}
+					{
+						this.state.localPayerAccount ?
+						<div id="importedAccount">
+							<p> 
+								ImportedAccount: 
+								<img alt="accountImg" className="avatar" src={"https://robohash.org/"+this.state.localPayerAccount.publicKey.toBase58()+"?size=128x128"} />
+								<b>{this.state.localPayerAccount.publicKey.toBase58()}</b>  
+								<br/><b>{this.state.localPayerBalance / LAMPORTS_PER_SOL} </b> SOL	
+								<br/> <Button size="sm" variant="danger" onClick={this.removeImportedAccount}>Dispose Imported Account</Button>
+							</p>				
+						</div>
+						:null
+					}
+					{
+						(!this.state.localPayerAccount && !this.state.localPayerAccount) ?
+						<ButtonGroup id="connectWalletButton">
+							<Button  size="sm" onClick={this.connectWallet}>connect wallet</Button> 
+							<Button variant="danger" size="sm" onClick={()=>{this.importKey()}}> import key </Button>
+						</ButtonGroup>
+						:null
 					}
 				</div>
 				<ListView 
@@ -1446,7 +1580,7 @@ class App extends React.Component{
 						/>
 						<InputGroup.Append>
 						  <Button onClick={this.sendMessage}> SEND </Button>
-						  <input onChange={this.uploadFile} type="file" accept="image/png, image/jpeg"/>						  
+						  <input id="fileUploadButton" onChange={this.uploadFile} onClick={()=>{document.getElementById('fileUploadButton').value=null;}} type="file" accept="image/png, image/jpeg"/>						  
 						</InputGroup.Append>
 					</InputGroup>						
 				</Row>

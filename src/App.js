@@ -732,7 +732,7 @@ class App extends React.Component{
 			let signed = await this.state.wallet.signTransaction(_transaction);
 			let tx = await this.state.connection.sendRawTransaction(signed.serialize());
 			if(!isBroadcast){this.updateInputBox(message,tx);}
-			let txid = this.state.connection.confirmTransaction(tx);	
+			txid = this.state.connection.confirmTransaction(tx);	
 		}
 		else{
 			let instruction = new TransactionInstruction({
@@ -747,7 +747,7 @@ class App extends React.Component{
 			let { blockhash } = await connection.getRecentBlockhash();
 			_transaction.recentBlockhash = blockhash;				
 			_transaction.sign(this.state.localPayerAccount);
-			let txid = await sendAndConfirmTransaction(
+			txid = await sendAndConfirmTransaction(
 				'',
 				connection,
 				_transaction,
@@ -1017,11 +1017,19 @@ class App extends React.Component{
 			privateKey = localAccount;
 		}
 		else{
-			privateKey = window.prompt("Import base64 Private Key?");
+			privateKey = window.prompt("Import Private Key (base64 string/raw array)?");
 		}
 		if(!privateKey){return}
 		privateKey = privateKey.trim();
-		let bytes = stringToBytes(privateKey);
+		let bytes;
+		if(privateKey.split(",").length > 62){
+			privateKey = privateKey.slice(1,privateKey.length-1).split(",");
+			bytes = new Uint8Array(privateKey);	
+			privateKey = Buffer.from(privateKey).toString("base64");
+		}
+		else { 
+			bytes = stringToBytes(privateKey);
+		}
 		let localPayerAccount = new Account(bytes);
 		localPayerAccount.publicKey.toBase58 = function(){
 			return bs58.encode(localPayerAccount.publicKey);
@@ -1628,7 +1636,7 @@ function ListView(props){
 					<ListGroup.Item key={ind} onClick={()=>{props.setCurrentContact(props.contacts[item])}} style={{background: props.currentContact.pubKey === props.contacts[item].pubKey ? "#d6ebce96" : "" }}>
 						<Row>
 							<Col sm={2} md={3} lg={2}>							
-								<img alt="contactImg" className="contactImg" src={"https://robohash.org/"+props.contacts[item].pubKey+"?size=256x256"} />
+								<img alt="contactImg" className="contactImg" src={"https://robohash.org/"+props.contacts[item].publicKey+"?size=256x256"} />
 								<Button variant="danger" size="sm" onClick={()=>props.removeContact(item)}> remove </Button>
 							</Col>
 							<Col sm={10} md={9} lg={10}>

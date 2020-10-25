@@ -38,6 +38,7 @@ var Intervals = []
 var defaultProgram;
 var defaultChannel;
 var FILES = {}
+var MESSAGE_HISTORY = {}
 
 TimeAgo.addLocale(en)
 // Date formatter.
@@ -205,6 +206,17 @@ async function getRSAKeys(){
 	}
 	else{rsaKeyPair = {}}
 	return rsaKeyPair;
+}
+
+/**
+* Get URL to transaction on explorer.solana.com
+* @method getTransactionURL
+* @param {String} Transaction ID
+* @return {String} Transaction URL
+*/
+function getTransactionURL(txid){
+	let network = urlRoot.split("//")[1].split(".")[0];
+	return `https://explorer.solana.com/tx/${txid}?cluster=${network}`
 }
 
 /**
@@ -425,36 +437,23 @@ class App extends React.Component{
 	* @param {String} Solana public key
 	* @return {Null}
 	*/
-	appendChat(string,txid,solanaPublicKey){
-		let time = document.createElement("p");
-		time.setAttribute("class","fromStamp");
-		time.innerHTML = new Date().toString().split("GMT")[0];
-		//Message
-		let div = document.createElement("div");
-		if(txid){
-			div.setAttribute("class","msgSelf");
+	appendChat(message,txid,solanaPublicKey){
+		if(!MESSAGE_HISTORY[solanaPublicKey]){
+			MESSAGE_HISTORY[solanaPublicKey] = []
 		}
-		else{
-			div.setAttribute("class","msgContact");
-		}
-		let msg = document.createElement("p");
-		msg.setAttribute("class","fromMessage");
-		msg.innerHTML = string.trim();
-		if(txid){
-			let network = this.state.providerUrl.split("=");
-			network = network[network.length - 1];
-			msg.innerHTML += `<br/> <a href='https://explorer.solana.com/tx/${txid}?cluster=${network}' target='_blank'> ${txid.slice(0,10)} </a> `
-		}
-		let chat = document.getElementById("chat");
-		div.appendChild(time);
-		div.appendChild(msg);
-		chat.appendChild(div);
-		chat.scrollTo(0,chat.scrollHeight);	
-		if(solanaPublicKey && (solanaPublicKey !== this.state.currentContact.publicKey)){
+		MESSAGE_HISTORY[solanaPublicKey].push({
+			message,
+			time:new Date().getTime(),
+			txid,
+			
+		});
+		if(solanaPublicKey !== this.state.currentContact.publicKey){
 			let contacts = this.state.contacts;
 			contacts[solanaPublicKey].message += 1;
 			updateContacts(contacts);
 		}
+		//Force state reflow
+		this.setState({loading:false});
 		return;
 	}
 	
@@ -465,34 +464,16 @@ class App extends React.Component{
 	* @param {String} Solana public key of contact ?
 	* @return {Null}
 	*/
-	appendAudio(src,inbound){
-		let time = document.createElement("p");
-		time.setAttribute("class","fromStamp");
-		time.innerHTML = new Date().toString().split("GMT")[0];
-		//Message
-		let div = document.createElement("div");
-		let msg = document.createElement("audio");
-		msg.id = Math.random().toFixed(10).slice(2);
-		let button = document.createElement("Button");
-		button.variant = "default";
-		button.innerHTML = "📣";
-		if(!inbound){
-			div.setAttribute("class","msgSelf");
-			button.setAttribute("onClick",`function play(){document.getElementById("${msg.id}").play()};play()`);
-
+	appendAudio(audio_src,solanaPublicKey){
+		if(!MESSAGE_HISTORY[solanaPublicKey]){
+			MESSAGE_HISTORY[solanaPublicKey] = []
 		}
-		else{
-			div.setAttribute("class","msgContact");
-			div.innerHTML = "voice note from:"+inbound;
-			button.setAttribute("onClick",`function play(){document.getElementById("${msg.id}").play()};play()`);
-		}
-		let chat = document.getElementById("chat");
-		div.appendChild(time);
-		div.appendChild(msg);
-		div.appendChild(button);
-		chat.appendChild(div);
-		chat.scrollTo(0,chat.scrollHeight);
-		msg.src = src;
+		MESSAGE_HISTORY[solanaPublicKey].push({
+			audio_src,
+			time:new Date().getTime(),			
+		});			
+		//Force state reflow
+		this.setState({loading:false});
 		return;			
 	}
 	
@@ -503,26 +484,16 @@ class App extends React.Component{
 	* @param {String} Solana public key of contact ?
 	* @return {Null}
 	*/
-	appendImage(src,inbound){
-		let time = document.createElement("p");
-		time.setAttribute("class","fromStamp");
-		time.innerHTML = new Date().toString().split("GMT")[0];
-		//Message
-		let div = document.createElement("div");
-		let msg = document.createElement("img");
-		if(!inbound){
-			div.setAttribute("class","msgSelf");
+	appendImage(img_src,solanaPublicKey){
+		if(!MESSAGE_HISTORY[solanaPublicKey]){
+			MESSAGE_HISTORY[solanaPublicKey] = []
 		}
-		else{
-			div.setAttribute("class","msgContact");
-			div.innerHTML = "file from:"+inbound;
-		}
-		let chat = document.getElementById("chat");
-		div.appendChild(time);
-		div.appendChild(msg);
-		chat.appendChild(div);
-		chat.scrollTo(0,chat.scrollHeight);
-		msg.src = src;
+		MESSAGE_HISTORY[solanaPublicKey].push({
+			img_src,
+			time:new Date().getTime(),			
+		});		
+		//Force state reflow
+		this.setState({loading:false});
 		return;			
 	}
 		
@@ -709,7 +680,7 @@ class App extends React.Component{
 				);
 				transactions.push(tx);
 				this.setState({loadingValue:(100*transactions.length)/encryptedBytesArray.length});
-				sleep(100);
+				sleep(350);
 			}		
 		}
 		this.setState({loading:false,loadingMessage:""});
@@ -1510,7 +1481,7 @@ class App extends React.Component{
    * @return {Null}
    */	
 	updateInputBox(message,txid){
-		this.appendChat(message,txid,null);
+		this.appendChat(message,txid,this.state.currentContact.publicKey);
 		let input = document.getElementById("newMessage");
 		input.disabled = false;
 		input.value = "";
@@ -1530,7 +1501,7 @@ class App extends React.Component{
 		if(encryptedBytesArray){
 			this.sendFile(encryptedBytesArray).then(()=>{
 				let objectURL = URL.createObjectURL(blob);
-				this.appendAudio(objectURL,false);
+				this.appendAudio(objectURL,this.state.currentContact.publicKey);
 			});
 		}			
 	}	
@@ -1554,7 +1525,7 @@ class App extends React.Component{
 			let encryptedBytesArray = await this.encryptFile(bufferReader.result,input.files[0].name);
 			if(encryptedBytesArray){
 				this.sendFile(encryptedBytesArray).then(()=>{
-					this.appendImage(imageSRC,false);
+					this.appendImage(imageSRC,this.state.currentContact.publicKey);
 				});
 			}
 		};      
@@ -1659,8 +1630,26 @@ class App extends React.Component{
 					</Row>		
 				</div>
 				<Row> 
-					<div id="chat"> 
-											
+					<div id="chat"> 						
+						{
+							MESSAGE_HISTORY[this.state.currentContact.publicKey] && MESSAGE_HISTORY[this.state.currentContact.publicKey].map((info,ind)=>(
+								<div key={ind} className={info.txid ? "msgSelf" : "msgContact"}>
+									<p className="fromStamp"> {timeAgo.format(new Date(info.time),'round')} </p>
+									
+									{ info.message ? <p className="fromMessage">{info.message.trim()}</p> : null }
+									
+									{ info.img_src ? <img alt="img" src={info.img_src} /> : null }
+									
+									{ info.audio_src ? <audio alt="img" src={info.audio_src} controls /> : null }
+									
+									{
+										info.txid ? 
+										<div><br/> <a href={getTransactionURL(info.txid)} target='_blank' rel="noopener noreferrer"> {info.txid.slice(0,10)} </a></div>
+										:null
+									}
+								</div>
+							))
+						}	
 					</div>
 				</Row>
 				<div id="charCount">#{this.state.characterCount}</div>

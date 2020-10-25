@@ -35,8 +35,8 @@ import { Recorder } from './Components/Recorder';
 var socketRoot;
 var urlRoot;
 var Intervals = []
-var defaultProgram = "JB2LCd9oV7xNemBSV8dJu6gkrpWQSrDPcfHUQAQnXRZu";
-var defaultChannel = "BoSJNDkt37kxQthSgvMqCER1dMzyqEUS34Kkp2YazEiq";
+var defaultProgram;
+var defaultChannel;
 var FILES = {}
 
 TimeAgo.addLocale(en)
@@ -46,12 +46,16 @@ const timeAgo = new TimeAgo('en-US')
 if(window.location.href.search("localhost") > -1){
 	urlRoot = "https://testnet.solana.com/";
 	socketRoot = "ws://testnet.solana.com:8900";
+	defaultProgram = "JB2LCd9oV7xNemBSV8dJu6gkrpWQSrDPcfHUQAQnXRZu";
+	defaultChannel = "BoSJNDkt37kxQthSgvMqCER1dMzyqEUS34Kkp2YazEiq";	
 	console.log("Running Local");
 }
 else{
-	console.log("Running Production")
 	urlRoot = "https://testnet.solana.com/";
 	socketRoot = "wss://testnet.solana.com";
+	defaultProgram = "JB2LCd9oV7xNemBSV8dJu6gkrpWQSrDPcfHUQAQnXRZu";
+	defaultChannel = "BoSJNDkt37kxQthSgvMqCER1dMzyqEUS34Kkp2YazEiq";
+	console.log("Running Production")	
 	//console.log = function(){}
 	//console.warn = function(){}
 
@@ -287,20 +291,6 @@ function padText(str){
 		}
 	}
 	return Buffer.from(str);
-}
-
-/**
-* Remove contact from localStorage Contacts object
-* @method removeContact
-* @param {String} Solana base58 public key 
-* @return {Object} Contacts {publicKey:{publicKey,channel,chatPublicKey,programId,message,time}...}
-*/
-function removeContact(solanaPublicKey){
-	let contacts = window.localStorage.getItem("contacts");	
-	contacts = contacts ? JSON.parse(contacts) : {} ;
-	delete contacts[solanaPublicKey]
-	window.localStorage.setItem("contacts",JSON.stringify(contacts));	
-	return contacts;
 }
 
 /**
@@ -1277,6 +1267,21 @@ class App extends React.Component{
 	}	
 	
 	/**
+	* Remove contact from contacts list on user confirmation
+	* @method removeContact
+	* @param {String} Solana public key
+	* @return {null}
+	*/	
+	removeContact(solanaPublicKey){
+		if(window.confirm("Remove Contact:"+solanaPublicKey+"?")){
+			let contacts = this.state.contacts;
+			delete contacts[solanaPublicKey];
+			updateContacts(contacts);
+			this.setState({contacts});
+		}	
+	}	
+	
+	/**
 	* Remove imported Solana Account
 	* @method removeImportedAccount
 	* @return {Null}
@@ -1297,19 +1302,6 @@ class App extends React.Component{
 		if(!window.confirm("Clear local chat account keys?")){return;}
 		window.localStorage.removeItem("rsaKeys");
 		this.setState({rsaKeyPair:false});
-		return;
-	}
-
-	/**
-	* Remove contact from contacts list on user confirmation
-	* @method removeContact
-	* @return {Null}
-	*/	
-	removeContact(pubKey){
-		if(window.confirm("Remove Contact?")){
-			let contacts = removeContact(pubKey);
-			this.setState({contacts});
-		}
 		return;
 	}
 
@@ -1381,10 +1373,13 @@ class App extends React.Component{
 	* @return {Null}
 	*/	
 	setCurrentContact(contact){
+		if(!contact){return;}
 		let contacts = this.state.contacts;
-		contacts[contact.publicKey].message = 0;
-		updateContacts(contacts);
-		this.setState({currentContact:contact,contacts});
+		if(contacts[contact.publicKey]){
+			contacts[contact.publicKey].message = 0;
+			updateContacts(contacts);
+			this.setState({currentContact:contact,contacts});
+		}
 		return;
 	}
 	
@@ -1730,7 +1725,8 @@ function ListView(props){
 						<Row>
 							<Col sm={2} md={3} lg={2}>							
 								<img alt="contactImg" className="contactImg" src={"https://robohash.org/"+props.contacts[item].publicKey+"?size=256x256"} />
-								<Button variant="danger" size="sm" onClick={()=>props.removeContact(item)}> remove </Button>
+								<br/>
+								<Button variant="danger" size="sm" onClick={()=>{props.removeContact(item); }}> remove </Button>
 							</Col>
 							<Col sm={10} md={9} lg={10}>
 								<p className="contactTime">

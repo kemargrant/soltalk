@@ -67,7 +67,7 @@ function Recorder(props){
 			return;
 		}
 		let streamContraints = {
-			audioBitsPerSecond: 16000,
+			audioBitsPerSecond: 12000,
 		};
 		let mediaRecorder = new MediaRecorder(stream,streamContraints);
 		mediaRecorder.ondataavailable = (event)=> {

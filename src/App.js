@@ -30,6 +30,7 @@ import {
 } from '@solana/web3.js';
 import Wallet from '@project-serum/sol-wallet-adapter';
 import {sendAndConfirmTransaction} from './util/send-and-confirm-transaction';
+import { Recorder } from './Components/Recorder';
 
 var socketRoot;
 var urlRoot;
@@ -349,7 +350,7 @@ class App extends React.Component{
 		
 		this.addContact = this.addContact.bind(this);
 		this.appendChat = this.appendChat.bind(this);
-		this.appendFile = this.appendFile.bind(this);
+		this.appendAudio = this.appendAudio.bind(this);
 		this.appendImage = this.appendImage.bind(this);
 
 		this.badgeContact = this.badgeContact.bind(this);
@@ -377,6 +378,7 @@ class App extends React.Component{
 		this.loadProgramControlledAccount = this.loadProgramControlledAccount.bind(this);
 
 		this.parseAccountData = this.parseAccountData.bind(this);
+		this.processFile = this.processFile.bind(this);
 		this.promptContactAddition = this.promptContactAddition.bind(this);
 		
 		this.messageKeyUp = this.messageKeyUp.bind(this);
@@ -394,7 +396,8 @@ class App extends React.Component{
 		
 		this.writeLog= this.writeLog.bind(this);
 		
-		this.uploadFile = this.uploadFile.bind(this);
+		this.uploadAudioFile = this.uploadAudioFile.bind(this);		
+		this.uploadImageFile = this.uploadImageFile.bind(this);
 		this.unsubscribe = this.subscribe.bind(this);
 		this.updateCharacterCount = this.updateCharacterCount.bind(this);
 		this.updateInputBox = this.updateInputBox.bind(this);
@@ -466,9 +469,47 @@ class App extends React.Component{
 	}
 	
 	/**
+	* Add audio to chat interface
+	* @method appendAudio
+	* @param {String} Audio objectURL src
+	* @param {String} Solana public key of contact ?
+	* @return {Null}
+	*/
+	appendAudio(src,inbound){
+		let time = document.createElement("p");
+		time.setAttribute("class","fromStamp");
+		time.innerHTML = new Date().toString().split("GMT")[0];
+		//Message
+		let div = document.createElement("div");
+		let msg = document.createElement("audio");
+		msg.id = Math.random().toFixed(10).slice(2);
+		let button = document.createElement("Button");
+		button.variant = "default";
+		button.innerHTML = "📣";
+		if(!inbound){
+			div.setAttribute("class","msgSelf");
+			button.setAttribute("onClick",`function play(){document.getElementById("${msg.id}").play()};play()`);
+
+		}
+		else{
+			div.setAttribute("class","msgContact");
+			div.innerHTML = "voice note from:"+inbound;
+			button.setAttribute("onClick",`function play(){document.getElementById("${msg.id}").play()};play()`);
+		}
+		let chat = document.getElementById("chat");
+		div.appendChild(time);
+		div.appendChild(msg);
+		div.appendChild(button);
+		chat.appendChild(div);
+		chat.scrollTo(0,chat.scrollHeight);
+		msg.src = src;
+		return;			
+	}
+	
+	/**
 	* Add image to chat interface
 	* @method appendImage
-	* @param {String} Image src
+	* @param {String} Image objectURL src
 	* @param {String} Solana public key of contact ?
 	* @return {Null}
 	*/
@@ -484,7 +525,7 @@ class App extends React.Component{
 		}
 		else{
 			div.setAttribute("class","msgContact");
-			msg.innerHTML = "file from:"+inbound;
+			div.innerHTML = "file from:"+inbound;
 		}
 		let chat = document.getElementById("chat");
 		div.appendChild(time);
@@ -493,47 +534,6 @@ class App extends React.Component{
 		chat.scrollTo(0,chat.scrollHeight);
 		msg.src = src;
 		return;			
-	}
-	
-	
-	/**
-	* Append file to chat window
-	* @method appendFile
-	* @param {Object} Part of file packet {f,u,us,c,p}
-	* @param {String} Solana base58 public key
-	* @return {Null}
-	*/
-	appendFile(packet,solanaPublicKey){
-		console.log("Process File from:",solanaPublicKey);
-		if(!solanaPublicKey){return console.log("Sender not in known contacts");}
-		if(!FILES[solanaPublicKey]){
-			FILES[solanaPublicKey] = {}
-		}
-		FILES[solanaPublicKey][packet.p] = packet
-		let parts = Object.keys( FILES[solanaPublicKey] ).length;
-		let rawFile = "";
-		let blob;
-		let objectURL;
-		let fileType = {
-			"jpg":"image/jpeg",
-			"png":"image/png"
-		}
-		//Check if we have the complete file
-		if(packet.c === parts){
-			//Assemble the file
-			for(let i =0;i < parts;i++){
-				rawFile += FILES[solanaPublicKey][i+1].f;
-			}
-			rawFile = Buffer.from(rawFile.split(","));
-			blob = new Blob([ rawFile ], {type : fileType[  FILES[solanaPublicKey][1].e ]});
-			objectURL = URL.createObjectURL(blob);
-		}
-		else{
-			return;
-		}
-		this.appendImage(objectURL,solanaPublicKey)
-		delete FILES[solanaPublicKey];
-		return;
 	}
 		
 	/**
@@ -719,7 +719,7 @@ class App extends React.Component{
 				);
 				transactions.push(tx);
 				this.setState({loadingValue:(100*transactions.length)/encryptedBytesArray.length});
-				sleep(400);
+				sleep(100);
 			}		
 		}
 		this.setState({loading:false,loadingMessage:""});
@@ -1184,11 +1184,58 @@ class App extends React.Component{
 				this.appendChat(string,null,sender);
 			}
 			else if(packet.f){
-				this.appendFile(packet,sender);
+				this.processFile(packet,sender);
 			}
 		}
 		return;
 	}
+
+	/**
+	* Process a file segment
+	* @method processFile
+	* @param {Object} Part of file packet {f,u,us,c,p}
+	* @param {String} Solana base58 public key
+	* @return {Null}
+	*/
+	processFile(packet,solanaPublicKey){
+		console.log("Process File from:",solanaPublicKey);
+		if(!solanaPublicKey){return console.log("Sender not in known contacts");}
+		if(!FILES[solanaPublicKey]){
+			FILES[solanaPublicKey] = {}
+		}
+		FILES[solanaPublicKey][packet.p] = packet
+		let parts = Object.keys( FILES[solanaPublicKey] ).length;
+		let rawFile = "";
+		let blob;
+		let objectURL;
+		let fileType = {
+			"jpg":"image/jpeg",
+			"png":"image/png",
+			"ogg":"audio/ogg"
+		}
+		//Check if we have the complete file
+		if(packet.c === parts){
+			//Assemble the file
+			for(let i =0;i < parts;i++){
+				rawFile += FILES[solanaPublicKey][i+1].f;
+			}
+			rawFile = Buffer.from(rawFile.split(","));
+			blob = new Blob([ rawFile ], {type : fileType[  FILES[solanaPublicKey][1].e ]});
+			objectURL = URL.createObjectURL(blob);
+		}
+		else{
+			return;
+		}
+		if(FILES[solanaPublicKey][1].e !== "ogg")	{	
+			this.appendImage(objectURL,solanaPublicKey);
+		}
+		else{
+			this.appendAudio(objectURL,solanaPublicKey);
+		}
+		delete FILES[solanaPublicKey];
+		return;
+	}	
+	
 	
 	/**
 	* Prompt user to add a new contact
@@ -1461,12 +1508,45 @@ class App extends React.Component{
 	}
 	
 	/**
+   * Clear the user input form
+   * @method updateInputBox
+   * @param {String} User text message
+   * @param {String} Transaction ID
+   * @return {Null}
+   */	
+	updateInputBox(message,txid){
+		this.appendChat(message,txid,null);
+		let input = document.getElementById("newMessage");
+		input.disabled = false;
+		input.value = "";
+		this.updateCharacterCount();
+	}	
+	
+	/**
+   * Upload audio file to network
+   * @method updateInputBox
+   * @param {Blob} Audio blob
+   * @param {String} File name
+   * @return {Null}
+   */	
+	async uploadAudioFile(blob,fileName){
+		let arrayBuffer = await blob.arrayBuffer();
+		let encryptedBytesArray = await this.encryptFile(arrayBuffer,fileName);
+		if(encryptedBytesArray){
+			this.sendFile(encryptedBytesArray).then(()=>{
+				let objectURL = URL.createObjectURL(blob);
+				this.appendAudio(objectURL,false);
+			});
+		}			
+	}	
+	
+	/**
 	* Upload and send a local image file to peer
-	* @method uploadFile
+	* @method uploadImagFile
 	* @param {Event} 
 	* @return {null} 
 	*/
-	uploadFile(evt){
+	uploadImageFile(evt){
 		let input = evt.target;
 		let imageSRC = null;
 		let pageReader = new FileReader();
@@ -1499,21 +1579,6 @@ class App extends React.Component{
 		this.state.ws.send(JSON.stringify(rpcMessage));
 		return;
 	}	
-
-	/**
-   * Clear the user input form
-   * @method updateInputBox
-   * @param {String} User text message
-   * @param {String} Transaction ID
-   * @return {Null}
-   */	
-	updateInputBox(message,txid){
-		this.appendChat(message,txid,null);
-		let input = document.getElementById("newMessage");
-		input.disabled = false;
-		input.value = "";
-		this.updateCharacterCount();
-	}
 		
 	render(){
 	  return (
@@ -1615,7 +1680,8 @@ class App extends React.Component{
 						/>
 						<InputGroup.Append>
 						  <Button onClick={this.sendMessage}> SEND </Button>
-						  <input id="fileUploadButton" onChange={this.uploadFile} onClick={()=>{document.getElementById('fileUploadButton').value=null;}} type="file" accept="image/png, image/jpeg"/>						  
+						  <input id="fileUploadButton" onChange={this.uploadImageFile} onClick={()=>{document.getElementById('fileUploadButton').value=null;}} type="file" accept="image/png, image/jpeg"/>						  
+						  <Recorder uploadAudioFile={this.uploadAudioFile}/>
 						</InputGroup.Append>
 					</InputGroup>						
 				</Row>
@@ -1717,5 +1783,5 @@ function ListView(props){
 		}
 	</div>)
 }
-	
+		
 export default App;

@@ -7,7 +7,7 @@ import { Button } from 'react-bootstrap';
 function Recorder(props){
 	let recordedMessage;
 	let mimeType = "audio/ogg;codecs=opus"
-	let msToRecord = 5000;	
+	let msToRecord = 3000;	
 	let pvn = document.getElementById("playVoiceNote");
 	let uvn = document.getElementById("uploadVoiceNote");	
 	useEffect(() => {
@@ -67,7 +67,7 @@ function Recorder(props){
 			return;
 		}
 		let streamContraints = {
-			audioBitsPerSecond: 12000,
+			audioBitsPerSecond: 10000,
 		};
 		let mediaRecorder = new MediaRecorder(stream,streamContraints);
 		mediaRecorder.ondataavailable = (event)=> {

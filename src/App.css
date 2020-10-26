@@ -50,7 +50,7 @@ body {
     animation-timing-function:linear;
 	/* background: radial-gradient(circle, rgba(2,0,36,1) 0%, rgba(145,85,117,1) 26%, rgba(0,212,255,1) 100%);	*/
 	/*border:0.2em solid black;*/
-	height:83vh;
+	height:82vh;
 	overflow-x:hidden;
 	overflow-y:auto-scroll;
 	width:99%;
@@ -68,19 +68,25 @@ body {
 	position:absolute;
 }
 
-#connectWalletButton{
-	margin-left:20%;
-	margin-top:2vh;
+.connectButtons{
+	display:block;
+	margin:auto;
+	padding-left:2%;
 }
 
 .contactCol{
 	display:block;
-	height:86vh;
+	height:84vh;
 	margin-left:0px;
 	margin-right:0px;
 	padding:0px;
 	overflow-x:hidden;
 	overflow-y:auto-scroll;
+}
+
+.contactColHolder{
+	padding:0px;
+	margin:0px;
 }
 
 .contactImg{
@@ -191,12 +197,9 @@ body {
 }
 
 .topBar{
-	background:grey;
-	background-image:linear-gradient(180deg,#dddbd1,#d2dbdc);
-	height:10vh;
-	overflow-x:hidden;
-	overflow-y:auto-scroll;
-	width:100%;
+ background-color: rgba(0,0,0,.2);
+ border-bottom:3px solid black;
+ 
 }
 
 .unconfirmed{
@@ -204,8 +207,8 @@ body {
 }
 
 ::-webkit-scrollbar {
-    width: 6px!important;
-    height: 6px!important;
+    width: 3px!important;
+    height: 3px!important;
 }
 
 ::-webkit-scrollbar-thumb {

@@ -1550,43 +1550,76 @@ class App extends React.Component{
 	  return (
 		<div className="App">
 		{ this.state.loading ? <ProgressBar id="progressBar" striped animated now={this.state.loadingValue} label={this.state.loadingMessage}/> : null }
-		<Row className="grid">
-			<Col sm={2} md={3} className="leftCol">
-				<div className="topBar">
-					{ 
-						this.state.payerAccount? 
-						<div id="solletAccount">
-							<p> 
-								<img alt="accountImg" className="avatar" src={"https://robohash.org/"+this.state.payerAccount.toBase58()+"?size=128x128"} />
-									{this.state.payerAccount.toBase58()}
-								<br/>	{this.state.payerAccountBalance} SOL 
-								<br/>{this.state.providerUrl} 
-							</p>
-						</div>
-						:null
-					}
+		<Row className="grid topBar">
+			<Col sm={3} md={2} className="connectButtons">
+				{
+					(!this.state.payerAccount && !this.state.localPayerAccount) ?
+					<ButtonGroup>
+						<Button  size="sm" onClick={this.connectWallet}>connect wallet</Button> 
+						<Button variant="danger" size="sm" onClick={()=>{this.importKey()}}> import key </Button>
+					</ButtonGroup>
+					:null
+				}
+				{ 
+					this.state.payerAccount? 
+					<div id="solletAccount">
+						<p> 
+							<img alt="accountImg" className="avatar" src={"https://robohash.org/"+this.state.payerAccount.toBase58()+"?size=128x128"} />
+							<br/>
+								{this.state.payerAccount.toBase58()}
+							<br/>	<b>{this.state.payerAccountBalance}</b> SOL 
+							<br/>{this.state.providerUrl} 
+						</p>
+					</div>
+					:null
+				}
+				{
+					this.state.localPayerAccount ?
+					<div id="importedAccount">
+						<p> 
+							ImportedAccount: 
+							<img alt="accountImg" className="avatar" src={"https://robohash.org/"+this.state.localPayerAccount.publicKey.toBase58()+"?size=128x128"} />
+							<b>{this.state.localPayerAccount.publicKey.toBase58()}</b>  
+							<br/><b>{this.state.localPayerBalance / LAMPORTS_PER_SOL} </b> SOL	
+							<br/> <Button size="sm" variant="danger" onClick={this.removeImportedAccount}>Dispose Imported Account</Button>
+						</p>				
+					</div>
+					:null
+				}
+			</Col>
+			<Col sm={6} md={8}>
+			<div>
+					
 					{
-						this.state.localPayerAccount ?
-						<div id="importedAccount">
-							<p> 
-								ImportedAccount: 
-								<img alt="accountImg" className="avatar" src={"https://robohash.org/"+this.state.localPayerAccount.publicKey.toBase58()+"?size=128x128"} />
-								<b>{this.state.localPayerAccount.publicKey.toBase58()}</b>  
-								<br/><b>{this.state.localPayerBalance / LAMPORTS_PER_SOL} </b> SOL	
-								<br/> <Button size="sm" variant="danger" onClick={this.removeImportedAccount}>Dispose Imported Account</Button>
-							</p>				
-						</div>
-						:null
+					  (this.state.rsaKeyPair && this.state.rsaKeyPair.publicKey) ? 
+					  <ButtonGroup>
+						<Button size="sm" onClick={this.broadcastPresence}>Broadcast Presence</Button>
+						<Button size="sm" variant="danger" onClick={this.removeRSAKeys}>Dispose Chat Keys</Button>
+					   </ButtonGroup>: 
+					   <Button onClick={this.createRSAKeyPair}>Create RSA key pair</Button> 
 					}
+					
 					{
-						(!this.state.localPayerAccount && !this.state.localPayerAccount) ?
-						<ButtonGroup id="connectWalletButton">
-							<Button  size="sm" onClick={this.connectWallet}>connect wallet</Button> 
-							<Button variant="danger" size="sm" onClick={()=>{this.importKey()}}> import key </Button>
-						</ButtonGroup>
+						this.state.currentContact.channel ?
+						<p>
+							channel: <a rel="noopener noreferrer" href={'https://explorer.solana.com/address/'+this.state.currentContact.channel+'?cluster=testnet'} target="_blank">{this.state.currentContact.channel}</a>   
+							<br/>newtwork:  <a rel="noopener noreferrer" href={'https://explorer.solana.com/address/'+this.state.currentContact.programId+'?cluster=testnet'} target="_blank">{this.state.currentContact.programId} </a>
+						</p>
 						:null
 					}
-				</div>
+			</div>
+			</Col>
+			<Col sm={3} md={2}>
+				{
+					this.state.currentContact.publicKey ? 
+					<p>{this.state.currentContact.publicKey.slice(0,5)+"..."} <img alt="contactImg" src={"https://robohash.org/"+this.state.currentContact.publicKey+"?size=100x100"} /> </p>
+					
+				: null 
+				}
+			</Col>
+		</Row>
+		<Row>
+			<Col sm={3} md={2} className="contactColHolder">
 				<ListView 
 					addContact={this.addContact} 
 					contacts={this.state.contacts} 
@@ -1598,37 +1631,7 @@ class App extends React.Component{
 					showContactForm={this.showContactForm}
 				/>
 			</Col>
-			<Col sm={10} md={9} id="col-sm-9">
-				<div className="topBar">
-					<Row>
-						<Col sm={3} md={2}>
-							{this.state.currentContact.pubKey ? <img alt="contactImg" src={"https://robohash.org/"+this.state.currentContact.pubKey+"?size=128x128"} /> : null }
-						</Col>
-						<Col sm={0} md={2}>
-							<b>SolTalk Alpha</b>
-						</Col>
-						<Col sm={9} md={8}>
-						    {
-								this.state.currentContact.channel ?
-								<div>
-									channel: <a rel="noopener noreferrer" href={'https://explorer.solana.com/address/'+this.state.currentContact.channel+'?cluster=testnet'} target="_blank">{this.state.currentContact.channel}</a>
-									<br/>
-									newtwork:  <a rel="noopener noreferrer" href={'https://explorer.solana.com/address/'+this.state.currentContact.programId+'?cluster=testnet'} target="_blank">{this.state.currentContact.programId} </a>
-								</div>
-								:null
-							}
-
-						  {
-							  (this.state.rsaKeyPair && this.state.rsaKeyPair.publicKey) ? 
-							  <div>
-								<Button size="sm" onClick={this.broadcastPresence}>Broadcast Presence</Button>
-								<Button size="sm" variant="danger" onClick={this.removeRSAKeys}>Dispose Chat Keys</Button>
-							   </div>: 
-							   <Button onClick={this.createRSAKeyPair}>Create RSA key pair</Button> 
-						   }
-						</Col>
-					</Row>		
-				</div>
+			<Col sm={8} md={10} id="col-sm-9">
 				<Row> 
 					<div id="chat"> 						
 						{

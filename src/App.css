@@ -82,6 +82,7 @@ body {
 	padding:0px;
 	overflow-x:hidden;
 	overflow-y:auto-scroll;
+	width:100vw;
 }
 
 .contactColHolder{
@@ -99,9 +100,10 @@ body {
 }
 
 .contactInfo{
-	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
+	white-space: nowrap;
+	word-break:break-all;
 }
 
 .contactTime{
@@ -110,6 +112,11 @@ body {
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
+}
+
+.currentContact{
+	display:block;
+	margin:auto;
 }
 
 #col-sm-9{
@@ -131,10 +138,6 @@ body {
 .leftCol{
 	padding-left:5px;
 	padding-right:0px;
-}
-
-#importedAccount{
-	font-size:small;
 }
 
 #importedAccount p{
@@ -187,11 +190,13 @@ body {
 	width:100vw;
 }
 
-#solletAccount{
+.solanaAccount{
+	display:block;
 	font-size:small;
+	margin:auto;
 }
 
-#solletAccount p{
+.solanaAccount p{
 	text-align:left;	
 	word-break:break-word;
 }

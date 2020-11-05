@@ -12,6 +12,7 @@ import nacl from 'tweetnacl';
 //Bootstrap imports
 import { 
 	Badge,Button,ButtonGroup,Col,
+	Dropdown,
 	FormControl,ListGroup,
 	InputGroup,
 	ProgressBar,
@@ -1860,7 +1861,6 @@ class App extends React.Component{
 		<div className="App">
 		{ this.state.loading ? <ProgressBar id="progressBar" striped animated now={this.state.loadingValue} label={this.state.loadingMessage}/> : null }
 		<Row className="grid topBar">
-			<Col sm={3} md={2} className="connectButtons">
 				{
 					(!this.state.payerAccount && !this.state.localPayerAccount) ?
 					<ButtonGroup>
@@ -1887,80 +1887,56 @@ class App extends React.Component{
 					</div>
 					:null
 				}
-				<Button size="sm" variant="default" onClick={this.toggleContactsView}>{this.state.viewContacts ?  "⚙️ settings":"🧑‍ contacts"}</Button>
-			</Col>
-			<Col sm={6} md={8}>
-			<div>
-				{ 
-					this.state.payerAccount? 
-					<div id="solletAccount">
-						<p> 
+				<div className="solanaAccount">
+					{ 
+						this.state.payerAccount? 
+						<div>
 							<b>Address:</b>{this.state.payerAccount.toBase58()}
 							<br/><b>SOL</b>:{this.state.payerAccountBalance} 
 							<br/>{this.state.providerUrl} 
-						</p>
-					</div>
-					:null
-				}
+						</div>
+						:null
+					}
+					{
+						this.state.localPayerAccount ?
+						<div>
+							<p> 
+								<b>Address:</b>{this.state.localPayerAccount.publicKey.toBase58().slice(0,15)+"..."}  
+								<br/><b>SOL</b>:{this.state.localPayerBalance}
+							</p>				
+						</div>
+						:null
+					}
+					{
+					  (this.state.rsaKeyPair && this.state.rsaKeyPair.publicKey && ( this.state.localPayerAccount || this.state.payerAccount ) ) ? 
+						<Button size="sm" onClick={this.broadcastPresence}>Broadcast Presence</Button>
+						:null
+					}
+				</div>	
+			<div class="currentContact">		
 				{
-					this.state.localPayerAccount ?
-					<div id="importedAccount">
-						<p> 
-							<b>Address:</b>{this.state.localPayerAccount.publicKey.toBase58()}  
-							<br/><b>SOL</b>:{this.state.localPayerBalance}
-						</p>				
-					</div>
-					:null
+					this.state.currentContact.publicKey ?	<img className="avatar" alt="contactImg" src={"https://robohash.org/"+this.state.currentContact.publicKey+"?size=100x100"} /> : null 
 				}
-				{
-				  (this.state.rsaKeyPair && this.state.rsaKeyPair.publicKey && ( this.state.localPayerAccount || this.state.payerAccount ) ) ? 
-					<Button size="sm" onClick={this.broadcastPresence}>Broadcast Presence</Button>
-					:null
-				}
-				{
-				  (!this.state.rsaKeyPair && ( this.state.localPayerAccount || this.state.payerAccount ) ) ? 
-					<Button size="sm" onClick={this.createRSAKeyPair}>Create RSA key pair</Button> 
-					:null
-				}								
+				<br/>
+				<Dropdown>
+					<Dropdown.Toggle size="sm" variant="primary" id="dropdown-basic">  {this.state.currentContact.publicKey?  this.state.currentContact.publicKey.slice(0,7) : "Contacts"}  </Dropdown.Toggle>
+					<Dropdown.Menu>
+						<ListView 
+						addContact={this.addContact} 
+						contacts={this.state.contacts} 
+						cancelContactForm={this.cancelContactForm} 
+						currentContact={this.state.currentContact}
+						removeContact={this.removeContact}
+						setCurrentContact={this.setCurrentContact}
+						showContactForm_state={this.state.showContactForm} 
+						showContactForm={this.showContactForm}
+						/>
+					</Dropdown.Menu>
+				</Dropdown>
 			</div>
-			</Col>
-			<Col sm={3} md={2}>
-				{
-					this.state.currentContact.publicKey ? 
-					<p>
-						{this.state.currentContact.publicKey.slice(0,5)+"..."} <img alt="contactImg" src={"https://robohash.org/"+this.state.currentContact.publicKey+"?size=100x100"} /> 
-					</p>
-					
-				: null 
-				}
-			</Col>
 		</Row>
 		<Row>
-			<Col sm={3} md={2} className="contactColHolder">
-			{
-				this.state.viewContacts ?
-				<ListView 
-					addContact={this.addContact} 
-					contacts={this.state.contacts} 
-					cancelContactForm={this.cancelContactForm} 
-					currentContact={this.state.currentContact}
-					removeContact={this.removeContact}
-					setCurrentContact={this.setCurrentContact}
-					showContactForm_state={this.state.showContactForm} 
-					showContactForm={this.showContactForm}
-				/>
-				:
-				<Settings 
-					currentContact={this.state.currentContact}
-					localPayerAccount={this.state.localPayerAccount}
-					removeImportedAccount={this.removeImportedAccount}
-					removeRSAKeys={this.removeRSAKeys}
-					viewStyle={this.state.viewStyle}
-					updateViewStyle={this.updateViewStyle}
-				/>
-			}
-			</Col>
-			<Col sm={8} md={10} id="col-sm-9">
+			<Col sm={12} id="col-sm-9">
 				<Row> 
 					<div id="chat"> 						
 						{
@@ -2050,26 +2026,25 @@ function ListView(props){
 			{
 				Object.keys(props.contacts).length > 0 && Object.keys(props.contacts).map((item,ind)=>(
 					<ListGroup.Item key={ind} onClick={()=>{props.setCurrentContact(props.contacts[item])}} style={{background: props.currentContact.publicKey === props.contacts[item].publicKey ? "#d6ebce96" : "" }}>
-						<Row>
-							<Col sm={2} md={3} lg={2}>							
-								<img alt="contactImg" className="contactImg" src={"https://robohash.org/"+props.contacts[item].publicKey+"?size=256x256"} />
+						<img alt="contactImg" className="contactImg" src={"https://robohash.org/"+props.contacts[item].publicKey+"?size=256x256"} />
+						<br/>
+							<p className="contactTime">
+								{timeAgo.format(new Date(props.contacts[item].time),'round')}
+							</p>
+															{
+								props.contacts[item].message > 0 ?   <Badge variant="info"> {props.contacts[item].message} </Badge>:null
+							}
+							<p className="contactInfo">
+								Address:{props.contacts[item].publicKey}
 								<br/>
-								<Button variant="danger" size="sm" onClick={()=>{props.removeContact(item); }}> remove </Button>
-							</Col>
-							<Col sm={10} md={9} lg={10}>
-								<p className="contactTime">
-									{timeAgo.format(new Date(props.contacts[item].time),'round')}
-								</p>
-																{
-									props.contacts[item].message > 0 ?   <Badge variant="info"> {props.contacts[item].message} </Badge>:null
-								}
-								<p className="contactInfo">
-									{props.contacts[item].publicKey}
-									<br/>
-									{props.contacts[item].chatPublicKey}
-								</p>
-							</Col>
-						</Row>	
+								RSA:
+								{props.contacts[item].chatPublicKey.slice(0,128)}
+								<br/>{props.contacts[item].chatPublicKey.slice(128,256)}
+								<br/>{props.contacts[item].chatPublicKey.slice(256,384)}
+								<br/>{props.contacts[item].chatPublicKey.slice(384,512)}
+								<br/>{props.contacts[item].chatPublicKey.slice(512)}
+							</p>
+							<Button variant="danger" size="sm" onClick={()=>{props.removeContact(item); }}> remove </Button>
 					</ListGroup.Item>
 				))
 			}
@@ -2130,8 +2105,39 @@ function Settings(props){
 			</li>
 			  : null
 		}
+		{
+			(!props.rsaKeyPair && ( props.localPayerAccount || props.payerAccount ) ) ? 
+			<Button size="sm" onClick={props.createRSAKeyPair}>Create RSA key pair</Button> 
+			:null
+		}
 	</ul>
 	</div>)
 }		
 		
 export default App;
+
+
+			//~ <Col sm={3} md={2} className="contactColHolder">
+			//~ {
+				//~ this.state.viewContacts ?
+				//~ <ListView 
+					//~ addContact={this.addContact} 
+					//~ contacts={this.state.contacts} 
+					//~ cancelContactForm={this.cancelContactForm} 
+					//~ currentContact={this.state.currentContact}
+					//~ removeContact={this.removeContact}
+					//~ setCurrentContact={this.setCurrentContact}
+					//~ showContactForm_state={this.state.showContactForm} 
+					//~ showContactForm={this.showContactForm}
+				//~ />
+				//~ :
+				//~ <Settings 
+					//~ currentContact={this.state.currentContact}
+					//~ localPayerAccount={this.state.localPayerAccount}
+					//~ removeImportedAccount={this.removeImportedAccount}
+					//~ removeRSAKeys={this.removeRSAKeys}
+					//~ viewStyle={this.state.viewStyle}
+					//~ updateViewStyle={this.updateViewStyle}
+				//~ />
+			//~ }
+			//~ </Col>

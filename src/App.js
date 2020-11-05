@@ -1,6 +1,8 @@
 import React from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
+//ETC
+import QRCode from 'qrcode'
 // Time Ago English
 import TimeAgo from 'javascript-time-ago';
 import en from 'javascript-time-ago/locale/en';
@@ -30,6 +32,7 @@ import {
 } from '@solana/web3.js';
 import Wallet from '@project-serum/sol-wallet-adapter';
 import {sendAndConfirmTransaction} from './util/send-and-confirm-transaction';
+//Components
 import { Recorder } from './Components/Recorder';
 
 var socketRoot;
@@ -38,7 +41,6 @@ var Intervals = []
 var defaultProgram;
 var defaultChannel;
 var FILES = {}
-var MESSAGE_HISTORY = {}
 
 TimeAgo.addLocale(en)
 // Date formatter.
@@ -180,14 +182,21 @@ function generateRSAKeyPair(){
 /**
 * Retrieve Contacts object from localStorage
 * @method getContacts
+* @param {Boolean} Clear unread messages ?
 * @return {Object} Contacts {publicKey:{publicKey,channel,chatPublicKey,programId,message,time}...}
 */
-function getContacts(){
+function getContacts(clearUnread){
 	let contacts = window.localStorage.getItem("contacts");	
 	contacts = contacts ? JSON.parse(contacts) : {} ;
 	if( Object.keys(contacts).length < 1){
 		//Tom 
 		//contacts = addContact("CRBzvyRxKqBEfEinhp89kxykYHKyek5D9Yh5rh3kxzrC","");		
+	}
+	if(clearUnread){
+		Object.keys(contacts).map((item)=>{
+			return contacts[item].message =0;
+		});
+		window.localStorage.setItem("contacts",JSON.stringify(contacts));	
 	}
 	return contacts;
 }
@@ -198,6 +207,7 @@ function getContacts(){
 * @return {Promise} Should resolve to window.crypto.subtle key pair
 */
 async function getRSAKeys(){
+	if(!window.crypto.subtle){return {}}
 	let rsaKeyPair = window.localStorage.getItem("rsaKeys");	
 	if(rsaKeyPair){
 		rsaKeyPair = JSON.parse(rsaKeyPair);
@@ -332,6 +342,8 @@ class App extends React.Component{
 	constructor(props){
 		super(props);
 		this.state = {
+			autoSaveHistory:window.localStorage.getItem("autoSaveHistory") ? window.localStorage.getItem("autoSaveHistory") : "",
+			avatarStyle: window.localStorage.getItem("avatarStyle") ? window.localStorage.getItem("avatarStyle") : "",
 			characterCount:880-264,
 			currentContact:{},
 			contacts:[],
@@ -341,13 +353,18 @@ class App extends React.Component{
 			loadingValue:0,
 			localPayerAccount:false,
 			localPayerBalance:0,
+			MESSAGE_HISTORY:window.localStorage.getItem("message_history") ? JSON.parse(window.localStorage.getItem("message_history")) : {},
 			payerAccount:false,
 			payerAccountBalance:0,
 			providerUrl:'https://www.sollet.io/#origin='+window.location.origin+'&network=testnet',
 			rsaKeyPair:false,
+			showSolanaQR:false,
 			showContactForm:false,
+			solanaQRURL:"",
 			wallet:false,
 			ws:null,
+			viewContacts:true,
+			viewStyle: window.localStorage.getItem("viewStyle") ? window.localStorage.getItem("viewStyle") : "",			
 		}
 		
 		this.addContact = this.addContact.bind(this);
@@ -366,15 +383,22 @@ class App extends React.Component{
 		this.createRSAKeyPair = this.createRSAKeyPair.bind(this);
 		
 		this.decryptData = this.decryptData.bind(this);
+		this.deleteMessageHistory = this.deleteMessageHistory.bind(this);
 		this.disconnectWebSocket = this.disconnectWebSocket.bind(this);
 		
 		this.encryptFile = this.encryptFile.bind(this);
 		this.encryptMessage = this.encryptMessage.bind(this);
+		this.exportContacts = this.exportContacts.bind(this);
+		this.exportPrivateKey = this.exportPrivateKey.bind(this);
+		this.exportRSAKeys = this.exportRSAKeys.bind(this);
 		
+		this.generateQRCode = this.generateQRCode.bind(this);
 		this.getContacts = this.getContacts.bind(this);
+		this.getHistory = this.getHistory.bind(this);
 		this.getLocalAccount = this.getLocalAccount.bind(this);
 		
 		this.importKey = this.importKey.bind(this);
+		this.importRSAKeys_JSON = this.importRSAKeys_JSON.bind(this);
 		
 		this.loadProgram = this.loadProgram.bind(this);
 		this.loadProgramControlledAccount = this.loadProgramControlledAccount.bind(this);
@@ -388,17 +412,24 @@ class App extends React.Component{
 		this.removeContact = this.removeContact.bind(this);
 		this.removeImportedAccount = this.removeImportedAccount.bind(this);		
 		this.removeRSAKeys = this.removeRSAKeys.bind(this);
+		this.renderDesktop = this.renderDesktop.bind(this);
 
+		this.saveMessageHistory = this.saveMessageHistory.bind(this);
 		this.sendFile = this.sendFile.bind(this);
 		this.sendMessage = this.sendMessage.bind(this);
 		this.setCurrentContact = this.setCurrentContact.bind(this);
 		this.showContactForm = this.showContactForm.bind(this);
 		this.subscribe = this.subscribe.bind(this);
 		
+		this.toggleShowSolanaQR = this.toggleShowSolanaQR.bind(this);
+		this.toggleContactsView = this.toggleContactsView.bind(this);
 		
 		this.writeLog= this.writeLog.bind(this);
 		
-		this.uploadAudioFile = this.uploadAudioFile.bind(this);		
+		this.uploadAudioFile = this.uploadAudioFile.bind(this);	
+		this.updateAvatarStyle = this.updateAvatarStyle.bind(this);	
+		this.updateAutoSaveHistory = this.updateAutoSaveHistory.bind(this);
+		this.updateViewStyle = this.updateViewStyle.bind(this);			
 		this.uploadImageFile = this.uploadImageFile.bind(this);
 		this.unsubscribe = this.subscribe.bind(this);
 		this.updateCharacterCount = this.updateCharacterCount.bind(this);
@@ -430,6 +461,26 @@ class App extends React.Component{
 	}
 	
 	/**
+	* Add audio to chat interface
+	* @method appendAudio
+	* @param {String} Audio objectURL src
+	* @param {String} Solana public key of contact ?
+	* @return {Null}
+	*/
+	appendAudio(audio_src,solanaPublicKey){
+		let message_history = this.state.MESSAGE_HISTORY;
+		if(!message_history[solanaPublicKey]){
+			message_history[solanaPublicKey] = []
+		}
+		message_history[solanaPublicKey].push({
+			audio_src,
+			time:new Date().getTime(),			
+		});	
+		this.setState({MESSAGE_HISTORY:message_history},this.saveMessageHistory);	
+		return;			
+	}
+	
+	/**
 	* Add message to chat interface
 	* @method appendChat
 	* @param {String} Message
@@ -438,10 +489,11 @@ class App extends React.Component{
 	* @return {Null}
 	*/
 	appendChat(message,txid,solanaPublicKey){
-		if(!MESSAGE_HISTORY[solanaPublicKey]){
-			MESSAGE_HISTORY[solanaPublicKey] = []
+		let message_history = this.state.MESSAGE_HISTORY;
+		if(!message_history[solanaPublicKey]){
+			message_history[solanaPublicKey] = []
 		}
-		MESSAGE_HISTORY[solanaPublicKey].push({
+		message_history[solanaPublicKey].push({
 			message,
 			time:new Date().getTime(),
 			txid,
@@ -449,34 +501,34 @@ class App extends React.Component{
 		});
 		if(solanaPublicKey !== this.state.currentContact.publicKey){
 			let contacts = this.state.contacts;
-			contacts[solanaPublicKey].message += 1;
+			if(contacts[solanaPublicKey]){
+				contacts[solanaPublicKey].message += 1;
+			}
+			else{
+				contacts[solanaPublicKey] = {
+					publicKey:solanaPublicKey,
+					channel:defaultChannel,
+					chatPublicKey:"rsa pub key-missing",
+					programId:defaultProgram,
+					message:1,
+					time:new Date().getTime()
+				}
+			}
 			updateContacts(contacts);
 		}
-		//Force state reflow
-		this.setState({loading:false});
+		this.setState({MESSAGE_HISTORY:message_history},this.saveMessageHistory);
+		let chat;
+		if(this.state.viewStyle === "mobile"){
+			chat = document.getElementsByClassName("mobileChatHolder");
+			if(chat){chat = chat[0]}
+		}
+		else{
+			chat = document.getElementById("chat");
+		}
+		if(chat){chat.scrollTo(0,chat.scrollHeight);}
 		return;
 	}
-	
-	/**
-	* Add audio to chat interface
-	* @method appendAudio
-	* @param {String} Audio objectURL src
-	* @param {String} Solana public key of contact ?
-	* @return {Null}
-	*/
-	appendAudio(audio_src,solanaPublicKey){
-		if(!MESSAGE_HISTORY[solanaPublicKey]){
-			MESSAGE_HISTORY[solanaPublicKey] = []
-		}
-		MESSAGE_HISTORY[solanaPublicKey].push({
-			audio_src,
-			time:new Date().getTime(),			
-		});			
-		//Force state reflow
-		this.setState({loading:false});
-		return;			
-	}
-	
+		
 	/**
 	* Add image to chat interface
 	* @method appendImage
@@ -485,15 +537,15 @@ class App extends React.Component{
 	* @return {Null}
 	*/
 	appendImage(img_src,solanaPublicKey){
-		if(!MESSAGE_HISTORY[solanaPublicKey]){
-			MESSAGE_HISTORY[solanaPublicKey] = []
+		let message_history = this.state.MESSAGE_HISTORY;		
+		if(!message_history[solanaPublicKey]){
+			message_history[solanaPublicKey] = []
 		}
-		MESSAGE_HISTORY[solanaPublicKey].push({
+		message_history[solanaPublicKey].push({
 			img_src,
 			time:new Date().getTime(),			
-		});		
-		//Force state reflow
-		this.setState({loading:false});
+		});	
+		this.setState({MESSAGE_HISTORY:message_history},this.saveMessageHistory);	
 		return;			
 	}
 		
@@ -587,18 +639,24 @@ class App extends React.Component{
 	*/		
 	async componentDidMount(){
 		establishConnection().catch(console.warn);;	
-		let contacts = await this.getContacts();
+		let contacts = await this.getContacts(true);
 		this.subscribe(contacts);
 		//Set current contact
 		if(Object.keys(contacts).length > 0){
 			this.setCurrentContact( contacts[ Object.keys(contacts)[0] ] );
 		}
-		if(this.getLocalAccount()){
-			this.importKey(this.getLocalAccount());
-		}
+		//Setup rsa keys
 		let rsaKeyPair = await getRSAKeys();
 		if(Object.keys(rsaKeyPair).length > 1){
 			this.setState({rsaKeyPair});
+		}
+		else{
+			//auto setup the rsa keys for the user
+			this.createRSAKeyPair().catch(console.warn);
+		}
+		//Sign in local user
+		if(this.getLocalAccount()){
+			this.importKey(this.getLocalAccount());
 		}
 	}
 	
@@ -613,9 +671,15 @@ class App extends React.Component{
 			network = network[network.length - 1];
 			let connection = new Connection(clusterApiUrl(network));
 			let wallet = new Wallet(this.state.providerUrl);
-			wallet.on('connect', (publicKey) => {
+			wallet.on('connect', async (publicKey) => {
 				console.warn('Connected to sollet.io:' + publicKey.toBase58(),"on",network);
-				return this.setState({wallet,connection,payerAccount:publicKey},()=>{
+				//Set qr code
+				let solanaQRURL = await this.generateQRCode(publicKey.toBase58());
+				if(this.state.rsaKeyPair){
+					solanaQRURL += " "+this.state.rsaKeyPair.publicKey.n;
+				}
+				//
+				return this.setState({wallet,connection,payerAccount:publicKey,solanaQRURL},()=>{
 					this.getBalance();
 					if(!this.state.ws){this.subscribe();}
 					return resolve(true);
@@ -680,7 +744,7 @@ class App extends React.Component{
 				);
 				transactions.push(tx);
 				this.setState({loadingValue:(100*transactions.length)/encryptedBytesArray.length});
-				sleep(350);
+				sleep(400);
 			}		
 		}
 		this.setState({loading:false,loadingMessage:""});
@@ -785,6 +849,19 @@ class App extends React.Component{
 	}
 	
 	/**
+	* Delete message history from localstorage on confirmation from user
+	* @method deleteMessageHistory
+	* @return {Null}
+	*/	
+	deleteMessageHistory(){
+		if(window.confirm("Delete message history?")){
+			window.localStorage.removeItem("message_history");
+			this.setState({MESSAGE_HISTORY:{}});
+		}
+		return;
+	}	
+	
+	/**
 	* Disconnect from RPC websocket endpoint
 	* @method disconnectWebSocket
 	* @return {null}
@@ -800,7 +877,7 @@ class App extends React.Component{
 	* @method encryptFile
 	* @param {ArrayBuffer} ArrayBuffer of file
 	* @param {String} File name
-	* @param {String} File type  
+	* @param {String} File type  mobile
 	* @return {Promise} Should resolve to multiple encrypted Uint8Array(1028). // [512,512,4]
 	*/		
 	async encryptFile(file,name){
@@ -956,6 +1033,71 @@ class App extends React.Component{
 		
 	}
 	
+	
+	/**
+	* Export user contacts
+	* @method exportContacts
+	* @return {null} 
+	*/	
+	exportContacts() {
+		let contacts = window.localStorage.getItem("contacts");
+		this.exportFile("contacts.json",contacts);
+		return;
+	}	
+	
+	/**
+	* Download a file to the browser
+	* @method exportFile
+	* @param {String} Filename
+	* @param {Object} JSON object to export
+	* @return {null} 
+	*/	
+	exportFile(filename, text) {
+		let element = document.createElement('a');
+		element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+		element.setAttribute('download', filename);
+		element.style.display = 'none';
+		document.body.appendChild(element);
+		element.click();
+		document.body.removeChild(element);
+		return;
+	}	
+	
+	/**
+	* Export the private key of a local user
+	* @method exportPrivateKey
+	* @return {null} 
+	*/	
+	exportPrivateKey() {
+		if(!this.state.localPayerAccount){return}
+		let pk = this.state.localPayerAccount._keypair.secretKey;
+		pk = JSON.stringify({key:"["+new Array(pk).toString()+"]"});
+		this.exportFile("secret_"+new Date().getTime()+".json",pk);
+		return;
+	}	
+	
+	/**
+	* Export the RSA keys of the user
+	* @method exportRSAKeys
+	* @return {null} 
+	*/	
+	exportRSAKeys() {
+		if(!this.state.rsaKeyPair){return}
+		let rsaKeyPair = window.localStorage.getItem("rsaKeys");
+		this.exportFile("rsaKeys.json",rsaKeyPair);
+		return;
+	}			
+	
+	/**
+	* Generate QR Code dataURL
+	* @method generateQRCode
+	* @param {String} Input string
+	* @return {String} Image DataURL 
+	*/	
+	async generateQRCode(input_text){
+		return await QRCode.toDataURL(input_text,{width:1280});
+	}
+	
 	/**
 	* Update the balance of the connected sollet wallet
 	* @method getBalance
@@ -970,11 +1112,12 @@ class App extends React.Component{
 	/**
 	* Update and retrieve contacts store in localStorage
 	* @method getContacts
+	* @param {Boolean} Clear unread messages ?
 	* @return {Promise} Should resolve Contacts object
 	*/
-	getContacts(){
+	getContacts(clearUnread){
 		return new Promise((resolve,reject)=>{
-			let contacts = getContacts();
+			let contacts = getContacts(clearUnread);
 			return this.setState({contacts},()=>{return resolve(contacts);});
 		})
 	}
@@ -989,6 +1132,59 @@ class App extends React.Component{
 		return localAccount;
 	}
 	
+	/**
+	* Read the history of the chat and recreate conversations
+	* @method getHistory
+	* @return {null}
+	*/
+	getHistory(){
+		let getSignatures = {
+			"jsonrpc": "2.0",
+			"id": 1,
+			"method": "getConfirmedSignaturesForAddress2",
+			"params": [
+				defaultChannel,
+			]
+		}
+		let getTransactions = {
+			"jsonrpc": "2.0",
+			"id": 1,
+			"method": "getConfirmedTransaction",
+			"params": [null,"base64"]
+		}
+		
+		requestIdleCallback(()=>{
+			return window.fetch("https://testnet.solana.com/", {
+				"headers": {"content-type": "application/json"},
+				"body":JSON.stringify(getSignatures),
+				"method": "POST",
+			})
+			.then((r)=>{return r.json();})
+			.then(async(resp)=>{
+				if(resp && resp.result){
+					for(let i = 0;i < resp.result.length;i++){
+						getTransactions.params[0] = resp.result[i].signature;
+						await sleep(50);
+						console.log(i,resp.result.length,resp.result[i].signature);
+						await window.fetch("https://testnet.solana.com/", {
+							"headers": {"content-type": "application/json"},
+							"body":JSON.stringify(getTransactions),
+							"method": "POST",
+						})
+						.then((r)=>{return r.json();})
+						.then((json)=>{
+							if(json && json.result){
+								let data = json.result.transaction[0];
+								data = atob(data)
+								return requestAnimationFrame(()=>{this.parseAccountData(data.slice(data.length-1028));})
+							}
+						})
+						.catch(console.warn);
+					}
+				}
+			})
+		})
+	}
 	
 	/**
 	* Import user Solana private key and save to localStorage
@@ -1019,13 +1215,45 @@ class App extends React.Component{
 		localPayerAccount.publicKey.toBase58 = function(){
 			return bs58.encode(localPayerAccount.publicKey);
 		}	
+		//Set qr code
+		let solanaQRURL = await this.generateQRCode(localPayerAccount.publicKey.toBase58());
+		if(this.state.rsaKeyPair){
+			solanaQRURL = await this.generateQRCode(localPayerAccount.publicKey.toBase58()+" "+ JSON.parse(window.localStorage.getItem("rsaKeys")).publicKey.n);
+		}
+		//
 		console.log("local account imported:",localPayerAccount.publicKey.toBase58());
 		let localPayerBalance = await connection.getBalance(localPayerAccount.publicKey);
-		this.setState({localPayerAccount,localPayerBalance});
+		localPayerBalance = localPayerBalance / LAMPORTS_PER_SOL;
+		this.setState({localPayerAccount,localPayerBalance,solanaQRURL});
 		window.localStorage.setItem("myAccount",privateKey);
 		return;		
 	}
 	
+	/**
+	* Import previously exported RSA keys
+	* @method importRSAKeys_JSON
+	* @return {null}
+	*/	
+	async importRSAKeys_JSON(){
+		let input = document.createElement("input");
+		input.setAttribute("type","file");
+		input.setAttribute("accept","text/json");
+		input.click();
+		input.onchange = ()=>{
+			let pageReader = new FileReader();
+			pageReader.onload = async()=>{
+				let keys_json = atob(pageReader.result.split("base64,")[1]);
+				window.localStorage.setItem("rsaKeys",keys_json);
+				let rsaKeyPair = await getRSAKeys();
+				if(Object.keys(rsaKeyPair).length > 1){
+					this.setState({rsaKeyPair});
+				}
+			};     
+			pageReader.readAsDataURL(input.files[0]);	
+		}
+		return;
+	}
+		
 	/**
 	* Load a new program onto the network
 	* @method loadProgram
@@ -1112,8 +1340,8 @@ class App extends React.Component{
 	* @return {Null}
 	*/
 	async parseAccountData(data){
-		data = atob(data);
 		try{
+			data = atob(data);
 			if(this.checkBroadcast(data)){return};
 		}
 		catch(e){
@@ -1130,16 +1358,16 @@ class App extends React.Component{
 			let uuid_signature = Buffer.from(packet.us.split(","));
 			let valid;
 			for(let i = 0;i < contacts.length;i++){
-				solanaPublicKey = new PublicKey( contacts[i] );
+				try{solanaPublicKey = new PublicKey( contacts[i] );}catch(e){continue;}
 				valid = nacl.sign.detached.verify(uuid,uuid_signature,solanaPublicKey.toBuffer());
 				if(valid){
 					sender = contacts[i] ;
 					this.badgeContact(sender);
-					if(packet.t){
-						string += " 🔒"
-					}
 					break;
 				}
+			}
+			if(packet.t && !sender){
+				sender = "unknown";
 			}
 			if(packet.t){
 				this.appendChat(string,null,sender);
@@ -1276,6 +1504,19 @@ class App extends React.Component{
 		return;
 	}
 
+
+	/**
+	* Save message history in localstorage
+	* @method saveMessageHistory
+	* @return {Null}
+	*/	
+	saveMessageHistory(){
+		if(this.state.autoSaveHistory){
+			window.localStorage.setItem("message_history",JSON.stringify(this.state.MESSAGE_HISTORY));
+		}
+		return;
+	}
+
 	/**
 	* Send encrypted file to the network
 	* @method sendFile
@@ -1295,9 +1536,10 @@ class App extends React.Component{
 			return transactions;
 		})
 		.catch((e)=>{
-			notify("Error sending file")
+			notify("Error sending file");
 			console.warn("Error sending file:",e);
-		})
+			this.setState({loadingValue:0});
+		});
 	}
 
 	/**
@@ -1307,6 +1549,7 @@ class App extends React.Component{
 	*/	
 	async sendMessage(){	
 		let message = document.getElementById("newMessage");	
+		this.setState({loading:true});
 		if(!this.state.connection && !this.state.localPayerAccount){
 			message.disabled = false;
 			await this.connectWallet();
@@ -1329,10 +1572,11 @@ class App extends React.Component{
 			}
 		})
 		.catch((e)=>{
+			console.warn("Error sending message:",e);			
 			notify("Error sending message")
-			console.warn("Error sending message:",e);
 		})
 		.finally(()=>{
+			this.setState({loading:false});
 			if(message.disabled){message.disabled = false;}
 			this.updateCharacterCount();
 		});
@@ -1443,6 +1687,26 @@ class App extends React.Component{
 		websocket.onerror = onError;
 		return;	
 	}	
+	
+	/**
+	* Toggle between settings and viewing contacts
+	* @method showSolanaQR
+	* @return {Null}
+	*/			
+	async toggleShowSolanaQR(){
+		this.setState({showSolanaQR:!this.state.showSolanaQR});
+		return;
+	}		
+	
+	/**
+	* Toggle between settings and viewing contacts
+	* @method toggleContactsView
+	* @return {Null}
+	*/			
+	toggleContactsView(){
+		this.setState({viewContacts:!this.state.viewContacts});
+		return;
+	}	
 		
 	/**
 	* Add log message to text element
@@ -1451,10 +1715,36 @@ class App extends React.Component{
 	* @return {Null}
 	*/	
 	writeLog(log){
-		document.getElementById("logs").value = log;
+		if(document.getElementById("logs")){
+			document.getElementById("logs").value = log;
+		}
 		return;
 	}
 	
+	/**
+	* Update the auto save message history
+	* @method updateAutoSaveHistory
+	* @return {Null}
+	*/	
+	updateAutoSaveHistory(){
+		window.localStorage.setItem("autoSaveHistory",!this.state.autoSaveHistory);
+		this.setState({autoSaveHistory:!this.state.autoSaveHistory});
+		return;		
+	}
+	
+	/**
+	* Update the style of the avatar
+	* @method updateAvatarStyle
+	* @return {Null}
+	*/	
+	updateAvatarStyle(){
+		let newStyle = ""
+		if(this.state.avatarStyle === "&set=set4"){ newStyle = "";}
+		else{newStyle = "&set=set4";}
+		window.localStorage.setItem("avatarStyle",newStyle);
+		this.setState({avatarStyle:newStyle});
+		return;
+	}		
 	
 	/**
 	* Update the # of characters the user can send
@@ -1489,6 +1779,20 @@ class App extends React.Component{
 	}	
 	
 	/**
+	* Update the view style of the site
+	* @method updateViewStyle
+	* @return {Null}
+	*/	
+	updateViewStyle(){
+		let newStyle = ""
+		if(this.state.viewStyle === "mobile"){ newStyle = "desktop";}
+		else{newStyle = "mobile";}
+		window.localStorage.setItem("viewStyle",newStyle);
+		this.setState({viewStyle:newStyle});
+		return;
+	}		
+	
+	/**
    * Upload audio file to network
    * @method updateInputBox
    * @param {Blob} Audio blob
@@ -1512,25 +1816,30 @@ class App extends React.Component{
 	* @param {Event} 
 	* @return {null} 
 	*/
-	uploadImageFile(evt){
-		let input = evt.target;
-		let imageSRC = null;
-		let pageReader = new FileReader();
-		let bufferReader = new FileReader();		
-		pageReader.onload = function(){
-			let dataURL = pageReader.result;
-			imageSRC = dataURL;
-		}; 
-		bufferReader.onload = async ()=>{
-			let encryptedBytesArray = await this.encryptFile(bufferReader.result,input.files[0].name);
-			if(encryptedBytesArray){
-				this.sendFile(encryptedBytesArray).then(()=>{
-					this.appendImage(imageSRC,this.state.currentContact.publicKey);
-				});
-			}
-		};      
-		pageReader.readAsDataURL(input.files[0]);	
-		bufferReader.readAsArrayBuffer(input.files[0])	
+	uploadImageFile(){
+		let input = document.createElement("input");
+		input.setAttribute("type","file");
+		input.setAttribute("accept","image/png, image/jpeg");
+		input.click();
+		input.onchange = ()=>{
+			let imageSRC = null;
+			let pageReader = new FileReader();
+			let bufferReader = new FileReader();		
+			pageReader.onload = function(){
+				let dataURL = pageReader.result;
+				imageSRC = dataURL;
+			}; 
+			bufferReader.onload = async ()=>{
+				let encryptedBytesArray = await this.encryptFile(bufferReader.result,input.files[0].name);
+				if(encryptedBytesArray){
+					this.sendFile(encryptedBytesArray).then(()=>{
+						this.appendImage(imageSRC,this.state.currentContact.publicKey);
+					});
+				}
+			};      
+			pageReader.readAsDataURL(input.files[0]);	
+			bufferReader.readAsArrayBuffer(input.files[0]);
+		}
 		return;
 	}		
 	
@@ -1546,8 +1855,8 @@ class App extends React.Component{
 		return;
 	}	
 		
-	render(){
-	  return (
+	renderDesktop(){
+		return(
 		<div className="App">
 		{ this.state.loading ? <ProgressBar id="progressBar" striped animated now={this.state.loadingValue} label={this.state.loadingMessage}/> : null }
 		<Row className="grid topBar">
@@ -1555,7 +1864,7 @@ class App extends React.Component{
 				{
 					(!this.state.payerAccount && !this.state.localPayerAccount) ?
 					<ButtonGroup>
-						<Button  size="sm" onClick={this.connectWallet}>connect wallet</Button> 
+						<Button size="sm" onClick={this.connectWallet}>connect wallet</Button> 
 						<Button variant="danger" size="sm" onClick={()=>{this.importKey()}}> import key </Button>
 					</ButtonGroup>
 					:null
@@ -1565,9 +1874,29 @@ class App extends React.Component{
 					<div id="solletAccount">
 						<p> 
 							<img alt="accountImg" className="avatar" src={"https://robohash.org/"+this.state.payerAccount.toBase58()+"?size=128x128"} />
-							<br/>
-								{this.state.payerAccount.toBase58()}
-							<br/>	<b>{this.state.payerAccountBalance}</b> SOL 
+						</p>
+					</div>
+					:null
+				}
+				{
+					this.state.localPayerAccount ?
+					<div id="solletAccount">
+						<p> 
+							<img alt="accountImg" className="avatar" src={"https://robohash.org/"+this.state.localPayerAccount.publicKey.toBase58()+"?size=128x128"} />
+						</p>				
+					</div>
+					:null
+				}
+				<Button size="sm" variant="default" onClick={this.toggleContactsView}>{this.state.viewContacts ?  "⚙️ settings":"🧑‍ contacts"}</Button>
+			</Col>
+			<Col sm={6} md={8}>
+			<div>
+				{ 
+					this.state.payerAccount? 
+					<div id="solletAccount">
+						<p> 
+							<b>Address:</b>{this.state.payerAccount.toBase58()}
+							<br/><b>SOL</b>:{this.state.payerAccountBalance} 
 							<br/>{this.state.providerUrl} 
 						</p>
 					</div>
@@ -1577,42 +1906,30 @@ class App extends React.Component{
 					this.state.localPayerAccount ?
 					<div id="importedAccount">
 						<p> 
-							ImportedAccount: 
-							<img alt="accountImg" className="avatar" src={"https://robohash.org/"+this.state.localPayerAccount.publicKey.toBase58()+"?size=128x128"} />
-							<b>{this.state.localPayerAccount.publicKey.toBase58()}</b>  
-							<br/><b>{this.state.localPayerBalance / LAMPORTS_PER_SOL} </b> SOL	
-							<br/> <Button size="sm" variant="danger" onClick={this.removeImportedAccount}>Dispose Imported Account</Button>
+							<b>Address:</b>{this.state.localPayerAccount.publicKey.toBase58()}  
+							<br/><b>SOL</b>:{this.state.localPayerBalance}
 						</p>				
 					</div>
 					:null
 				}
-			</Col>
-			<Col sm={6} md={8}>
-			<div>
-					
-					{
-					  (this.state.rsaKeyPair && this.state.rsaKeyPair.publicKey) ? 
-					  <ButtonGroup>
-						<Button size="sm" onClick={this.broadcastPresence}>Broadcast Presence</Button>
-						<Button size="sm" variant="danger" onClick={this.removeRSAKeys}>Dispose Chat Keys</Button>
-					   </ButtonGroup>: 
-					   <Button onClick={this.createRSAKeyPair}>Create RSA key pair</Button> 
-					}
-					
-					{
-						this.state.currentContact.channel ?
-						<p>
-							channel: <a rel="noopener noreferrer" href={'https://explorer.solana.com/address/'+this.state.currentContact.channel+'?cluster=testnet'} target="_blank">{this.state.currentContact.channel}</a>   
-							<br/>newtwork:  <a rel="noopener noreferrer" href={'https://explorer.solana.com/address/'+this.state.currentContact.programId+'?cluster=testnet'} target="_blank">{this.state.currentContact.programId} </a>
-						</p>
-						:null
-					}
+				{
+				  (this.state.rsaKeyPair && this.state.rsaKeyPair.publicKey && ( this.state.localPayerAccount || this.state.payerAccount ) ) ? 
+					<Button size="sm" onClick={this.broadcastPresence}>Broadcast Presence</Button>
+					:null
+				}
+				{
+				  (!this.state.rsaKeyPair && ( this.state.localPayerAccount || this.state.payerAccount ) ) ? 
+					<Button size="sm" onClick={this.createRSAKeyPair}>Create RSA key pair</Button> 
+					:null
+				}								
 			</div>
 			</Col>
 			<Col sm={3} md={2}>
 				{
 					this.state.currentContact.publicKey ? 
-					<p>{this.state.currentContact.publicKey.slice(0,5)+"..."} <img alt="contactImg" src={"https://robohash.org/"+this.state.currentContact.publicKey+"?size=100x100"} /> </p>
+					<p>
+						{this.state.currentContact.publicKey.slice(0,5)+"..."} <img alt="contactImg" src={"https://robohash.org/"+this.state.currentContact.publicKey+"?size=100x100"} /> 
+					</p>
 					
 				: null 
 				}
@@ -1620,6 +1937,8 @@ class App extends React.Component{
 		</Row>
 		<Row>
 			<Col sm={3} md={2} className="contactColHolder">
+			{
+				this.state.viewContacts ?
 				<ListView 
 					addContact={this.addContact} 
 					contacts={this.state.contacts} 
@@ -1630,12 +1949,22 @@ class App extends React.Component{
 					showContactForm_state={this.state.showContactForm} 
 					showContactForm={this.showContactForm}
 				/>
+				:
+				<Settings 
+					currentContact={this.state.currentContact}
+					localPayerAccount={this.state.localPayerAccount}
+					removeImportedAccount={this.removeImportedAccount}
+					removeRSAKeys={this.removeRSAKeys}
+					viewStyle={this.state.viewStyle}
+					updateViewStyle={this.updateViewStyle}
+				/>
+			}
 			</Col>
 			<Col sm={8} md={10} id="col-sm-9">
 				<Row> 
 					<div id="chat"> 						
 						{
-							MESSAGE_HISTORY[this.state.currentContact.publicKey] && MESSAGE_HISTORY[this.state.currentContact.publicKey].map((info,ind)=>(
+							this.state.MESSAGE_HISTORY[this.state.currentContact.publicKey] && this.state.MESSAGE_HISTORY[this.state.currentContact.publicKey].map((info,ind)=>(
 								<div key={ind} className={info.txid ? "msgSelf" : "msgContact"}>
 									<p className="fromStamp"> {timeAgo.format(new Date(info.time),'round')} </p>
 									
@@ -1667,7 +1996,7 @@ class App extends React.Component{
 						/>
 						<InputGroup.Append>
 						  <Button onClick={this.sendMessage}> SEND </Button>
-						  <input id="fileUploadButton" onChange={this.uploadImageFile} onClick={()=>{document.getElementById('fileUploadButton').value=null;}} type="file" accept="image/png, image/jpeg"/>						  
+						  <Button onClick={this.uploadImageFile}>Send Image</Button>					  
 						  <Recorder uploadAudioFile={this.uploadAudioFile}/>
 						</InputGroup.Append>
 					</InputGroup>						
@@ -1688,7 +2017,7 @@ class App extends React.Component{
 					<div>
 						<p> 
 							LocalAccount: <b>{this.state.localPayerAccount.publicKey.toBase58()}</b>  
-							<br/>balance:<b>{this.state.localPayerBalance / LAMPORTS_PER_SOL}</b>
+							<br/>balance:<b>{this.state.localPayerBalance}</b>
 							<br/> Program: {this.state.latestProgram ? this.state.latestProgram : null}
 							<br/> Account: {this.state.latestAccount ? this.state.latestAccount : null}		
 						</p>				
@@ -1704,6 +2033,13 @@ class App extends React.Component{
 			</Col>
 		</Row>
 		</div>);
+	}
+
+	render(){
+		if(this.state.viewStyle !== "mobile"){
+			return this.renderDesktop();
+		}
+		return this.renderDesktop();
 	}
 }
 
@@ -1771,5 +2107,31 @@ function ListView(props){
 		}
 	</div>)
 }
+		
+function Settings(props){
+	return(<div className="settingsPanel">
+	<ul>
+			{
+				props.currentContact.channel ?
+				<li>
+					channel: <a rel="noopener noreferrer" href={'https://explorer.solana.com/address/'+props.currentContact.channel+'?cluster=testnet'} target="_blank">{props.currentContact.channel}</a>   
+					<br/>newtwork:  <a rel="noopener noreferrer" href={'https://explorer.solana.com/address/'+props.currentContact.programId+'?cluster=testnet'} target="_blank">{props.currentContact.programId} </a>
+				</li>
+				:null
+			}
+		<li>
+			<Button size="sm" variant="danger" onClick={props.removeRSAKeys}>Dispose Chat Keys</Button>
+		</li>
+		{
+			props.localPayerAccount ?
+			<li>
+			<br/>
+			 <Button size="sm" variant="danger" onClick={props.removeImportedAccount}> Remove Imported Account</Button>
+			</li>
+			  : null
+		}
+	</ul>
+	</div>)
+}		
 		
 export default App;

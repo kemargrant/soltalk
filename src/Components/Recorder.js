@@ -1,5 +1,6 @@
-import React,{useEffect} from 'react';
-import { Button } from 'react-bootstrap';
+import React from 'react';
+import { Button,Modal } from 'react-bootstrap';
+
 /**
 * Audio recording component
 */		
@@ -8,15 +9,6 @@ function Recorder(props){
 	let recordedMessage;
 	let mimeType = "audio/ogg;codecs=opus"
 	let msToRecord = 3000;	
-	let pvn = document.getElementById("playVoiceNote");
-	let uvn = document.getElementById("uploadVoiceNote");	
-	useEffect(() => {
-		let _pvn = document.getElementById("playVoiceNote");
-		let _uvn = document.getElementById("uploadVoiceNote");		
-		_uvn.disabled = true;	
-		_pvn.disabled = true;
-	});	
-
 	/**
 	* Create audio file
 	* @method assemble
@@ -27,22 +19,22 @@ function Recorder(props){
 		recordedMessage = new Blob(recordedChunks, {
 			type: mimeType
 		});
-		return;
-	}
-
-	/**
-	* Playback audio file
-	* @method play
-	* @return {null}
-	*/		
-	function play(){
-		if(!recordedMessage){return;}
 		let audioElement = document.getElementById("voiceNote");
 		audioElement.src = URL.createObjectURL(recordedMessage);
-		audioElement.play();
 		return;
 	}
 	
+	/**
+	* Close audio modal
+	* @method closeModal
+	* @param {Object} Button press event
+	* @return {null}
+	*/	
+	function closeModal(recordedChunks){
+		let audioModal = document.getElementById("audioModal");
+		audioModal.setAttribute("style","display:none");
+	}	
+
 	/**
 	* Setup media recorder
 	* @method setupRecorder
@@ -51,11 +43,10 @@ function Recorder(props){
 	*/		
 	async function setupRecorder(evt){
 		let target = evt.target;
-		target.disabled = true;
-		uvn.disabled = true;	
-		pvn.disabled = true;		
+		target.disabled = true;	
 		let file = [];
 		let recordTime = document.getElementById("recordTime");
+		let audioModal = document.getElementById("audioModal");
 		let rt = 0;
 		let stream = await navigator.mediaDevices.getUserMedia({
 			audio:{
@@ -81,13 +72,12 @@ function Recorder(props){
 			recordTime.innerHTML = (msToRecord/1000) - rt;
 		},1000);
 		return setTimeout(()=>{
-			mediaRecorder.stop();
-			assemble(file);
-			clearInterval(timer);
 			target.disabled = false;
-			uvn.disabled = false;	
-			pvn.disabled = false;			
-			recordTime.innerHTML = msToRecord/1000;
+			mediaRecorder.stop();
+			audioModal.setAttribute("style","display:block;position:absolute;top:-50vh;left:40%");
+			assemble(file);
+			clearInterval(timer);		
+			recordTime.innerHTML = (msToRecord/1000)-1;
 		},msToRecord);
 	}
 	
@@ -102,10 +92,23 @@ function Recorder(props){
 	}
 	
 	return(<div>
-		<Button onClick={setupRecorder}>Record <b id="recordTime"> {msToRecord/1000} </b>s</Button>
-		<Button id="playVoiceNote" variant="info" onClick={play}>Play</Button>
-		<Button id="uploadVoiceNote" variant="warning" onClick={uploadAudio}>Upload</Button>
-		<audio id="voiceNote"/>
+		{
+			<Modal.Dialog id="audioModal" style={{display:"none"}}>
+				<Modal.Header >
+					<Modal.Title>Voice Note</Modal.Title>
+				</Modal.Header>
+
+				<Modal.Body>
+					<audio id="voiceNote" controls/>
+				</Modal.Body>
+
+				<Modal.Footer>
+					<Button variant="danger" onClick={closeModal}>Cancel</Button>
+					<Button variant="primary" onClick={uploadAudio}>Upload</Button>
+				</Modal.Footer>
+			</Modal.Dialog>
+		}
+		<Button variant="primary" onClick={setupRecorder}><span role="img" aria-label="envelope">🎙️</span>  <b id="recordTime"> {(msToRecord/1000)-1} </b>s </Button>
 	</div>)
 }
 

@@ -1863,27 +1863,36 @@ class App extends React.Component{
 		<Row className="grid topBar">
 				{
 					(!this.state.payerAccount && !this.state.localPayerAccount) ?
-					<ButtonGroup>
-						<Button size="sm" onClick={this.connectWallet}>connect wallet</Button> 
-						<Button variant="danger" size="sm" onClick={()=>{this.importKey()}}> import key </Button>
-					</ButtonGroup>
-					:null
-				}
-				{ 
-					this.state.payerAccount? 
-					<div id="solletAccount">
-						<p> 
-							<img alt="accountImg" className="avatar" src={"https://robohash.org/"+this.state.payerAccount.toBase58()+"?size=128x128"} />
-						</p>
+					<div>
+						<Button size="sm" onClick={this.connectWallet}>Sollet Connect</Button> 
+						<Button variant="danger" size="sm" onClick={()=>{this.importKey()}}> Import key </Button>
 					</div>
 					:null
 				}
-				{
-					this.state.localPayerAccount ?
-					<div id="solletAccount">
-						<p> 
-							<img alt="accountImg" className="avatar" src={"https://robohash.org/"+this.state.localPayerAccount.publicKey.toBase58()+"?size=128x128"} />
-						</p>				
+				{ 
+					(this.state.payerAccount || ( this.state.localPayerAccount && this.state.localPayerAccount.publicKey))? 
+					<div className="solanaAccount">
+						<div> 
+							{
+									this.state.payerAccount ? 
+									<img alt="accountImg" className="avatar" src={"https://robohash.org/"+ this.state.payerAccount.toBase58() +"?size=128x128" }/> :
+									<img alt="accountImg" className="avatar" src={"https://robohash.org/"+this.state.localPayerAccount.publicKey.toBase58() +"?size=128x128"}/>
+							}
+							<br/>
+							<Dropdown>
+								<Dropdown.Toggle size="sm" variant="primary" id="dropdown-basic">  Settings  </Dropdown.Toggle>
+								<Dropdown.Menu>
+									<Settings 
+										currentContact={this.state.currentContact}
+										localPayerAccount={this.state.localPayerAccount}
+										removeImportedAccount={this.removeImportedAccount}
+										removeRSAKeys={this.removeRSAKeys}
+										viewStyle={this.state.viewStyle}
+										updateViewStyle={this.updateViewStyle}
+									/>
+								</Dropdown.Menu>
+							</Dropdown>
+						</div>
 					</div>
 					:null
 				}
@@ -1909,34 +1918,34 @@ class App extends React.Component{
 					}
 					{
 					  (this.state.rsaKeyPair && this.state.rsaKeyPair.publicKey && ( this.state.localPayerAccount || this.state.payerAccount ) ) ? 
-						<Button size="sm" onClick={this.broadcastPresence}>Broadcast Presence</Button>
+						<div><Button size="sm" onClick={this.broadcastPresence}>Broadcast Presence</Button></div>
 						:null
 					}
 				</div>	
-			<div class="currentContact">		
-				{
-					this.state.currentContact.publicKey ?	<img className="avatar" alt="contactImg" src={"https://robohash.org/"+this.state.currentContact.publicKey+"?size=100x100"} /> : null 
-				}
-				<br/>
-				<Dropdown>
-					<Dropdown.Toggle size="sm" variant="primary" id="dropdown-basic">  {this.state.currentContact.publicKey?  this.state.currentContact.publicKey.slice(0,7) : "Contacts"}  </Dropdown.Toggle>
-					<Dropdown.Menu>
-						<ListView 
-						addContact={this.addContact} 
-						contacts={this.state.contacts} 
-						cancelContactForm={this.cancelContactForm} 
-						currentContact={this.state.currentContact}
-						removeContact={this.removeContact}
-						setCurrentContact={this.setCurrentContact}
-						showContactForm_state={this.state.showContactForm} 
-						showContactForm={this.showContactForm}
-						/>
-					</Dropdown.Menu>
-				</Dropdown>
-			</div>
+				<div className="currentContact">		
+					{
+						this.state.currentContact.publicKey ?	<img className="avatar" alt="contactImg" src={"https://robohash.org/"+this.state.currentContact.publicKey+"?size=100x100"} /> : null 
+					}
+					<br/>
+					<Dropdown>
+						<Dropdown.Toggle size="sm" variant="primary" id="dropdown-basic">  {this.state.currentContact.publicKey?  this.state.currentContact.publicKey.slice(0,7) : "Contacts"}  </Dropdown.Toggle>
+						<Dropdown.Menu>
+							<ListView 
+							addContact={this.addContact} 
+							contacts={this.state.contacts} 
+							cancelContactForm={this.cancelContactForm} 
+							currentContact={this.state.currentContact}
+							removeContact={this.removeContact}
+							setCurrentContact={this.setCurrentContact}
+							showContactForm_state={this.state.showContactForm} 
+							showContactForm={this.showContactForm}
+							/>
+						</Dropdown.Menu>
+					</Dropdown>
+				</div>
 		</Row>
 		<Row>
-			<Col sm={12} id="col-sm-9">
+			<Col sm={12} id="chatCol">
 				<Row> 
 					<div id="chat"> 						
 						{
@@ -1961,8 +1970,8 @@ class App extends React.Component{
 					</div>
 				</Row>
 				<div id="charCount">#{this.state.characterCount}</div>
-				<Row id="chatHolder">
-					<InputGroup className="mb-3">
+				<Row id="chatHolderDesktop">
+					<InputGroup >
 						<FormControl
 						  placeholder="Type a message"
 						  aria-label="new_message"
@@ -1971,9 +1980,9 @@ class App extends React.Component{
 						  onKeyUp={this.messageKeyUp}
 						/>
 						<InputGroup.Append>
-						  <Button onClick={this.sendMessage}> SEND </Button>
-						  <Button onClick={this.uploadImageFile}>Send Image</Button>					  
-						  <Recorder uploadAudioFile={this.uploadAudioFile}/>
+						  <Button variant="primary" onClick={this.sendMessage}> <span role="img" aria-label="envelope">✉️</span> </Button>
+						  <Button variant="primary" onClick={this.uploadImageFile}> <span role="img" aria-label="envelope">📷</span> </Button>	
+						  <Recorder uploadAudioFile={this.uploadAudioFile}/>				  
 						</InputGroup.Append>
 					</InputGroup>						
 				</Row>
@@ -2115,29 +2124,3 @@ function Settings(props){
 }		
 		
 export default App;
-
-
-			//~ <Col sm={3} md={2} className="contactColHolder">
-			//~ {
-				//~ this.state.viewContacts ?
-				//~ <ListView 
-					//~ addContact={this.addContact} 
-					//~ contacts={this.state.contacts} 
-					//~ cancelContactForm={this.cancelContactForm} 
-					//~ currentContact={this.state.currentContact}
-					//~ removeContact={this.removeContact}
-					//~ setCurrentContact={this.setCurrentContact}
-					//~ showContactForm_state={this.state.showContactForm} 
-					//~ showContactForm={this.showContactForm}
-				//~ />
-				//~ :
-				//~ <Settings 
-					//~ currentContact={this.state.currentContact}
-					//~ localPayerAccount={this.state.localPayerAccount}
-					//~ removeImportedAccount={this.removeImportedAccount}
-					//~ removeRSAKeys={this.removeRSAKeys}
-					//~ viewStyle={this.state.viewStyle}
-					//~ updateViewStyle={this.updateViewStyle}
-				//~ />
-			//~ }
-			//~ </Col>

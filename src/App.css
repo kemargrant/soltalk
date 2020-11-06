@@ -25,10 +25,8 @@
 .avatar{
 	background:darkgrey;
 	border-radius:3em;
-	float:left;
 	height:55px;
 	margin-left:1.2em;
-	margin-right:5px;
 }
 
 body {
@@ -50,21 +48,27 @@ body {
     animation-timing-function:linear;
 	/* background: radial-gradient(circle, rgba(2,0,36,1) 0%, rgba(145,85,117,1) 26%, rgba(0,212,255,1) 100%);	*/
 	/*border:0.2em solid black;*/
-	height:82vh;
+	height:81vh;
 	overflow-x:hidden;
 	overflow-y:auto-scroll;
 	width:99%;
 }
 
-#chatHolder{
+#chatCol{
 	background:lightgrey;
-	padding-left:8%;
-	padding-right:8%;
-	padding-top:1%;
+	overflow-x:hidden;
+	overflow-y:auto-scroll;
+}
+
+#chatHolderDesktop{
+	background:lightgrey;
+	margin:auto;
+	width:100%;
 }
 
 #charCount{
-	color:blue;
+	bottom:3em;
+	color:purple;
 	position:absolute;
 }
 
@@ -76,7 +80,7 @@ body {
 
 .contactCol{
 	display:block;
-	height:84vh;
+	height:80vh;
 	margin-left:0px;
 	margin-right:0px;
 	padding:0px;
@@ -119,12 +123,6 @@ body {
 	margin:auto;
 }
 
-#col-sm-9{
-	background:lightgrey;
-	overflow-x:hidden;
-	overflow-y:auto-scroll;
-}
-
 #extras{
 	display:none;
 	margin-top:2em;
@@ -143,6 +141,10 @@ body {
 #importedAccount p{
 	text-align:left;	
 	word-break:break-word;
+}
+
+.input-group-append Button {
+	border-left:2px solid black;
 }
 
 #logRow{
@@ -169,7 +171,7 @@ body {
 	text-align:left;
 }
 
-.msgSelf{
+.msgSelf {
     background: lightblue;
     border-radius: 0.9em;
     margin: 1em;
@@ -190,6 +192,17 @@ body {
 	width:100vw;
 }
 
+.settingsPanel{
+	display:block;
+	height:84vh;
+	margin-left:0px;
+	margin-right:0px;
+	padding:0px;
+	overflow-x:hidden;
+	overflow-y:auto-scroll;
+	width:100vw;
+}
+
 .solanaAccount{
 	display:block;
 	font-size:small;
@@ -204,7 +217,8 @@ body {
 .topBar{
  background-color: rgba(0,0,0,.2);
  border-bottom:3px solid black;
- 
+ margin-left:1px;
+ margin-right:1px;
 }
 
 .unconfirmed{

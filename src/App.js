@@ -1950,10 +1950,9 @@ class App extends React.Component{
 					<div id="chat"> 						
 						{
 							this.state.MESSAGE_HISTORY[this.state.currentContact.publicKey] && this.state.MESSAGE_HISTORY[this.state.currentContact.publicKey].map((info,ind)=>(
-								<div key={ind} className={info.txid ? "msgSelf" : "msgContact"}>
-									<p className="fromStamp"> {timeAgo.format(new Date(info.time),'round')} </p>
-									
-									{ info.message ? <p className="fromMessage">{info.message.trim()}</p> : null }
+								<div key={ind} className={info.txid ? "msgSelf" : "msgContact"}>	
+									<p>
+									{ info.message ? info.message.trim() : null }
 									
 									{ info.img_src ? <img alt="img" src={info.img_src} /> : null }
 									
@@ -1961,9 +1960,10 @@ class App extends React.Component{
 									
 									{
 										info.txid ? 
-										<div><br/> <a href={getTransactionURL(info.txid)} target='_blank' rel="noopener noreferrer"> {info.txid.slice(0,10)} </a></div>
+										<b> <br/><a href={getTransactionURL(info.txid)} target='_blank' rel="noopener noreferrer"> {info.txid.slice(0,10)} </a></b>
 										:null
 									}
+									</p>
 								</div>
 							))
 						}	

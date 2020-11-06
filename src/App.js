@@ -1863,7 +1863,7 @@ class App extends React.Component{
 		<Row className="grid topBar">
 				{
 					(!this.state.payerAccount && !this.state.localPayerAccount) ?
-					<div>
+					<div className="solanaAccount">
 						<Button size="sm" onClick={this.connectWallet}>Sollet Connect</Button> 
 						<Button variant="danger" size="sm" onClick={()=>{this.importKey()}}> Import key </Button>
 					</div>
@@ -1885,6 +1885,7 @@ class App extends React.Component{
 									<Settings 
 										currentContact={this.state.currentContact}
 										localPayerAccount={this.state.localPayerAccount}
+										providerUrl={this.state.providerUrl}
 										removeImportedAccount={this.removeImportedAccount}
 										removeRSAKeys={this.removeRSAKeys}
 										viewStyle={this.state.viewStyle}
@@ -1900,9 +1901,8 @@ class App extends React.Component{
 					{ 
 						this.state.payerAccount? 
 						<div>
-							<b>Address:</b>{this.state.payerAccount.toBase58()}
+							<b>Address:</b>{this.state.payerAccount.toBase58().slice(0,15)+"..."}
 							<br/><b>SOL</b>:{this.state.payerAccountBalance} 
-							<br/>{this.state.providerUrl} 
 						</div>
 						:null
 					}
@@ -2120,6 +2120,7 @@ function Settings(props){
 			:null
 		}
 	</ul>
+	{ props.providerUrl ? props.providerUrl : ""} 
 	</div>)
 }		
 		

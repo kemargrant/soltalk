@@ -2091,36 +2091,41 @@ function ListView(props){
 		}
 	</div>)
 }
-		
+
 function Settings(props){
-	return(<div className="settingsPanel">
-	<ul>
+	return(<div>
+		<ListGroup className="settingsPanel">
 			{
 				props.currentContact.channel ?
-				<li>
-					channel: <a rel="noopener noreferrer" href={'https://explorer.solana.com/address/'+props.currentContact.channel+'?cluster=testnet'} target="_blank">{props.currentContact.channel}</a>   
-					<br/>newtwork:  <a rel="noopener noreferrer" href={'https://explorer.solana.com/address/'+props.currentContact.programId+'?cluster=testnet'} target="_blank">{props.currentContact.programId} </a>
-				</li>
+				<ListGroup.Item>
+					<b>SMART CONTRACT</b><br/> <a rel="noopener noreferrer" href={'https://explorer.solana.com/address/'+props.currentContact.channel+'?cluster=testnet'} target="_blank">{props.currentContact.channel}</a>   
+					<br/> <b>ACCOUNT</b> <br/> <a rel="noopener noreferrer" href={'https://explorer.solana.com/address/'+props.currentContact.programId+'?cluster=testnet'} target="_blank">{props.currentContact.programId} </a>
+				</ListGroup.Item>
 				:null
 			}
-		<li>
-			<Button size="sm" variant="danger" onClick={props.removeRSAKeys}>Dispose Chat Keys</Button>
-		</li>
-		{
-			props.localPayerAccount ?
-			<li>
-			<br/>
-			 <Button size="sm" variant="danger" onClick={props.removeImportedAccount}> Remove Imported Account</Button>
-			</li>
-			  : null
-		}
-		{
-			(!props.rsaKeyPair && ( props.localPayerAccount || props.payerAccount ) ) ? 
-			<Button size="sm" onClick={props.createRSAKeyPair}>Create RSA key pair</Button> 
-			:null
-		}
-	</ul>
-	{ props.providerUrl ? props.providerUrl : ""} 
+			{ 
+				props.providerUrl ? 
+				<ListGroup.Item> {props.providerUrl} </ListGroup.Item>: null
+			} 
+			<ListGroup.Item>
+				<Button block variant="danger" onClick={props.removeRSAKeys}> Delete RSA Keys</Button>
+			</ListGroup.Item>
+			{
+				props.localPayerAccount ?
+				<ListGroup.Item>
+				 <Button block variant="danger" onClick={props.removeImportedAccount}> Delete Imported Account</Button>
+				</ListGroup.Item>
+				  : null
+			}
+			{
+				(!props.rsaKeyPair && ( props.localPayerAccount || props.payerAccount ) ) ? 
+				<ListGroup.Item>
+					<Button block onClick={props.createRSAKeyPair}>Create RSA key pair</Button>
+				</ListGroup.Item>
+				:null
+			}
+			
+		</ListGroup>
 	</div>)
 }		
 		

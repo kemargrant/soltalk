@@ -204,6 +204,7 @@ body {
 
 .settingsPanel{
 	display:block;
+	font-size:small;
 	height:84vh;
 	margin-left:0px;
 	margin-right:0px;
@@ -211,6 +212,7 @@ body {
 	overflow-x:hidden;
 	overflow-y:auto-scroll;
 	width:100vw;
+	word-break:break-all;
 }
 
 .solanaAccount{

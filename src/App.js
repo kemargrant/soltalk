@@ -11,11 +11,11 @@ import bs58 from 'bs58';
 import nacl from 'tweetnacl';
 //Bootstrap imports
 import { 
-	Badge,Button,ButtonGroup,Col,
-	Dropdown,
+	Accordion,Badge,Button,ButtonGroup,
+	Col,Dropdown,
 	FormControl,ListGroup,
 	InputGroup,
-	ProgressBar,
+	ProgressBar,ToggleButton,ToggleButtonGroup,
 	Row 
 } from 'react-bootstrap';
 //Solana imports
@@ -343,7 +343,7 @@ class App extends React.Component{
 	constructor(props){
 		super(props);
 		this.state = {
-			autoSaveHistory:window.localStorage.getItem("autoSaveHistory") ? window.localStorage.getItem("autoSaveHistory") : "",
+			autoSaveHistory:window.localStorage.getItem("autoSaveHistory") ? JSON.parse(window.localStorage.getItem("autoSaveHistory")) : "",
 			avatarStyle: window.localStorage.getItem("avatarStyle") ? window.localStorage.getItem("avatarStyle") : "",
 			characterCount:880-264,
 			currentContact:{},
@@ -380,7 +380,7 @@ class App extends React.Component{
 		this.checkBroadcast = this.checkBroadcast.bind(this);
 		this.connectWallet = this.connectWallet.bind(this);		
 		this.constructAndSendTransaction = this.constructAndSendTransaction.bind(this);
-
+		this.copySolanaAddress = this.copySolanaAddress.bind(this);
 		this.createRSAKeyPair = this.createRSAKeyPair.bind(this);
 		
 		this.decryptData = this.decryptData.bind(this);
@@ -805,6 +805,26 @@ class App extends React.Component{
 			if(!isBroadcast){ this.updateInputBox(message,txid);}
 		}	
 		return txid;
+	}	
+	
+	/**
+	* Copy Solana Address to clipboard
+	* @method copySolanaAddress
+	* @return {null}
+	*/	
+	async copySolanaAddress(){
+		let account = false;
+		if(this.state.localPayerAccount){
+			account = this.state.localPayerAccount.publicKey.toBase58();
+		}
+		else if(this.state.payerAccount){
+			account = this.state.payerAccount.toBase58();
+		}
+		if(account){
+			window.navigator.clipboard.writeText(account);
+			notify("Address copied to clipboard")
+		}
+		return;
 	}	
 	
 	/**
@@ -1728,6 +1748,8 @@ class App extends React.Component{
 	* @return {Null}
 	*/	
 	updateAutoSaveHistory(){
+				console.log(!this.state.autoSaveHistory);
+
 		window.localStorage.setItem("autoSaveHistory",!this.state.autoSaveHistory);
 		this.setState({autoSaveHistory:!this.state.autoSaveHistory});
 		return;		
@@ -1744,6 +1766,7 @@ class App extends React.Component{
 		else{newStyle = "&set=set4";}
 		window.localStorage.setItem("avatarStyle",newStyle);
 		this.setState({avatarStyle:newStyle});
+		console.log("update avatar style",newStyle);
 		return;
 	}		
 	
@@ -1875,20 +1898,35 @@ class App extends React.Component{
 						<div> 
 							{
 									this.state.payerAccount ? 
-									<img alt="accountImg" className="avatar" src={"https://robohash.org/"+ this.state.payerAccount.toBase58() +"?size=128x128" }/> :
-									<img alt="accountImg" className="avatar" src={"https://robohash.org/"+this.state.localPayerAccount.publicKey.toBase58() +"?size=128x128"}/>
+									<img alt="accountImg" className="avatar" src={"https://robohash.org/"+ this.state.payerAccount.toBase58() +"?size=128x128"+this.state.avatarStyle }/> :
+									<img alt="accountImg" className="avatar" src={"https://robohash.org/"+this.state.localPayerAccount.publicKey.toBase58() +"?size=128x128"+this.state.avatarStyle}/>
 							}
 							<br/>
 							<Dropdown>
 								<Dropdown.Toggle size="sm" variant="primary" id="dropdown-basic">  Settings  </Dropdown.Toggle>
 								<Dropdown.Menu>
 									<Settings 
+										autoSaveHistory={this.state.autoSaveHistory}
+										avatarStyle={this.state.avatarStyle}
+										copySolanaAddress={this.copySolanaAddress}
 										currentContact={this.state.currentContact}
+										deleteMessageHistory={this.deleteMessageHistory}
+										exportContacts={this.exportContacts}
+										exportPrivateKey={this.exportPrivateKey}
+										exportRSAKeys={this.exportRSAKeys}
+										importRSAKeys_JSON={this.importRSAKeys_JSON}
 										localPayerAccount={this.state.localPayerAccount}
+										localPayerBalance={this.state.localPayerBalance}
+										payerAccount={this.state.payerAccount}
+										payerAccountBalance={this.state.payerAccountBalance}
 										providerUrl={this.state.providerUrl}
 										removeImportedAccount={this.removeImportedAccount}
 										removeRSAKeys={this.removeRSAKeys}
+										rsaKeyPair={this.state.rsaKeyPair}
+										solanaQRURL={this.state.solanaQRURL}
 										viewStyle={this.state.viewStyle}
+										updateAutoSaveHistory={this.updateAutoSaveHistory}
+										updateAvatarStyle={this.updateAvatarStyle}
 										updateViewStyle={this.updateViewStyle}
 									/>
 								</Dropdown.Menu>
@@ -1924,7 +1962,7 @@ class App extends React.Component{
 				</div>	
 				<div className="currentContact">		
 					{
-						this.state.currentContact.publicKey ?	<img className="avatar" alt="contactImg" src={"https://robohash.org/"+this.state.currentContact.publicKey+"?size=100x100"} /> : null 
+						this.state.currentContact.publicKey ?	<img className="avatar" alt="contactImg" src={"https://robohash.org/"+this.state.currentContact.publicKey+"?size=100x100"+this.state.avatarStyle} /> : null 
 					}
 					<br/>
 					<Dropdown>
@@ -2092,39 +2130,100 @@ function ListView(props){
 	</div>)
 }
 
-function Settings(props){
+function Settings(props){	
 	return(<div>
 		<ListGroup className="settingsPanel">
+			<ListGroup.Item>
+				<b>Address</b>:{ props.payerAccount ? props.payerAccount.toBase58() : null } { props.localPayerAccount ? props.localPayerAccount.publicKey.toBase58() : null } 
+				<Button size="sm" variant="default"> <span role="img" aria-label="copyicon" onClick={props.copySolanaAddress}> 🗒️ </span></Button>
+				<br/><b>Balance</b>:{props.payerAccount ? props.payerAccountBalance : null } { props.localPayerAccount ? props.localPayerBalance : null } SOL
+				<br/>
+				{ 
+					props.providerUrl && props.payerAccount?  props.providerUrl : null
+				} 
+				{
+					props.currentContact.channel ?
+					<ListGroup.Item>
+						<b>SMART CONTRACT</b><br/> <a rel="noopener noreferrer" href={'https://explorer.solana.com/address/'+props.currentContact.channel+'?cluster=testnet'} target="_blank">{props.currentContact.channel}</a>   
+						<br/> <b>ACCOUNT</b> <br/> <a rel="noopener noreferrer" href={'https://explorer.solana.com/address/'+props.currentContact.programId+'?cluster=testnet'} target="_blank">{props.currentContact.programId} </a>
+					</ListGroup.Item>
+					:null
+				}
+			</ListGroup.Item>
+			
+			<ListGroup.Item>
+				<Accordion>
+				<Accordion.Toggle as={Button} eventKey="0"> View QR Code </Accordion.Toggle>			
+					<Accordion.Collapse eventKey="0">
+						<img alt="qrcode" className="desktopQR" src={props.solanaQRURL} />
+					</Accordion.Collapse>
+				</Accordion>
+			</ListGroup.Item>
 			{
-				props.currentContact.channel ?
+				(!props.rsaKeyPair && ( props.localPayerAccount || props.payerAccount ) ) ? 
 				<ListGroup.Item>
-					<b>SMART CONTRACT</b><br/> <a rel="noopener noreferrer" href={'https://explorer.solana.com/address/'+props.currentContact.channel+'?cluster=testnet'} target="_blank">{props.currentContact.channel}</a>   
-					<br/> <b>ACCOUNT</b> <br/> <a rel="noopener noreferrer" href={'https://explorer.solana.com/address/'+props.currentContact.programId+'?cluster=testnet'} target="_blank">{props.currentContact.programId} </a>
+					<Button onClick={props.createRSAKeyPair}>Create RSA key pair</Button>
 				</ListGroup.Item>
 				:null
 			}
-			{ 
-				props.providerUrl ? 
-				<ListGroup.Item> {props.providerUrl} </ListGroup.Item>: null
-			} 
 			<ListGroup.Item>
-				<Button block variant="danger" onClick={props.removeRSAKeys}> Delete RSA Keys</Button>
+				<b>AutoSave Messages</b> 
+				<br/>
+				<ToggleButtonGroup type="checkbox" value={props.autoSaveHistory ? 3 : 4} onChange={props.updateAutoSaveHistory}>
+					<ToggleButton variant={props.autoSaveHistory ? "primary" : "secondary"} value={3} >ON</ToggleButton>
+					<ToggleButton variant={props.autoSaveHistory ? "secondary" : "primary"} value={4} >OFF</ToggleButton>
+				</ToggleButtonGroup>
+			</ListGroup.Item>
+			
+			<ListGroup.Item>
+				<b>Avatar Style</b> 
+				<br/>
+				<ToggleButtonGroup type="checkbox" value={props.avatarStyle === "" ? 1 : 2} onChange={props.updateAvatarStyle}>
+					<ToggleButton variant={props.avatarStyle === "" ? "primary" : "secondary"} value={1} >ROBOT</ToggleButton>
+					<ToggleButton variant={props.avatarStyle === "" ? "secondary" : "primary"} value={2} >CAT</ToggleButton>
+				</ToggleButtonGroup>
+			</ListGroup.Item>			
+
+			<ListGroup.Item>
+				<Button variant="primary" onClick={()=>{}}> Scan QR Code </Button>
 			</ListGroup.Item>
 			{
 				props.localPayerAccount ?
 				<ListGroup.Item>
-				 <Button block variant="danger" onClick={props.removeImportedAccount}> Delete Imported Account</Button>
+					<Button variant="primary" onClick={props.exportPrivateKey}> Export Private Key</Button>
+				</ListGroup.Item>
+				: null
+			}
+			<ListGroup.Item>
+			{
+				props.rsaKeyPair ? 
+				<Button onClick={props.exportRSAKeys}>Export RSA Keys</Button>
+				:<Button onClick={props.importRSAKeys_JSON}>Import RSA Keys</Button>
+			}	
+			</ListGroup.Item>		
+			<ListGroup.Item>
+				<Button variant="primary" onClick={props.exportContacts}> Export Contacts</Button>
+			</ListGroup.Item>
+			{
+				props.localPayerAccount ?
+				<ListGroup.Item>
+				 <Button variant="danger" onClick={props.removeImportedAccount}> Delete Imported Account</Button>
 				</ListGroup.Item>
 				  : null
 			}
-			{
-				(!props.rsaKeyPair && ( props.localPayerAccount || props.payerAccount ) ) ? 
+			<ListGroup.Item>
+				<Button variant="danger" onClick={props.deleteMessageHistory}> Delete Message History</Button>
+			</ListGroup.Item>	
+			{ 
+				props.rsaKeyPair ?
 				<ListGroup.Item>
-					<Button block onClick={props.createRSAKeyPair}>Create RSA key pair</Button>
+					<Button variant="danger" onClick={props.removeRSAKeys}> Delete RSA Keys</Button>
 				</ListGroup.Item>
-				:null
-			}
-			
+				: null
+			}						
+			<ListGroup.Item>
+				<a href="robohash.org" target='_blank' rel="noopener noreferrer">Robots lovingly delivered by Robohash.org</a>
+			</ListGroup.Item>
 		</ListGroup>
 	</div>)
 }		

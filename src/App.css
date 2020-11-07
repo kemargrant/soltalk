@@ -123,6 +123,14 @@ body {
 	margin:auto;
 }
 
+.desktopQR{
+    display: block;
+    height: 40vh;
+    margin: auto;
+    width: auto;
+
+}
+
 #extras{
 	display:none;
 	margin-top:2em;

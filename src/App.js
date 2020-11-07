@@ -382,6 +382,7 @@ class App extends React.Component{
 		this.constructAndSendTransaction = this.constructAndSendTransaction.bind(this);
 		this.copySolanaAddress = this.copySolanaAddress.bind(this);
 		this.createRSAKeyPair = this.createRSAKeyPair.bind(this);
+		this.createSolanaAccount = this.createSolanaAccount.bind(this);
 		
 		this.decryptData = this.decryptData.bind(this);
 		this.deleteMessageHistory = this.deleteMessageHistory.bind(this);
@@ -826,7 +827,7 @@ class App extends React.Component{
 		}
 		return;
 	}	
-	
+
 	/**
 	* Create local RSA key pair
 	* @method createRSAKeyPair
@@ -844,6 +845,20 @@ class App extends React.Component{
 		}
 		return;
 	}
+	
+	/**
+	* Create new Solana Account
+	* @method createSolanaAccount
+	* @return {null}
+	*/	
+	createSolanaAccount(){
+		let localAccount = new Account();
+		let b64 = Buffer(localAccount._keypair.secretKey).toString("base64");
+		console.log("base64",b64,b64.length);
+		this.importKey(b64);
+		console.log(localAccount,localAccount._keypair.secretKey)
+		return;
+	}	
 	
 	/**
 	* Decrypt an encrypted data field
@@ -1888,6 +1903,7 @@ class App extends React.Component{
 					(!this.state.payerAccount && !this.state.localPayerAccount) ?
 					<div className="solanaAccount">
 						<Button size="sm" onClick={this.connectWallet}>Sollet Connect</Button> 
+						<Button variant="info" size="sm" onClick={()=>{this.createSolanaAccount()}}> New Account </Button>
 						<Button variant="danger" size="sm" onClick={()=>{this.importKey()}}> Import key </Button>
 					</div>
 					:null

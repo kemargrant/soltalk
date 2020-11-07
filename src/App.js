@@ -854,9 +854,7 @@ class App extends React.Component{
 	createSolanaAccount(){
 		let localAccount = new Account();
 		let b64 = Buffer(localAccount._keypair.secretKey).toString("base64");
-		console.log("base64",b64,b64.length);
 		this.importKey(b64);
-		console.log(localAccount,localAccount._keypair.secretKey)
 		return;
 	}	
 	

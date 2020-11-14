@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>sol survivor</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			a {
+				color: #f00;
+			}
+			.ac {  /* prevent dat-gui from being selected */
+				-webkit-user-select: none;
+				-moz-user-select: none;
+				-ms-user-select: none;
+				user-select: none;
+			}
+			.no-pointer-events {
+				pointer-events: none;
+			}
+			.control-disabled {
+				color: #888;
+				text-decoration: line-through;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="container" style="overflow:hidden;height:90vh"></div>
+		<script type="module">
+			console.log = function(){}
+			console.warn = function(){}
+			import * as THREE from 'https://unpkg.com/three@0.122.0/build/three.module.js';
+			import { GUI } from 'https://unpkg.com/three@0.122.0/examples/jsm/libs/dat.gui.module.js';
+
+			import { GLTFLoader } from 'https://unpkg.com/three@0.122.0/examples/jsm/loaders/GLTFLoader.js';
+			import { OrbitControls } from 'https://unpkg.com/three@0.122.0/examples/jsm/controls/OrbitControls.js';
+
+			let scene, renderer, camera;
+			let model, skeleton, mixer, mixer2,clock;
+
+			let attack,punch,gaurd,death,hitReaction,taunt,kick,counter,combo,idle
+			init();
+			
+			async function sleep(time){
+				await new Promise((resolve,reject)=>{return setTimeout(resolve,time);})
+			}
+			
+			
+			function init() {
+
+				const container = document.getElementById( 'container' );
+
+				camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 1000 );
+
+				camera.position.set( -299.7774832758518, -10.445960103414468, 95.89058434317982 );
+				//flip to the other side
+				//camera.position.set( 299.7774832758518, -25.445960103414468, 55.89058434317982 );
+
+				camera.lookAt( 0, 1, 0 );
+				clock = new THREE.Clock();
+
+				scene = new THREE.Scene();
+				scene.background = new THREE.Color( "black" );
+
+				const hemiLight = new THREE.HemisphereLight( 0xffffff, 0x444444 );
+				hemiLight.position.set( 0, 20, 0 );
+				scene.add( hemiLight );
+
+				const dirLight = new THREE.DirectionalLight( 0xffffff );
+				dirLight.position.set( - 3, 10, - 10 );
+				dirLight.castShadow = true;
+				dirLight.shadow.camera.top = 2;
+				dirLight.shadow.camera.bottom = - 2;
+				dirLight.shadow.camera.left = - 2;
+				dirLight.shadow.camera.right = 2;
+				dirLight.shadow.camera.near = 0.1;
+				dirLight.shadow.camera.far = 40;
+				scene.add( dirLight );
+
+
+				const mesh = new THREE.Mesh( new THREE.PlaneBufferGeometry( 100, 100 ), new THREE.MeshPhongMaterial( { color: 0x999999, depthWrite: false } ) );
+				mesh.rotation.x = - Math.PI / 2;
+				mesh.receiveShadow = true;
+				scene.add( mesh );
+
+				const loader = new GLTFLoader();
+
+				loader.load( 'models/soldier.glb', function ( gltf ) {
+
+					model = gltf.scene;
+					scene.add( model );
+
+					model.traverse( function ( object ) {
+
+						if ( object.isMesh ) object.castShadow = true;
+						model.position.set(0,0,-40);
+
+					} );
+
+					//
+
+					skeleton = new THREE.SkeletonHelper( model );
+					skeleton.visible = false;
+					scene.add( skeleton );
+					const animations = gltf.animations;
+					console.log("halo",animations);
+					
+					mixer = new THREE.AnimationMixer( model );
+
+					attack = mixer.clipAction(THREE.AnimationClip.findByName( animations, 'punch' ) );
+					gaurd = mixer.clipAction(THREE.AnimationClip.findByName( animations, 'block' ) );
+					idle = mixer.clipAction(THREE.AnimationClip.findByName( animations, 'Idle' ) );
+					death = mixer.clipAction(THREE.AnimationClip.findByName( animations, 'FallingBackDeath' ) );
+					taunt = mixer.clipAction(THREE.AnimationClip.findByName( animations, 'Taunt' ) );
+					hitReaction = mixer.clipAction(THREE.AnimationClip.findByName( animations, 'HitReaction' ) );
+					kick = mixer.clipAction(THREE.AnimationClip.findByName( animations, 'Kicking' ) );
+					counter = mixer.clipAction(THREE.AnimationClip.findByName( animations, 'BackFlipToUppercut' ) );
+					combo = mixer.clipAction(THREE.AnimationClip.findByName( animations, 'QuadPunch' ) );
+					let actions = [attack,gaurd,death,hitReaction,taunt,kick,counter,combo,idle];
+					
+					actions.map((item,i)=>{
+						let button = document.createElement("button");
+						button.onclick = function(){
+							item._mixer.stopAllAction();
+							item.play();
+							setTimeout(()=>{
+								item._mixer.stopAllAction();
+								if(item._name !== "idle" && item._name !== "death"){
+									idle.play();
+								}
+								let ends = item._clip.duration === 1 ? 1000 : item._clip.duration;
+							},item._clip.duration*1000);
+						}
+						button.innerHTML = item._clip ? item._clip.name : i;
+						//document.body.append(button);
+					})
+					let Timeouts = [];
+					const returnToNormal = (item) =>{
+						return Timeouts.push(setTimeout(async()=>{
+							item._mixer.stopAllAction();
+							await sleep (5);
+							idle.play()
+						},item._clip.duration*1000));
+					}
+					const takeDamage = (item) =>{
+						return Timeouts.push(setTimeout(async()=>{
+							item._mixer.stopAllAction();
+							await sleep (5);
+							hitReaction.play();
+							returnToNormal(hitReaction);
+						},item._clip.duration*1000));
+					}	
+					const bc = new BroadcastChannel('game_commands');
+									
+					bc.onmessage = async (ev)=> { 
+						if(ev && ev.data){
+							let msg = ev.data.split("-"); 
+							let p1Action = msg[0];
+							let p2Action = msg[1]
+							let na;
+							idle._mixer.stopAllAction();
+							//Clear timeouts
+							try{
+								Timeouts.map((to)=>{
+									console.log("clearning timeouts");
+									return clearTimeout(to);
+								});
+							}
+							catch(e){console.log(e)}
+							await sleep(5);
+							console.log(p1Action,"vs",p2Action);
+							if(p1Action === "attack"){na = attack;}
+							if(p1Action === "gaurd"){na = gaurd}
+							if(p1Action === "counter"){na = counter}
+							if(p1Action === "taunt"){na = taunt; }
+							if(p1Action === "idle"){na = idle; }
+							if(p1Action === "dead"){
+								death.loop = 1;
+								death.clampWhenFinished = true;
+								death.repetitions = 1;
+								na = death;
+								if(p2Action === "counter"){
+									return setTimeout(()=>{na.play()},na._clip.duration*1300);
+								}
+								return na.play()
+							}
+							if(p1Action === "counter" && (p2Action !== "attack" && p2Action !== "dead")){
+								na = idle;
+							}
+							na.play();
+							if(p2Action !== "counter" && p2Action !== "attack"){
+								Timeouts.push(returnToNormal(na));
+							}
+							else if(p2Action === "attack" && (p1Action !== "counter" && p1Action !== "gaurd")){
+								console.log("both damage")
+								Timeouts.push(takeDamage(attack));
+							}
+							else if(p2Action === "counter" && (p1Action === "attack" || p1Action === "dead")){
+								console.log("p2 counter");
+								//P1 Gets hit by a counter:
+								Timeouts.push(setTimeout(()=>{
+									Timeouts.push(takeDamage(attack));
+									Timeouts.push(setTimeout(()=>{ takeDamage(hitReaction) },hitReaction.duration*1000));
+								},1800));
+							}
+							else if(p2Action === "attack" && p1Action === "counter"){
+								console.log("p1counter");
+								Timeouts.push(returnToNormal(na));
+							}
+							else if(p2Action === "attack" && p1Action === "gaurd"){
+								console.log("p1gaurd");
+								Timeouts.push(returnToNormal(na));
+							}
+							else{
+								console.warn("unknown")
+								Timeouts.push(returnToNormal(na));
+							}
+						}
+					}
+					idle.play();
+					animate();
+				});
+
+				loader.load( 'models/knight.glb', function ( gltf ) {
+					let model = gltf.scene;
+					scene.add( model );
+					model.traverse( function ( object ) {
+						if ( object.isMesh ) {object.castShadow = true;}
+						model.position.set(0,0,70);
+						model.scale.set(4/5,4/5,4/5);
+						model.rotation.set(0,3.141,0);
+					} );
+
+					//
+
+					let skeleton = new THREE.SkeletonHelper( model );
+					skeleton.visible = false;
+					scene.add( skeleton );
+					const animations = gltf.animations;
+					console.log("knight",animations);
+					
+					mixer2 = new THREE.AnimationMixer( model );
+
+					let attack2 = mixer2.clipAction(THREE.AnimationClip.findByName( animations, 'punch' ) );
+					let gaurd2 = mixer2.clipAction(THREE.AnimationClip.findByName( animations, 'gaurd' ) );
+					let idle2 = mixer2.clipAction(THREE.AnimationClip.findByName( animations, 'Idle' ) );
+					let death2 = mixer2.clipAction(THREE.AnimationClip.findByName( animations, 'FallingBackDeath' ) );
+					let taunt2 = mixer2.clipAction(THREE.AnimationClip.findByName( animations, 'Taunt' ) );
+					let hitReaction2 = mixer2.clipAction(THREE.AnimationClip.findByName( animations, 'HitReaction' ) );
+					let counter2 = mixer2.clipAction(THREE.AnimationClip.findByName( animations, 'BackFlipToUppercut' ) );
+					let combo2 = mixer2.clipAction(THREE.AnimationClip.findByName( animations, 'QuadPunch' ) );
+					let actions2 = [attack2,gaurd2,death2,hitReaction2,taunt2,counter2,combo2,idle2];
+					
+					actions2.map((item,i)=>{
+						let button = document.createElement("button");
+						button.onclick = function(){
+							item._mixer.stopAllAction();
+							item.play();
+							setTimeout(()=>{
+								item._mixer.stopAllAction();
+								if(item._name !== "idle" && item._name !== "death"){
+									idle.play();
+								}
+							},item._clip.duration*1000);
+						}
+						button.innerHTML = item._clip ? item._clip.name+"-p2" : i
+						//document.body.prepend(button);
+					})
+
+					const bc = new BroadcastChannel('game_commands');
+					let Timeouts = [];
+					const returnToNormal = (item) =>{
+						return Timeouts.push(setTimeout(async()=>{
+							item._mixer.stopAllAction();
+							await sleep(5);
+							idle2.play()
+						},item._clip.duration*1000));
+					}
+					const takeDamage = (item) =>{
+						return Timeouts.push(setTimeout(async()=>{
+							item._mixer.stopAllAction();
+							await sleep(5);
+							hitReaction2.play();
+							returnToNormal(hitReaction2);
+						},item._clip.duration*1000));
+					}	
+					bc.onmessage =async (ev)=> { 
+						if(ev && ev.data){
+							let msg = ev.data.split("-"); 
+							let p1Action = msg[0];
+							let p2Action = msg[1]
+							let na;
+							idle2._mixer.stopAllAction();
+							//Clear timeouts
+							try{
+								Timeouts.map((to)=>{
+									console.log("clearning timeouts");
+									return clearTimeout(to);
+								});
+							}
+							catch(e){console.log(e)}
+							await sleep(10);
+							console.warn(p1Action,"vs",p2Action);
+							if(p2Action === "attack"){na = attack2;}
+							if(p2Action === "gaurd"){na = gaurd2}
+							if(p2Action === "counter"){na = counter2}
+							if(p2Action === "taunt"){na = taunt2; }
+							if(p2Action === "idle"){na = idle2; }
+							if(p2Action === "dead"){
+								death2.loop = 1;
+								death2.clampWhenFinished = true;
+								death2.repetitions = 1;
+								na = death2;
+								if(p1Action === "counter"){
+									return setTimeout(()=>{na.play()},na._clip.duration*1300);
+								}
+								return na.play()
+							}
+							if(p2Action === "counter" && (p1Action !== "attack" && p1Action !== "dead") ){
+								na = idle2;
+							}
+							na.play();
+							if(p1Action !== "counter" && p1Action !== "attack"){
+								Timeouts.push(returnToNormal(na));
+							}
+							else if(p1Action === "attack" && ( p2Action !== "counter" && p2Action !== "gaurd" )){
+								console.log("both damage")
+								Timeouts.push(takeDamage(attack2));
+							}
+							else if(p1Action === "counter" && (p2Action === "attack" || p2Action === "dead" )){
+								console.log("p1 counter")
+								//P2 Gets hit by counter
+								Timeouts.push(setTimeout(()=>{
+									Timeouts.push(takeDamage(attack2));
+									Timeouts.push(setTimeout(()=>{ takeDamage(hitReaction2) },hitReaction2.duration*1000));
+								},1900));
+							}
+							else if(p1Action === "attack" && p2Action === "counter"){
+								console.log("p2counter");
+								Timeouts.push(returnToNormal(na));
+							}
+							else if(p1Action === "attack" && p2Action === "gaurd"){
+								console.log("p2gaurd");
+								Timeouts.push(returnToNormal(na));
+							}
+							else{
+								console.warn("unknown");
+								Timeouts.push(returnToNormal(na))
+							}
+						}
+					}
+					idle2.play();
+				});
+
+				let t1 = ["attack","gaurd","counter","taunt","idle"];
+				let outcomes = []
+				for(let i = 0;i < t1.length;i++){
+					for(let j = 0;j < t1.length;j++){
+						outcomes.push(t1[i] + "-"+t1[j])
+					}
+				}
+				let div =  document.createElement("div");
+				div.setAttribute("style","border:5px solid black");
+				let count = 0;
+				const bc = new BroadcastChannel('game_commands');
+				outcomes.map((item,i)=>{
+						//if(item.search("counter") > -1 && item.search("attack") === -1){console.log("counter users are now just idle");return}
+						//if(item.search("attack") === -1){console.log("users aren't really ineracting with each other");return}
+						let button = document.createElement("button");
+						button.innerHTML = item;
+						button.onclick =()=>{
+							bc.postMessage(item);
+							bc.postMessage(item);
+						}
+						//div.appendChild(button);
+						count++;
+				});
+				document.body.prepend(div);	
+				console.log("actions:",count);	
+				renderer = new THREE.WebGLRenderer( { antialias: true } );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				renderer.outputEncoding = THREE.sRGBEncoding;
+				renderer.shadowMap.enabled = true;
+				container.appendChild( renderer.domElement );
+				//const controls = new OrbitControls( camera, renderer.domElement );
+			}
+			
+			function onWindowResize() {
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+				renderer.setSize( window.innerWidth, window.innerHeight );
+			}
+			let count = 0;
+			function animate() {
+				setTimeout(()=>{requestAnimationFrame( animate );},1000/30);
+				count++;
+				//if(count % 24 === 0){console.log(camera.position)}
+				let mixerUpdateDelta = clock.getDelta();
+				mixer.update( mixerUpdateDelta );
+				if(mixer2){mixer2.update( mixerUpdateDelta );}
+				renderer.render( scene, camera );
+			}
+		</script>
+	</body>
+</html>

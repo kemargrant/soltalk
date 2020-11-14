@@ -244,6 +244,138 @@ body {
 .unconfirmed{
 	background:lightblue;
 }
+/*Stage*/
+#background{
+    background-repeat: no-repeat;
+    background:white;
+/*
+    background-image: url(/background2.png);
+*/
+    margin: auto;
+    position:absolute;
+    width: 98vw;
+	-webkit-background-size: cover;
+	-moz-background-size: cover;
+	-o-background-size: cover;
+	background-size: cover;
+}
+
+.explosion {
+  position: absolute;
+  width: 1vw;
+  height: 1vh;
+  pointer-events: none;
+}
+
+iframe{
+	border:0em solid black;
+	border-width:none;
+	display:block;
+	margin:auto;
+}
+
+#moveTimeout{
+	display:block;
+	margin:auto;
+	width:20%;
+}
+
+.particle {
+    position: absolute; 
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    animation: pop 1s reverse forwards; 
+}
+
+
+@keyframes pop {
+  from {
+    opacity: 0;
+  }
+  to {
+    top: 50%;
+    left: 50%;
+    opacity: 1;
+  }
+}
+
+#playerOptions{
+	background: #3bb5ba;
+    position: fixed;
+    bottom: 15vh;
+    left:40%;
+}
+
+#player1Sprite{
+	width:22vw;
+}
+
+#player1Stats marquee{
+    color: black;
+    background: red;
+    font-size: x-large;
+    border-right: none;
+    border-left: none;
+}
+#player1Stats b{
+	color:white;
+}
+
+#player1Stats{
+	width:30%;
+	position:fixed;
+}
+
+#player2HealthBar{
+	transform: rotate(-180deg);
+}
+
+#player2Stats{
+	position:fixed;
+	right:0px;
+	text-align:center;
+	width:30%;
+}
+#player2Stats marquee{
+    color: black;
+    background: red;
+    font-size: x-large;
+    border-right: none;
+    border-left: none;
+}
+#player2Stats b{
+	color:yellow;
+	float:right;
+}
+#player2Stats meter{
+	float:right;
+}
+
+#player2Stats progress{
+	float:right;
+	width:100%;
+}
+
+#player2Sprite{
+	width:20vw;
+	transform: rotateY(180deg);
+}
+
+.stageHolder{
+	background:black;
+	height:100%;
+	width:100%;
+	overflow:hidden;
+}
+
+#title{
+	color:white;
+	text-align:center;
+}
+
+
+/*End Stage*/
 
 ::-webkit-scrollbar {
     width: 3px!important;

@@ -35,6 +35,7 @@ import Wallet from '@project-serum/sol-wallet-adapter';
 import {sendAndConfirmTransaction} from './util/send-and-confirm-transaction';
 //Components
 import { Recorder } from './Components/Recorder';
+import { Stage } from './Components/Stage';
 
 var socketRoot;
 var urlRoot;
@@ -50,6 +51,8 @@ const timeAgo = new TimeAgo('en-US')
 if(window.location.href.search("localhost") > -1){
 	urlRoot = "https://testnet.solana.com/";
 	socketRoot = "ws://testnet.solana.com:8900";
+	//urlRoot = "http://localhost:8899";
+	//socketRoot = "ws://localhost:8900";	
 	defaultProgram = "JB2LCd9oV7xNemBSV8dJu6gkrpWQSrDPcfHUQAQnXRZu";
 	defaultChannel = "BoSJNDkt37kxQthSgvMqCER1dMzyqEUS34Kkp2YazEiq";	
 	console.log("Running Local");
@@ -357,6 +360,7 @@ class App extends React.Component{
 			MESSAGE_HISTORY:window.localStorage.getItem("message_history") ? JSON.parse(window.localStorage.getItem("message_history")) : {},
 			payerAccount:false,
 			payerAccountBalance:0,
+			playGame:false,
 			providerUrl:'https://www.sollet.io/#origin='+window.location.origin+'&network=testnet',
 			rsaKeyPair:false,
 			showSolanaQR:false,
@@ -423,6 +427,7 @@ class App extends React.Component{
 		this.showContactForm = this.showContactForm.bind(this);
 		this.subscribe = this.subscribe.bind(this);
 		
+		this.togglePlayGame = this.togglePlayGame.bind(this);
 		this.toggleShowSolanaQR = this.toggleShowSolanaQR.bind(this);
 		this.toggleContactsView = this.toggleContactsView.bind(this);
 		
@@ -682,7 +687,7 @@ class App extends React.Component{
 				}
 				//
 				return this.setState({wallet,connection,payerAccount:publicKey,solanaQRURL},()=>{
-					this.getBalance();
+					this.getBalance().catch(console.warn);
 					if(!this.state.ws){this.subscribe();}
 					return resolve(true);
 				});
@@ -1291,10 +1296,17 @@ class App extends React.Component{
 	/**
 	* Load a new program onto the network
 	* @method loadProgram
+	* @param {Number} Contract to deploy
 	* @return {Promise} Should resolve to object {ProgramID,succ}
 	*/
-	async loadProgram(){
-		let program = await fetch("/program.so").then(r=>r.blob());
+	async loadProgram(type){
+		let program;
+		if( type === 0){
+			program = await fetch("/program.so").then(r=>r.blob());
+		}
+		else{
+			program = await fetch("/sssc.so").then(r=>r.blob());
+		}
 		let buffer = await program.arrayBuffer();	
 		let programAccount = new Account();
 		let programId = programAccount.publicKey;
@@ -1314,12 +1326,19 @@ class App extends React.Component{
 	/**
 	* Create an account controlled by a user prompted program
 	* @method loadProgramControlledAccount
+	* @param {Number} Contract to use as owner
 	* @return {Promise} Should resolve to base58 public key of the new Account
 	*/	
-	async loadProgramControlledAccount(){
+	async loadProgramControlledAccount(type){
 		let chatRoomAccount = new Account();
 		let chatRoomPubkey = chatRoomAccount.publicKey;
-		let lamports = await connection.getMinimumBalanceForRentExemption(1028);
+		let lamports;
+		if(type === 0){
+			 lamports = await connection.getMinimumBalanceForRentExemption(1028);
+		}
+		else{
+			lamports = await connection.getMinimumBalanceForRentExemption(130);
+		}
 		console.log("Mininum lamports for rent free account:",lamports / LAMPORTS_PER_SOL);
 		let ppid = window.prompt("Program Address")
 		if(!ppid){return}
@@ -1687,6 +1706,8 @@ class App extends React.Component{
 			Intervals.push(heartbeat);
 			attachChannels(ws);
 		}
+		//Channel for sol survivor
+		const bc = new BroadcastChannel('game_channel');
 		const onMessage = (evt)=> {
 			try{
 				console.log("socket Message:",evt.data);
@@ -1695,6 +1716,7 @@ class App extends React.Component{
 				if(account.params){
 					let accountData = account.params.result.value.data;
 					this.parseAccountData(accountData[0]);
+					bc.postMessage(accountData);
 				}
 			}
 			catch(e){
@@ -1752,6 +1774,16 @@ class App extends React.Component{
 		if(document.getElementById("logs")){
 			document.getElementById("logs").value = log;
 		}
+		return;
+	}
+
+	/**
+	* Toggle view of games
+	* @method togglePlayGame
+	* @return {Null}
+	*/		
+	togglePlayGame(){
+		this.setState({playGame:!this.state.playGame});
 		return;
 	}
 	
@@ -1973,6 +2005,10 @@ class App extends React.Component{
 						<div><Button size="sm" onClick={this.broadcastPresence}>Broadcast Presence</Button></div>
 						:null
 					}
+					<ToggleButtonGroup type="checkbox" value={this.state.playGame ? 1 : 2} onChange={this.togglePlayGame}>
+						<ToggleButton variant={this.state.playGame ? "primary" : "secondary"} value={1}>GAMES</ToggleButton>
+						<ToggleButton variant={this.state.playGame ? "secondary" : "primary"} value={2}>MESSAGING</ToggleButton>
+					</ToggleButtonGroup>
 				</div>	
 				<div className="currentContact">		
 					{
@@ -1996,6 +2032,21 @@ class App extends React.Component{
 					</Dropdown>
 				</div>
 		</Row>
+		{
+			this.state.playGame ?
+		<Stage 
+			_connection={connection}
+			connection={this.state.connection}
+			currentContact={this.state.currentContact}
+			localPayerAccount={this.state.localPayerAccount}
+			payerAccount={this.state.payerAccount}
+			notify={notify}
+			stringToBytes={stringToBytes}
+			wallet={this.state.wallet}
+			ws={this.state.ws}
+		/>
+		: null
+		}
 		<Row>
 			<Col sm={12} id="chatCol">
 				<Row> 
@@ -2059,9 +2110,11 @@ class App extends React.Component{
 							<br/> Account: {this.state.latestAccount ? this.state.latestAccount : null}		
 						</p>				
 						<ButtonGroup> 
-							<Button variant="warning" onClick={this.loadProgram}>Deploy Chat</Button>
+							<Button variant="warning" onClick={()=>{this.loadProgram(0)}}>Deploy Chat</Button>
+							<Button variant="warning" onClick={()=>{this.loadProgram(1)}}>Deploy Game</Button>
 							<Button variant="danger" onClick={()=>this.importKey()}>Import New Private Key</Button>
-							<Button onClick={this.loadProgramControlledAccount}> Launch a new room </Button>
+							<Button onClick={()=>{this.loadProgramControlledAccount(0)}}> Launch a new chat room  </Button>
+							<Button onClick={()=>{this.loadProgramControlledAccount(1)}}> Launch a new game room  </Button>
 						</ButtonGroup>
 					</div>
 					:<Button variant="danger" onClick={()=>{this.importKey()}}>Import Private Key </Button>

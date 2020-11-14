@@ -148,7 +148,7 @@ class Stage extends React.Component{
 			player2DidReveal:0,
 			player2Health:100,	
 			player2Super:0,
-			timeLimit:300,	
+			timeLimit:180,	
 		}
 		this.acceptChallenge = this.acceptChallenge.bind(this);
 		this.commit = this.commit.bind(this);
@@ -314,7 +314,7 @@ class Stage extends React.Component{
 					}
 				}
 				if(this.state.gameStart){
-					let timeLimit = 180+((this.state.gameStart+(180*1000)) - now)/1000;
+					let timeLimit = ((this.state.gameStart+(180*1000)) - now)/1000;
 					this.setState({timeLimit});
 				}
 				return this.countDownTimer();
@@ -754,7 +754,7 @@ class Stage extends React.Component{
 						</b>
 					</div>
 				</div>
-			<div><ProgressBar variant={this.state.timeLimit > 40 ? "primary" : "danger"} striped min={0} max={300} now={this.state.timeLimit} label={"TIME: "+Math.floor(this.state.timeLimit)+"s"} /></div>
+			<div><ProgressBar variant={this.state.timeLimit > 40 ? "primary" : "danger"} striped min={0} max={180} now={this.state.timeLimit} label={"TIME: "+Math.floor(this.state.timeLimit)+"s"} /></div>
 			<div id="moveTimeout">
 				<ProgressBar variant="warning" 
 					 striped min={0} max={10} 

@@ -26,8 +26,13 @@
 	<body>
 		<div id="container" style="overflow:hidden;height:90vh"></div>
 		<script type="module">
-			console.log = function(){}
-			console.warn = function(){}
+			//console.log = function(){}
+			//console.warn = function(){}
+			let attackSound = document.getElementById("attackSound");
+			let gaurdSound = document.getElementById("gaurdSound");
+			let deadSound = document.getElementById("deadSound");
+			let taunt1Sound = document.getElementById("taunt1Sound");
+			let taunt2Sound = document.getElementById("taunt2Sound");
 			import * as THREE from 'https://unpkg.com/three@0.122.0/build/three.module.js';
 			import { GUI } from 'https://unpkg.com/three@0.122.0/examples/jsm/libs/dat.gui.module.js';
 
@@ -146,6 +151,7 @@
 							item._mixer.stopAllAction();
 							await sleep (5);
 							hitReaction.play();
+							attackSound.play();
 							returnToNormal(hitReaction);
 						},item._clip.duration*1000));
 					}	
@@ -179,8 +185,14 @@
 								death.repetitions = 1;
 								na = death;
 								if(p2Action === "counter"){
-									return setTimeout(()=>{na.play()},na._clip.duration*1300);
+									return setTimeout(()=>{
+										attackSound.play();
+										deadSound.play();
+										na.play();
+										},na._clip.duration*1300);
 								}
+								attackSound.play();
+								deadSound.play();
 								return na.play()
 							}
 							if(p1Action === "counter" && (p2Action !== "attack" && p2Action !== "dead")){
@@ -213,6 +225,10 @@
 							else{
 								console.warn("unknown")
 								Timeouts.push(returnToNormal(na));
+							}
+							//taunt
+							if(p1Action === "taunt"){
+								taunt1Sound.play();
 							}
 						}
 					}
@@ -280,6 +296,7 @@
 							item._mixer.stopAllAction();
 							await sleep(5);
 							hitReaction2.play();
+							attackSound.play();
 							returnToNormal(hitReaction2);
 						},item._clip.duration*1000));
 					}	
@@ -311,8 +328,14 @@
 								death2.repetitions = 1;
 								na = death2;
 								if(p1Action === "counter"){
-									return setTimeout(()=>{na.play()},na._clip.duration*1300);
+									return setTimeout(()=>{
+										attackSound.play();
+										deadSound.play();
+										na.play()
+									},na._clip.duration*1300);
 								}
+								attackSound.play();
+								deadSound.play();
 								return na.play()
 							}
 							if(p2Action === "counter" && (p1Action !== "attack" && p1Action !== "dead") ){
@@ -345,6 +368,10 @@
 							else{
 								console.warn("unknown");
 								Timeouts.push(returnToNormal(na))
+							}
+							///
+							if(p2Action === "taunt"){
+								taunt2Sound.play();
 							}
 						}
 					}
@@ -401,5 +428,10 @@
 				renderer.render( scene, camera );
 			}
 		</script>
+		<audio id="attackSound" src="./sounds/attack.mp3">
+		<audio id="gaurdSound" src="./sounds/gaurd.mp3">
+		<audio id="deadSound" src="./sounds/gameover.mp3">
+		<audio id="taunt1Sound" src="./sounds/taunt1.ogg">
+		<audio id="taunt2Sound" src="./sounds/taunt2.mp3">
 	</body>
 </html>

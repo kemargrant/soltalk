@@ -117,7 +117,7 @@ const GAME_ACCOUNT = "UzQHsjuXSAYw6cQ7PPwMbXT4RHHAbSk14J2L2fhHiRc";
 const react_game_channel = new BroadcastChannel('game_channel'); 
 const iframe_game_channel = new BroadcastChannel('game_commands');
     
-function WebGLView(props){return (<iframe src={props.src} width={1080} height={700} style={{frameBorder:0}}/>);}     
+function WebGLView(props){return (<iframe title="gameIframe" src={props.src} width={1080} height={700} style={{frameBorder:0}}/>);}     
      
 class Stage extends React.Component{ 
 	constructor(props){

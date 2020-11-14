@@ -405,7 +405,7 @@ class Stage extends React.Component{
 				"method": "getAccountInfo",
 				"params": ["SysvarC1ock11111111111111111111111111111111",{"encoding": "base64"}]
 			}
-			window.fetch("http://localhost:8899", {
+			window.fetch("http://testnet.solana.com", {
 				"headers": {"content-type": "application/json"},
 				"body":JSON.stringify(body),
 				"method": "POST",

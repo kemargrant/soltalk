@@ -153,8 +153,8 @@ uint64_t step(SolParameters *params){
 	if(p2Move == 51){p2Move = 3;}	
 
 	sol_log_64(0,0,0,p1Move,p2Move);
-	uint8_t p1attack = 10;
-	uint8_t p2attack = 10;
+	uint8_t p1attack = 100;
+	uint8_t p2attack = 100;
 	if(p1Super > 99){p1attack *= 2;p1Super = 200;}
 	if(p2Super > 99){p2attack *= 2;p2Super = 200;}	
 	if(p1Move > 4){p1Move = 4;}
@@ -187,9 +187,11 @@ uint64_t step(SolParameters *params){
 		else if(p2Move == 1){
 		}
 		else if(p2Move == 2){
+			p2Health -= p1attack;
 		}
 		else if(p2Move == 3){
 			p2Super += (p2attack + (p2attack/2))*2;
+			p1Health -= p2attack;
 		}
 		else if(p2Move == 4){
 		}								
@@ -199,6 +201,7 @@ uint64_t step(SolParameters *params){
 			p2Health -= (p1attack*2);
 		}
 		else if(p2Move == 1){
+			p1Health -= p2attack;
 		}
 		else if(p2Move == 2){
 		}
@@ -215,6 +218,7 @@ uint64_t step(SolParameters *params){
 		}
 		else if(p2Move == 1){
 			p1Super += (p1attack + (p1attack/2))*2;
+			p2Health -= p1attack;
 		}
 		else if(p2Move == 2){
 			p1Super += p1attack;

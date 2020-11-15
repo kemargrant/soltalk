@@ -37,7 +37,7 @@ function get64BitTime(byteArray,offset=0){
 }
 
 
-let currentConnection = "http://testnet.solana.com";
+let currentConnection = "https://testnet.solana.com";
 //let currentConnection = "http://localhost:8899";
 
 const GAME_ID = "D6sPuWypcX7MiQsDesUKtMUvBznknJd3f7bBh6qaqG3p";

@@ -499,6 +499,7 @@ class Stage extends React.Component{
 		else{
 			this.setState({moveTimer:-1,moveTimerExpiration:-1,moveTimeoutValue:10});
 		}
+
 	}
 	
 	async playMusic(){
@@ -579,7 +580,7 @@ class Stage extends React.Component{
 		return(<div className="stageHolder">
 			<h3 id="title">			
 				{
-					((this.state.timeLimit < 0 || (this.state.gameStatus === 0 || this.state.gameStatus === 2)) && this.state.gameStatus !== 1) ?
+					( this.state.timeLimit < 0 || this.state.gameStatus === 0  ) || this.state.winner > 0 ?
 					<Button block variant="danger" onClick={this.createChallenge}> PLAYER 1 PRESS START </Button> : null
 				}
 				

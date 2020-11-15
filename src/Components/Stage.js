@@ -213,7 +213,7 @@ class Stage extends React.Component{
 		setTimeout(()=>{
 			this.getAccountInfo()
 			.then(this.subscribeToGame);
-				window.fetch("http://localhost:8899", {
+				/*window.fetch("http://localhost:8899", {
 					"headers": {"content-type": "application/json"},
 					"body":JSON.stringify( {
 						"jsonrpc": "2.0",
@@ -225,7 +225,8 @@ class Stage extends React.Component{
 					}),
 					"method": "POST",
 				})
-				.catch(console.warn);		
+				.catch(console.warn);	
+				*/	
 		},1000);		
 	}
 	

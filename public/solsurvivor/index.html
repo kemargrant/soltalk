@@ -26,8 +26,11 @@
 	<body>
 		<div id="container" style="overflow:hidden;height:90vh"></div>
 		<script type="module">
-			console.log = function(){}
-			console.warn = function(){}
+			if(location.host.search("localhost") < 0){
+				console.log = function(){}
+				console.warn = function(){}
+			}
+			
 			let attackSound = document.getElementById("attackSound");
 			let gaurdSound = document.getElementById("gaurdSound");
 			let deadSound = document.getElementById("deadSound");
@@ -88,7 +91,7 @@
 				scene.add( mesh );
 
 				const loader = new GLTFLoader();
-
+				
 				loader.load( 'models/soldier.glb', function ( gltf ) {
 
 					model = gltf.scene;
@@ -120,23 +123,46 @@
 					kick = mixer.clipAction(THREE.AnimationClip.findByName( animations, 'Kicking' ) );
 					counter = mixer.clipAction(THREE.AnimationClip.findByName( animations, 'BackFlipToUppercut' ) );
 					combo = mixer.clipAction(THREE.AnimationClip.findByName( animations, 'QuadPunch' ) );
-					let actions = [attack,gaurd,death,hitReaction,taunt,kick,counter,combo,idle];
-					
-					actions.map((item,i)=>{
-						let button = document.createElement("button");
-						button.onclick = function(){
-							item._mixer.stopAllAction();
-							item.play();
-							setTimeout(()=>{
-								item._mixer.stopAllAction();
-								if(item._name !== "idle" && item._name !== "death"){
-									idle.play();
+					let actions = [gaurd,death,hitReaction,taunt,kick,counter,combo,idle,attack];
+					let current = idle;
+					let que = [];
+
+					mixer.addEventListener( 'loop', function( e ) {
+							if(e.action._clip.name === "Idle"){return}
+							if(que.length < 1){
+								idle.enabled = true;
+								idle.play();
+								idle.crossFadeFrom(current,0);
+								current = idle;
+							}
+							else{
+								let temp = que.shift();
+								temp.play();
+								if(temp._clip.name === "HitReaction"){
+									attackSound.play();
 								}
-								let ends = item._clip.duration === 1 ? 1000 : item._clip.duration;
-							},item._clip.duration*1000);
+								current.crossFadeTo(temp,0.15);
+								current = temp;
+							}
+							
+					});
+					death.loop = 1;
+					death.clampWhenFinished = true;
+					death.repetitions = 1;	
+			
+					actions.map((item,i)=>{
+						
+						let button = document.createElement("button");
+						button.onclick = async()=>{
+							console.log(item);
+							if(!item.enabled){item.enabled = true;}
+							item.play();
+							item.crossFadeFrom(current,0);
+
+							current = item;
 						}
 						button.innerHTML = item._clip ? item._clip.name : i;
-						//document.body.append(button);
+						document.body.prepend(button);
 					})
 					let Timeouts = [];
 					const returnToNormal = (item) =>{
@@ -180,15 +206,14 @@
 							if(p1Action === "taunt"){na = taunt; }
 							if(p1Action === "idle"){na = idle; }
 							if(p1Action === "dead"){
-								death.loop = 1;
-								death.clampWhenFinished = true;
-								death.repetitions = 1;
 								na = death;
 								if(p2Action === "counter"){
+									idle.play();
 									return setTimeout(()=>{
 										attackSound.play();
 										deadSound.play();
-										na.play();
+										idle.stop();
+										death.play();
 										},na._clip.duration*1300);
 								}
 								attackSound.play();
@@ -198,21 +223,25 @@
 							if(p1Action === "counter" && (p2Action !== "attack" && p2Action !== "dead")){
 								na = idle;
 							}
+							current = na;
 							na.play();
 							if(p2Action !== "counter" && p2Action !== "attack"){
 								Timeouts.push(returnToNormal(na));
 							}
 							else if(p2Action === "attack" && (p1Action !== "counter" && p1Action !== "gaurd")){
-								console.log("both damage")
-								Timeouts.push(takeDamage(attack));
+								console.log("(p1)both damage");
+								que.push(hitReaction);
 							}
 							else if(p2Action === "counter" && (p1Action === "attack" || p1Action === "dead")){
-								console.log("p2 counter");
+								console.log("(p1),p2 counter");
 								//P1 Gets hit by a counter:
-								Timeouts.push(setTimeout(()=>{
-									Timeouts.push(takeDamage(attack));
-									Timeouts.push(setTimeout(()=>{ takeDamage(hitReaction) },hitReaction.duration*1000));
-								},1800));
+								setTimeout(()=>{
+									hitReaction.play();
+									attackSound.play();
+									hitReaction.crossFadeFrom(current,0);
+									current = hitReaction;
+								},(counter._clip.duration * 1000)*0.55)
+								
 							}
 							else if(p2Action === "attack" && p1Action === "counter"){
 								console.log("p1counter");
@@ -236,6 +265,8 @@
 					animate();
 				});
 
+				
+				
 				loader.load( 'models/knight.glb', function ( gltf ) {
 					let model = gltf.scene;
 					scene.add( model );
@@ -245,8 +276,6 @@
 						model.scale.set(4/5,4/5,4/5);
 						model.rotation.set(0,3.141,0);
 					} );
-
-					//
 
 					let skeleton = new THREE.SkeletonHelper( model );
 					skeleton.visible = false;
@@ -265,6 +294,30 @@
 					let counter2 = mixer2.clipAction(THREE.AnimationClip.findByName( animations, 'BackFlipToUppercut' ) );
 					let combo2 = mixer2.clipAction(THREE.AnimationClip.findByName( animations, 'QuadPunch' ) );
 					let actions2 = [attack2,gaurd2,death2,hitReaction2,taunt2,counter2,combo2,idle2];
+					
+					let current = idle2;
+					let que = []
+					mixer2.addEventListener( 'loop', function( e ) {
+							if(e.action._clip.name === "Idle"){return}
+							if(que.length < 1){
+								idle2.enabled = true;
+								idle2.play();
+								idle2.crossFadeFrom(current,0);
+								current = idle2;
+							}
+							else{
+								let temp = que.shift();
+								temp.play();
+								if(temp._clip.name === "HitReaction"){
+									attackSound.play();
+								}
+								current.crossFadeTo(temp,0.15);
+								current = temp;
+							}
+					});
+					death2.loop = 1;
+					death2.clampWhenFinished = true;
+					death2.repetitions = 1;	
 					
 					actions2.map((item,i)=>{
 						let button = document.createElement("button");
@@ -323,15 +376,14 @@
 							if(p2Action === "taunt"){na = taunt2; }
 							if(p2Action === "idle"){na = idle2; }
 							if(p2Action === "dead"){
-								death2.loop = 1;
-								death2.clampWhenFinished = true;
-								death2.repetitions = 1;
 								na = death2;
 								if(p1Action === "counter"){
+									idle2.play();
 									return setTimeout(()=>{
 										attackSound.play();
 										deadSound.play();
-										na.play()
+										idle2.stop();
+										death2.play();
 									},na._clip.duration*1300);
 								}
 								attackSound.play();
@@ -341,21 +393,25 @@
 							if(p2Action === "counter" && (p1Action !== "attack" && p1Action !== "dead") ){
 								na = idle2;
 							}
+							current = na;
 							na.play();
 							if(p1Action !== "counter" && p1Action !== "attack"){
 								Timeouts.push(returnToNormal(na));
 							}
 							else if(p1Action === "attack" && ( p2Action !== "counter" && p2Action !== "gaurd" )){
-								console.log("both damage")
-								Timeouts.push(takeDamage(attack2));
+								console.log("(p2),both damage");
+								que.push(hitReaction2);
+								//Timeouts.push(takeDamage(attack2));
 							}
 							else if(p1Action === "counter" && (p2Action === "attack" || p2Action === "dead" )){
 								console.log("p1 counter")
 								//P2 Gets hit by counter
-								Timeouts.push(setTimeout(()=>{
-									Timeouts.push(takeDamage(attack2));
-									Timeouts.push(setTimeout(()=>{ takeDamage(hitReaction2) },hitReaction2.duration*1000));
-								},1900));
+								setTimeout(()=>{
+									hitReaction2.play();
+									attackSound.play();
+									hitReaction2.crossFadeFrom(current,0);
+									current = hitReaction2;
+								},(counter2._clip.duration * 1000)*0.55)
 							}
 							else if(p1Action === "attack" && p2Action === "counter"){
 								console.log("p2counter");
@@ -377,8 +433,8 @@
 					}
 					idle2.play();
 				});
-
-				let t1 = ["attack","gaurd","counter","taunt","idle"];
+				
+				let t1 = ["attack","gaurd","counter","taunt","idle","dead"];
 				let outcomes = []
 				for(let i = 0;i < t1.length;i++){
 					for(let j = 0;j < t1.length;j++){
@@ -390,15 +446,12 @@
 				let count = 0;
 				const bc = new BroadcastChannel('game_commands');
 				outcomes.map((item,i)=>{
-						//if(item.search("counter") > -1 && item.search("attack") === -1){console.log("counter users are now just idle");return}
-						//if(item.search("attack") === -1){console.log("users aren't really ineracting with each other");return}
 						let button = document.createElement("button");
 						button.innerHTML = item;
 						button.onclick =()=>{
 							bc.postMessage(item);
-							bc.postMessage(item);
 						}
-						//div.appendChild(button);
+						div.appendChild(button);
 						count++;
 				});
 				document.body.prepend(div);	
@@ -419,7 +472,7 @@
 			}
 			let count = 0;
 			function animate() {
-				setTimeout(()=>{requestAnimationFrame( animate );},1000/30);
+				setTimeout(()=>{requestAnimationFrame( animate );},1000/24);
 				count++;
 				//if(count % 24 === 0){console.log(camera.position)}
 				let mixerUpdateDelta = clock.getDelta();

@@ -162,7 +162,7 @@
 							current = item;
 						}
 						button.innerHTML = item._clip ? item._clip.name : i;
-						document.body.prepend(button);
+						//document.body.prepend(button);
 					})
 					let Timeouts = [];
 					const returnToNormal = (item) =>{
@@ -454,7 +454,7 @@
 						div.appendChild(button);
 						count++;
 				});
-				document.body.prepend(div);	
+				//document.body.prepend(div);	
 				console.log("actions:",count);	
 				renderer = new THREE.WebGLRenderer( { antialias: true } );
 				renderer.setPixelRatio( window.devicePixelRatio );

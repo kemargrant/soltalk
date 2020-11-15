@@ -92,7 +92,7 @@ class Stage extends React.Component{
 	
 	async acceptChallenge(){
 		this.setState({gameStart:false});
-		//this.playMusic().catch(console.warn);
+		this.playMusic().catch(console.warn);
 		let programId = new PublicKey(GAME_ID);
 		let txid;
 		//sollet adapter
@@ -250,7 +250,7 @@ class Stage extends React.Component{
 	
 	async createChallenge(){
 		this.setState({gameStart:false});
-		//this.playMusic().catch(console.warn);
+		this.playMusic().catch(console.warn);
 		let programId = new PublicKey(GAME_ID);
 		let clock = new PublicKey("SysvarC1ock11111111111111111111111111111111");
 		let txid;

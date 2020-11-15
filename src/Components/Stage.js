@@ -11,81 +11,6 @@ import bs58 from 'bs58';
 import * as BufferLayout from 'buffer-layout';
 const sdbm = require('sdbm');
 
-//Sol Survivor
-// explosion construction
-function explode(dead,player) {
-	return;
-	let player1 = document.getElementById("player1Sprite");
-	let player1Location = player1.getBoundingClientRect();
-	let player2 = document.getElementById("player2Sprite");
-	let player2Location = player2.getBoundingClientRect();	
-	let particles = 10;
-    // explosion container and its reference to be able to delete it on animation end
-	let explosion1 = document.createElement("div");
-	let explosion2 = document.createElement("div");
-	explosion1.setAttribute("class","explosion");
-	explosion2.setAttribute("class","explosion");
-	let body = document.getElementsByTagName("body")[0];
-	body.append(explosion1);
-	body.append(explosion2);
-	explosion1.setAttribute("style",`
-		left:${player1Location.x}px;
-		top:${player1Location.y}px;
-		height:${player1.height}px;
-		width:${player1.width}px;
-	`);
-	explosion2.setAttribute("style",`
-		left:${player2Location.x}px;
-		top:${player2Location.y}px;
-		height:${player2.height}px;
-		width:${player2.width}px;
-	`);
-	let particle;
-	let x;
-	let y;
-	let color;
-	if(dead && player === "p1"){particles = 200;}
-	for (let i = 0; i < particles; i++) {
-		// positioning x,y of the particle on the circle (little randomized radius)
-		particle = document.createElement("div");
-		particle.setAttribute("class","particle");
-		x = (player1.width / 4) + rand(80, 150) * Math.cos(2 * Math.PI * i / rand(particles - 10, particles + 10));
-		y = (player1.height / 4) + rand(80, 150) * Math.sin(2 * Math.PI * i / rand(particles - 10, particles + 10));
-		//let color = rand(0, 255) + ', ' + rand(0, 255) + ', ' + rand(0, 255); // randomize the color rgb
-		color = Math.floor(x) % 2 === 0 ? '255,0,0' : '255,165,0';
-		// particle element creation (could be anything other than div)
-		particle.setAttribute("style",`background-color:rgb(${color});top:${y}px;left:${x}px;`);
-		if (i === 0) { 
-			// no need to add the listener on all generated elements
-			// css3 animation end detection
-			particle.addEventListener('webkitAnimationEnd oanimationend msAnimationEnd animationend', function(e) {
-				explosion1.remove(); // remove this explosion container when animation ended
-			});
-		}
-		explosion1.append(particle);
-	}
-	particles = 10;
-	if(dead && player === "p2"){particles = 200;}
-	for (let i = 0; i < particles; i++) {
-		// positioning x,y of the particle on the circle (little randomized radius)
-		particle = document.createElement("div");
-		particle.setAttribute("class","particle");
-		x = (player1.width / 4) + rand(80, 150) * Math.cos(2 * Math.PI * i / rand(particles - 10, particles + 10));
-		y = (player1.height / 4) + rand(80, 150) * Math.sin(2 * Math.PI * i / rand(particles - 10, particles + 10));
-		//let color = rand(0, 255) + ', ' + rand(0, 255) + ', ' + rand(0, 255); // randomize the color rgb
-		color = Math.floor(x) % 2 === 0 ? '255,0,0' : '255,165,0';
-		// particle element creation (could be anything other than div)
-		particle.setAttribute("style",`background-color:rgb(${color});top:${y}px;left:${x}px;`);
-		if (i === 0) { 
-			// no need to add the listener on all generated elements
-			// css3 animation end detection
-			particle.addEventListener('webkitAnimationEnd oanimationend msAnimationEnd animationend', function(e) {
-				explosion2.remove(); // remove this explosion container when animation ended
-			});
-		}
-		explosion2.append(particle);
-	}	
-}
 
 // get random number between min and max value
 function rand(min, max) {
@@ -112,8 +37,11 @@ function get64BitTime(byteArray,offset=0){
 }
 
 
-const GAME_ID = "GZaM7boEsQMCd14RsBWcZvNx1rFTqU58iwm5PLo6NWRc";
-const GAME_ACCOUNT = "UzQHsjuXSAYw6cQ7PPwMbXT4RHHAbSk14J2L2fhHiRc";  
+let currentConnection = "http://testnet.solana.com";
+//let currentConnection = "http://localhost:8899";
+
+const GAME_ID = "D6sPuWypcX7MiQsDesUKtMUvBznknJd3f7bBh6qaqG3p";
+const GAME_ACCOUNT = "24zUvBhv981ur8kedCbUimhj8araq73RDMBLU49ENxtH";  
 const react_game_channel = new BroadcastChannel('game_channel'); 
 const iframe_game_channel = new BroadcastChannel('game_commands');
     
@@ -155,10 +83,8 @@ class Stage extends React.Component{
 		this.countDownTimer = this.countDownTimer.bind(this);
 		this.createChallenge = this.createChallenge.bind(this);
 		this.getAccountInfo = this.getAccountInfo.bind(this);
-		this.impactEffect = this.impactEffect.bind(this);
 		this.muteMusic = this.muteMusic.bind(this);
 		this.parseState = this.parseState.bind(this);
-		this.performAction = this.performAction.bind(this);
 		this.playMusic = this.playMusic.bind(this);
 		this.reveal = this.reveal.bind(this);
 		this.subscribeToGame = this.subscribeToGame.bind(this);
@@ -166,6 +92,7 @@ class Stage extends React.Component{
 	
 	async acceptChallenge(){
 		this.setState({gameStart:false});
+		//this.playMusic().catch(console.warn);
 		let programId = new PublicKey(GAME_ID);
 		let txid;
 		//sollet adapter
@@ -211,7 +138,6 @@ class Stage extends React.Component{
 		if(this.state.gameOver){
 			this.stateState({gameOver:false});
 		}
-		this.playMusic().then(console.warn);
 	}
 
 	async commit(action){
@@ -277,6 +203,7 @@ class Stage extends React.Component{
 	}
 		
 	componentDidMount(){
+		this.playMusic().catch(console.warn);
 		react_game_channel.onmessage = (ev)=> { 
 			if(ev && ev.data){
 				return this.parseState(ev.data[0]);
@@ -286,21 +213,20 @@ class Stage extends React.Component{
 		setTimeout(()=>{
 			this.getAccountInfo()
 			.then(this.subscribeToGame);
-				//~ window.fetch("http://localhost:8899", {
-					//~ "headers": {"content-type": "application/json"},
-					//~ "body":JSON.stringify( {
-						//~ "jsonrpc": "2.0",
-						//~ "id": 1,
-						//~ "method": "requestAirdrop",
-						//~ "params": [
-							//~ this.props.localPayerAccount.publicKey.toBase58(),50000000
-						//~ ]
-					//~ }),
-					//~ "method": "POST",
-				//~ })
-				//~ .catch(console.warn);		
-		},1000);
-		
+				window.fetch("http://localhost:8899", {
+					"headers": {"content-type": "application/json"},
+					"body":JSON.stringify( {
+						"jsonrpc": "2.0",
+						"id": 1,
+						"method": "requestAirdrop",
+						"params": [
+							this.props.localPayerAccount.publicKey.toBase58(),50000000
+						]
+					}),
+					"method": "POST",
+				})
+				.catch(console.warn);		
+		},1000);		
 	}
 	
 	countDownTimer(){
@@ -324,6 +250,7 @@ class Stage extends React.Component{
 	
 	async createChallenge(){
 		this.setState({gameStart:false});
+		//this.playMusic().catch(console.warn);
 		let programId = new PublicKey(GAME_ID);
 		let clock = new PublicKey("SysvarC1ock11111111111111111111111111111111");
 		let txid;
@@ -372,7 +299,6 @@ class Stage extends React.Component{
 		if(this.state.gameOver){
 			this.setState({gameOver:false});
 		}
-		this.playMusic().catch(console.warn);
 	}
 	
 	getAccountInfo(){
@@ -384,8 +310,7 @@ class Stage extends React.Component{
 			"params": [GAME_ACCOUNT,{"encoding": "base64"}]
 		}
 		//Contract Information
-		//~ return window.fetch("http://localhost:8899", {
-		return window.fetch("http://testnet.solana.com", {		
+		return window.fetch(currentConnection, {		
 			"headers": {"content-type": "application/json"},
 			"body":JSON.stringify(body),
 			"method": "POST",
@@ -405,7 +330,7 @@ class Stage extends React.Component{
 				"method": "getAccountInfo",
 				"params": ["SysvarC1ock11111111111111111111111111111111",{"encoding": "base64"}]
 			}
-			window.fetch("http://testnet.solana.com", {
+			window.fetch(currentConnection, {
 				"headers": {"content-type": "application/json"},
 				"body":JSON.stringify(body),
 				"method": "POST",
@@ -426,15 +351,6 @@ class Stage extends React.Component{
 		})
 		.catch(console.warn);
 		
-	}
-	
-	impactEffect(dead,player){
-		let background = document.getElementById("background");
-		background.setAttribute("style","background:orange");
-		return setTimeout(()=>{
-			background.setAttribute("style","background:black;background-image:url(/background2.png);background-size: cover;");
-			return setTimeout(()=>{requestAnimationFrame(function(){explode(dead,player)});},100);
-		},10);		
 	}
 	
 	async muteMusic(mute){
@@ -564,6 +480,7 @@ class Stage extends React.Component{
 				}
 			}
 		}
+		console.warn(player2);
 		//Set start time
 		if(!this.state.gameStart){
 			let gameStart = data.slice(117,125);
@@ -581,82 +498,6 @@ class Stage extends React.Component{
 		else{
 			this.setState({moveTimer:-1,moveTimerExpiration:-1,moveTimeoutValue:10});
 		}
-	}
-	
-	performAction(player,action){
-		let act = {
-			0:"attack",
-			1:"gaurd",
-			2:"counter",
-			3:"taunt",
-			4:"idle",
-			5:"dead"
-		}
-		let src = act[action] + ".webp";
-		let idle = `./${player}Sprite/idle/idle.webp`;
-		let attack = `./${player}Sprite/attack/attack.webp`;
-		let counter = `./${player}Sprite/counter/counter.webp`;
-		let gaurd = `./${player}Sprite/gaurd/gaurd.webp`;
-		let taunt = `./${player}Sprite/taunt/taunt.webp`;
-		let dead = `./${player}Sprite/dead/dead.webp`;
-		let actions = [idle,gaurd,attack,counter,taunt,dead];
-		let sources = ["idle.webp","gaurd.webp","attack.webp","counter.webp","taunt.webp","dead.webp"]
-		let current;
-		if(sources.indexOf(src) > -1) {
-			current = sources.indexOf(src);
-		}
-		if(current >= sources.length){current = 0;}
-		console.warn(player,src,actions[current]);
-		if(player === "p1"){
-			this.setState({p1ActionState:actions[current] });
-		}
-		else{
-			this.setState({p2ActionState:actions[current] });
-		}
-		//Play sound effects and perform action
-		let soundEffect;
-		let spritePath = player === "p1" ? "./p1Sprite/" : "./p1Sprite/";
-		if(actions[current] === (spritePath+"attack/attack.webp") || actions[current] === (spritePath+"counter/counter.webp")){
-			soundEffect = document.createElement("audio");
-			soundEffect.src = "./Sounds/attack.mp3";
-			this.impactEffect();
-		}
-		else if(actions[current] === (spritePath+"gaurd/gaurd.webp")){
-			soundEffect = document.createElement("audio");
-			soundEffect.src = "./Sounds/gaurd.mp3";
-		}		
-		else if(actions[current] === (spritePath+"taunt/taunt.webp")){
-			soundEffect = document.createElement("audio");
-			let v = new Date().getTime() % 2 === 0 ? 1 : 2;
-			soundEffect.src = "./Sounds/taunt"+v+".mp3";
-		}
-		else if(actions[current] === (spritePath+"dead/dead.webp")){
-			soundEffect = document.createElement("audio");
-			soundEffect.src = "./Sounds/gameover.mp3";
-			this.impactEffect(true,player);
-		}		
-		if(soundEffect){
-			this.muteMusic(true)
-			.then(async ()=>{
-				soundEffect.play().catch(console.warn);
-				if(soundEffect.src.search("taunt") > -1) {await new Promise((resolve,reject)=>{setTimeout(resolve,1000);});}
-			})
-			.then(this.muteMusic)
-			.catch(console.warn);		
-		}
-		
-		return setTimeout(()=>{
-			if(player === "p1" && this.state.player1Health > 0){this.setState({p1ActionState:idle});}
-			else if(player === "p2" && this.state.player2Health > 0){this.setState({p2ActionState:idle});}
-			if(this.state.player1Health === 0  && !this.state.gameOver){
-				this.performAction("p1",5);
-				setTimeout(()=>{this.setState({gameOver:true});},1000);
-			}
-			if(this.state.player2Health === 0 && !this.state.gameOver){
-				this.performAction("p2",5);
-				setTimeout(()=>{this.setState({gameOver:true});},1000);
-			}
-		},3000)
 	}
 	
 	async playMusic(){
@@ -736,9 +577,16 @@ class Stage extends React.Component{
 	render(){
 		return(<div className="stageHolder">
 			<h3 id="title">			
-				<Button block variant="danger" onClick={this.createChallenge}> PLAYER 1 PRESS START </Button>
+				{
+					((this.state.timeLimit < 0 || (this.state.gameStatus === 0 || this.state.gameStatus === 2)) && this.state.gameStatus !== 1) ?
+					<Button block variant="danger" onClick={this.createChallenge}> PLAYER 1 PRESS START </Button> : null
+				}
+				
 				◎ survivor *alpha*
-				<Button block variant="danger" onClick={this.acceptChallenge}> PLAYER 2 PRESS START </Button>
+				{ 
+					(this.state.gameStatus === 1) ?
+					<Button block variant="danger" onClick={this.acceptChallenge}> PLAYER 2 PRESS START </Button> : null	
+				}
 			</h3>
 				<div>
 					<div id="player1Stats">

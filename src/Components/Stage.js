@@ -11,41 +11,34 @@ import bs58 from 'bs58';
 import * as BufferLayout from 'buffer-layout';
 const sdbm = require('sdbm');
 
-
-// get random number between min and max value
-function rand(min, max) {
-  return Math.floor(Math.random() * (max + 1)) + min;
-}
-
 //Uint8Array
-function get64BitTime(byteArray,offset=0){
-	if(!byteArray){return 0}
-	let trim = [];
-	for (let i = byteArray.length-1;i > -1;i--){
-		if(byteArray[i] > 0){
-			trim.push(byteArray[i])
-		}
-	}
+var Drift = 0;
+function get64BitTime(byteArray){
+	if(!byteArray){return 0;}
+	let trim = byteArray.reverse().slice(4)
 	let nArray = new Uint8Array(trim);
 	let buffer = Buffer.from(nArray);
 	let hex = "0x"+buffer.toString("hex");
 	let big = window.BigInt(hex);
 	big = big.toString();
 	big = Number(big);
-	let time = new Date( big *1000 );
+	let time = new Date( (big *1000) + Drift);
 	return time;
 }
 
-
-let currentConnection = "https://testnet.solana.com";
-//let currentConnection = "http://localhost:8899";
-
-const GAME_ID = "D6sPuWypcX7MiQsDesUKtMUvBznknJd3f7bBh6qaqG3p";
-const GAME_ACCOUNT = "24zUvBhv981ur8kedCbUimhj8araq73RDMBLU49ENxtH";  
 const react_game_channel = new BroadcastChannel('game_channel'); 
 const iframe_game_channel = new BroadcastChannel('game_commands');
     
-function WebGLView(props){return (<iframe title="gameIframe" src={props.src} width={1080} height={700} style={{frameBorder:0}}/>);}     
+function WebGLView(props){
+	return (<iframe
+		id="gameIframe"
+		title="gameIframe" 
+		src={props.src} 
+		width={document.body.clientWidth} 
+		height={document.body.clientHeight*0.8} 
+		style={{frameBorder:0}}
+	/>);
+}     
      
 class Stage extends React.Component{ 
 	constructor(props){
@@ -88,18 +81,20 @@ class Stage extends React.Component{
 		this.playMusic = this.playMusic.bind(this);
 		this.reveal = this.reveal.bind(this);
 		this.subscribeToGame = this.subscribeToGame.bind(this);
+		this.timeGame = this.timeGame.bind(this);
 	}
 	
 	async acceptChallenge(){
+		this.props.setLoading(true);
 		this.setState({gameStart:false});
 		this.playMusic().catch(console.warn);
-		let programId = new PublicKey(GAME_ID);
+		let programId = new PublicKey(this.props.GAME_ID);
 		let txid;
 		//sollet adapter
 		if(this.props.payerAccount){	
 			let instruction = new TransactionInstruction({
 				keys: [
-					{pubkey: new PublicKey(GAME_ACCOUNT), isSigner: false, isWritable: true},
+					{pubkey: new PublicKey(this.props.GAME_ACCOUNT), isSigner: false, isWritable: true},
 					{pubkey: this.props.payerAccount, isSigner: true, isWritable: false},
 				],
 				programId,
@@ -117,7 +112,7 @@ class Stage extends React.Component{
 			//localaccount
 			let instruction = new TransactionInstruction({
 				keys: [
-					{pubkey:new PublicKey(GAME_ACCOUNT), isSigner: false, isWritable: true},
+					{pubkey:new PublicKey(this.props.GAME_ACCOUNT), isSigner: false, isWritable: true},
 					{pubkey:this.props.localPayerAccount.publicKey, isSigner: true, isWritable: false},
 				],
 				programId,
@@ -125,8 +120,13 @@ class Stage extends React.Component{
 			});
 			let _transaction =  new Transaction().add(instruction);	
 			let { blockhash } = await this.props._connection.getRecentBlockhash();
-			_transaction.recentBlockhash = blockhash;				
-			_transaction.sign(this.props.localPayerAccount);
+			_transaction.recentBlockhash = blockhash;		
+			_transaction.feePayer = this.props.localPayerAccount.publicKey;
+			let signature = await this.props.localSign(Buffer.from(_transaction.serializeMessage()),this.props.localPayerAccount,_transaction);
+			if(!signature){
+				return this.props.notify("Signing Error","error");
+			}
+			_transaction.addSignature(this.props.localPayerAccount.publicKey,signature);		
 			txid = await sendAndConfirmTransaction(
 				'acceptChallenge',
 				this.props._connection,
@@ -138,10 +138,14 @@ class Stage extends React.Component{
 		if(this.state.gameOver){
 			this.stateState({gameOver:false});
 		}
+		this.props.setLoading(false);
+		this.props.saveTransaction(txid,this.props.defaultNetwork,"Sol-Survivor").catch(console.warn);
+		return txid;
 	}
 
 	async commit(action){
-		let programId = new PublicKey(GAME_ID);
+		this.props.setLoading(true);
+		let programId = new PublicKey(this.props.GAME_ID);
 		let txid;
 		//Craft action
 		let random = Math.random().toString().slice(0,10);
@@ -165,7 +169,7 @@ class Stage extends React.Component{
 		if(this.props.payerAccount){	
 			let instruction = new TransactionInstruction({
 				keys: [
-					{pubkey: new PublicKey(GAME_ACCOUNT), isSigner: false, isWritable: true},
+					{pubkey: new PublicKey(this.props.GAME_ACCOUNT), isSigner: false, isWritable: true},
 					{pubkey: this.props.payerAccount, isSigner: true, isWritable: false},
 				],
 				programId,
@@ -183,7 +187,7 @@ class Stage extends React.Component{
 			//localaccount
 			let instruction = new TransactionInstruction({
 				keys: [
-					{pubkey:new PublicKey(GAME_ACCOUNT), isSigner: false, isWritable: true},
+					{pubkey:new PublicKey(this.props.GAME_ACCOUNT), isSigner: false, isWritable: true},
 					{pubkey:this.props.localPayerAccount.publicKey, isSigner: true, isWritable: false},
 				],
 				programId,
@@ -192,7 +196,12 @@ class Stage extends React.Component{
 			let _transaction =  new Transaction().add(instruction);	
 			let { blockhash } = await this.props._connection.getRecentBlockhash();
 			_transaction.recentBlockhash = blockhash;				
-			_transaction.sign(this.props.localPayerAccount);
+			_transaction.feePayer = this.props.localPayerAccount.publicKey;
+			let signature = await this.props.localSign(Buffer.from(_transaction.serializeMessage()),this.props.localPayerAccount,_transaction);
+			if(!signature){
+				return this.props.notify("Signing Error","error");
+			}
+			_transaction.addSignature(this.props.localPayerAccount.publicKey,signature);		
 			txid = await sendAndConfirmTransaction(
 				'acceptChallenge',
 				this.props._connection,
@@ -200,6 +209,9 @@ class Stage extends React.Component{
 				this.props.localPayerAccount,
 			);
 		}
+		this.props.setLoading(false);
+		this.props.saveTransaction(txid,this.props.defaultNetwork,"Sol-Survivor").catch(console.warn);
+		return txid;
 	}
 		
 	componentDidMount(){
@@ -208,7 +220,18 @@ class Stage extends React.Component{
 			if(ev && ev.data){
 				return this.parseState(ev.data[0]);
 			}
+			else{
+				//Network Change
+				console.warn("network changed");
+				this.setState({gameStart:false},()=>{
+					this.getAccountInfo()
+					.then(this.subscribeToGame)
+					.catch(console.warn);
+				});
+			}
 		}
+		//Enable timer
+		this.countDownTimer();
 		//airdrop
 		setTimeout(()=>{
 			this.getAccountInfo()
@@ -251,15 +274,16 @@ class Stage extends React.Component{
 	
 	async createChallenge(){
 		this.setState({gameStart:false});
+		this.props.setLoading(true);
 		this.playMusic().catch(console.warn);
-		let programId = new PublicKey(GAME_ID);
+		let programId = new PublicKey(this.props.GAME_ID);
 		let clock = new PublicKey("SysvarC1ock11111111111111111111111111111111");
 		let txid;
 		//sollet adapter
 		if(this.props.payerAccount){	
 			let instruction = new TransactionInstruction({
 				keys: [
-					{pubkey: new PublicKey(GAME_ACCOUNT), isSigner: false, isWritable: true},
+					{pubkey: new PublicKey(this.props.GAME_ACCOUNT), isSigner: false, isWritable: true},
 					{pubkey: this.props.payerAccount, isSigner: true, isWritable: false},
 					{pubkey:clock, isSigner: false, isWritable: false}
 				],
@@ -278,7 +302,7 @@ class Stage extends React.Component{
 			//local account
 			let instruction = new TransactionInstruction({
 				keys: [
-					{pubkey:new PublicKey(GAME_ACCOUNT), isSigner: false, isWritable: true},
+					{pubkey:new PublicKey(this.props.GAME_ACCOUNT), isSigner: false, isWritable: true},
 					{pubkey:this.props.localPayerAccount.publicKey, isSigner: true, isWritable: false},
 					{pubkey:clock, isSigner: false, isWritable: false}
 				],
@@ -287,8 +311,13 @@ class Stage extends React.Component{
 			});
 			let _transaction =  new Transaction().add(instruction);	
 			let { blockhash } = await this.props._connection.getRecentBlockhash();
-			_transaction.recentBlockhash = blockhash;				
-			_transaction.sign(this.props.localPayerAccount);
+			_transaction.recentBlockhash = blockhash;	
+			_transaction.feePayer = this.props.localPayerAccount.publicKey;
+			let signature = await this.props.localSign(Buffer.from(_transaction.serializeMessage()),this.props.localPayerAccount,_transaction);
+			if(!signature){
+				return this.props.notify("Signing Error","error");
+			}
+			_transaction.addSignature(this.props.localPayerAccount.publicKey,signature);		
 			txid = await sendAndConfirmTransaction(
 				'createChallenge',
 				this.props._connection,
@@ -300,6 +329,9 @@ class Stage extends React.Component{
 		if(this.state.gameOver){
 			this.setState({gameOver:false});
 		}
+		this.props.setLoading(false);
+		this.props.saveTransaction(txid,this.props.defaultNetwork,"Sol-Survivor").catch(console.warn);		
+		return txid;
 	}
 	
 	getAccountInfo(){
@@ -308,10 +340,10 @@ class Stage extends React.Component{
 			"jsonrpc": "2.0",
 			"id": 1,
 			"method": "getAccountInfo",
-			"params": [GAME_ACCOUNT,{"encoding": "base64"}]
+			"params": [this.props.GAME_ACCOUNT,{"encoding": "base64"}]
 		}
 		//Contract Information
-		return window.fetch(currentConnection, {		
+		return window.fetch(this.props.urlRoot, {		
 			"headers": {"content-type": "application/json"},
 			"body":JSON.stringify(body),
 			"method": "POST",
@@ -319,9 +351,9 @@ class Stage extends React.Component{
 		.then((r)=>r.json())
 		.then((json)=>{
 			//base64
-			console.warn(json)
 			if(!json.result.value){return}
 			let data = json.result.value.data[0];
+			console.log("initial game state:",data);
 			this.parseState(data);
 		})
 		.then(()=>{
@@ -331,7 +363,8 @@ class Stage extends React.Component{
 				"method": "getAccountInfo",
 				"params": ["SysvarC1ock11111111111111111111111111111111",{"encoding": "base64"}]
 			}
-			window.fetch(currentConnection, {
+			Drift = 0;
+			return window.fetch(this.props.urlRoot, {
 				"headers": {"content-type": "application/json"},
 				"body":JSON.stringify(body),
 				"method": "POST",
@@ -339,19 +372,17 @@ class Stage extends React.Component{
 			.then((r)=>r.json())
 			.then((json)=>{
 				//base64
-				console.log(json);
 				if(!json.result.value){return}
 				let data = json.result.value.data[0];
 				data = atob(data);
 				let time = this.props.stringToBytes(data);
 				time = get64BitTime(time.slice(32));
-				console.warn(time);
+				Drift = new Date().getTime() - time.getTime();
 				return;
 			})
 			.catch(console.warn);
 		})
 		.catch(console.warn);
-		
 	}
 	
 	async muteMusic(mute){
@@ -434,16 +465,27 @@ class Stage extends React.Component{
 				state[13][1] > 0
 			){
 				let actions = ["attack","gaurd","counter","taunt","idle"];
-				if(state[14][0] === 0 && state[16][0] > 0 ){ iframe_game_channel.postMessage( "dead" + "-" + actions[state[19][0]] );   }
-				else if(state[14][0] > 0 && state[16][0] === 0 ){ iframe_game_channel.postMessage( actions[state[18][0]] + "-" + "dead" );   }
-				else if(state[14][0] === 0 && state[16][0] === 0 ){ iframe_game_channel.postMessage( "dead" + "-" + "dead" );   }
-				else{
-					iframe_game_channel.postMessage( actions[state[18][0]] + "-" + actions[state[19][0]]);
-					this.setState({
-						p1Action:actions[state[18][0]],
-						p2Action:actions[state[19][0]]
-					});
+				let gameMessage = "";
+				if(state[14][0] === 0 && state[16][0] > 0 ){ 
+					gameMessage = `dead-${actions[state[19][0]]}`;
+					iframe_game_channel.postMessage( gameMessage );   
 				}
+				else if(state[14][0] > 0 && state[16][0] === 0 ){ 
+					gameMessage = `${actions[state[18][0]]}-dead`;
+					iframe_game_channel.postMessage( gameMessage );   
+				}
+				else if(state[14][0] === 0 && state[16][0] === 0 ){ 
+					gameMessage = "dead-dead";
+					iframe_game_channel.postMessage( gameMessage );   
+				}
+				else{
+					gameMessage = actions[state[18][0]] + "-" + actions[state[19][0]];
+					iframe_game_channel.postMessage( gameMessage );
+				}
+				this.setState({
+					p1Action:actions[state[18][0]],
+					p2Action:actions[state[19][0]]
+				});
 
 			}
 		});
@@ -452,13 +494,11 @@ class Stage extends React.Component{
 		if(state[1][0] > 1){
 			let p1 = dataInfo.fields[1].property;
 			player1 = bs58.encode(this.props.stringToBytes(p1));
-			console.log("Player1:",player1);
 			this.setState({player1}); 
 		}
 		if(state[2][0] > 1){
 			let p2 = dataInfo.fields[2].property;
 			player2 = bs58.encode(this.props.stringToBytes(p2));
-			console.log("Player2:",player2);
 			this.setState({player2});
 		}
 		if(!this.state.isPlayer1){
@@ -481,14 +521,8 @@ class Stage extends React.Component{
 				}
 			}
 		}
-		console.warn(player2);
-		//Set start time
-		if(!this.state.gameStart){
-			let gameStart = data.slice(117,125);
-			gameStart = get64BitTime(this.props.stringToBytes(gameStart)).getTime();
-			this.setState({gameStart},this.countDownTimer);
-		}
-		//set time
+		console.log(this.state.player1,"vs",this.state.player2);
+		//Move Time
 		if(state[13][0] > 0 && this.state.moveTimer !== -1){
 			this.setState({moveTimer:state[13]});
 			if(this.state.moveTimerExpiration < 0){
@@ -499,19 +533,23 @@ class Stage extends React.Component{
 		else{
 			this.setState({moveTimer:-1,moveTimerExpiration:-1,moveTimeoutValue:10});
 		}
-
+		//Game Time
+		this.timeGame(data).catch(console.warn);
 	}
 	
 	async playMusic(){
 		if(!this.state.backroundMusic){
 			this.setState({backgroundMusic:"./Sounds/2020-07-05_-_Dragon_Boss_Fight_-_David_Fesliyan.mp3"});
 			let audio = document.getElementById("backgroundMusic");
-			return await audio.play();
+			if(window.location.href.search("localhost") === -1){	
+				return await audio.play();
+			}
 		}
 	}
 	
 	async reveal(){
-		let programId = new PublicKey(GAME_ID);
+		this.props.setLoading(true);
+		let programId = new PublicKey(this.props.GAME_ID);
 		let clock = new PublicKey("SysvarC1ock11111111111111111111111111111111");
 		let txid;
 		let random = Math.random().toString().slice(0,10);
@@ -523,7 +561,7 @@ class Stage extends React.Component{
 		if(this.props.payerAccount){	
 			let instruction = new TransactionInstruction({
 				keys: [
-					{pubkey: new PublicKey(GAME_ACCOUNT), isSigner: false, isWritable: true},
+					{pubkey: new PublicKey(this.props.GAME_ACCOUNT), isSigner: false, isWritable: true},
 					{pubkey: this.props.payerAccount, isSigner: true, isWritable: false},
 					{pubkey:clock, isSigner: false, isWritable: false}
 				],
@@ -542,7 +580,7 @@ class Stage extends React.Component{
 			//localaccount
 			let instruction = new TransactionInstruction({
 				keys: [
-					{pubkey:new PublicKey(GAME_ACCOUNT), isSigner: false, isWritable: true},
+					{pubkey:new PublicKey(this.props.GAME_ACCOUNT), isSigner: false, isWritable: true},
 					{pubkey:this.props.localPayerAccount.publicKey, isSigner: true, isWritable: false},
 					{pubkey:clock, isSigner: false, isWritable: false}
 				],
@@ -552,15 +590,22 @@ class Stage extends React.Component{
 			let _transaction =  new Transaction().add(instruction);	
 			let { blockhash } = await this.props._connection.getRecentBlockhash();
 			_transaction.recentBlockhash = blockhash;				
-			_transaction.sign(this.props.localPayerAccount);
-			txid = await sendAndConfirmTransaction(
+			_transaction.feePayer = this.props.localPayerAccount.publicKey;
+			let signature = await this.props.localSign(Buffer.from(_transaction.serializeMessage()),this.props.localPayerAccount,_transaction);
+			if(!signature){
+				return this.props.notify("Signing Error","error");
+			}
+			_transaction.addSignature(this.props.localPayerAccount.publicKey,signature);		
+						txid = await sendAndConfirmTransaction(
 				'acceptChallenge',
 				this.props._connection,
 				_transaction,
 				this.props.localPayerAccount,
 			);
 		}
-		console.log(txid);
+		this.props.setLoading(false);
+		this.props.saveTransaction(txid,this.props.defaultNetwork,"Sol-Survivor").catch(console.warn);
+		return txid;
 	}
 	
 	
@@ -572,8 +617,20 @@ class Stage extends React.Component{
 			"method":"accountSubscribe",
 			"params":[]
 		}
-		message.params = [GAME_ACCOUNT,{"encoding":"jsonParsed"} ]; 
+		message.params = [this.props.GAME_ACCOUNT,{"encoding":"jsonParsed"} ]; 
 		this.props.ws.send(JSON.stringify(message));		
+	}
+
+	timeGame(data){
+		return new Promise((resolve,reject)=>{
+			if(Drift === 0){
+				return resolve( setTimeout(()=>{return this.timeGame(data)},1000) );
+			}
+			let gameStart = data.slice(117,125);	
+			let startDate = get64BitTime(this.props.stringToBytes(gameStart));
+			this.setState({gameStart:startDate.getTime()},resolve);
+			console.log("game started @ ",startDate);
+		})
 	}
 
 	render(){
@@ -590,20 +647,6 @@ class Stage extends React.Component{
 					<Button block variant="danger" onClick={this.acceptChallenge}> PLAYER 2 PRESS START </Button> : null	
 				}
 			</h3>
-				<div>
-					<div id="player1Stats">
-						<b>
-							{(this.state.player1HonestReveal > 0 && this.state.player1HonestReveal === 8) ? "honest" : null }						
-							{this.state.player1DidCommit === 1 ? " commit" : null }
-						</b>
-					</div>
-					<div id="player2Stats">
-						<b>
-							{(this.state.player2HonestReveal > 0 && this.state.player2HonestReveal === 8) ? "honest" : null }
-							{this.state.player2DidCommit === 1 ? " commit" : null }
-						</b>
-					</div>
-				</div>
 			<div><ProgressBar variant={this.state.timeLimit > 40 ? "primary" : "danger"} striped min={0} max={180} now={this.state.timeLimit} label={"TIME: "+Math.floor(this.state.timeLimit)+"s"} /></div>
 			<div id="moveTimeout">
 				<ProgressBar variant="warning" 
@@ -614,12 +657,19 @@ class Stage extends React.Component{
 			</div>
 			<div>
 				<div id="player1Stats">
+					<div className="comrev">
+						<p>{(this.state.player1HonestReveal > 0 && this.state.player1HonestReveal === 8) ? " HONEST" : null }{this.state.player1DidCommit === 1 ? " COMMIT" : null }</p>
+					</div>
 					<b>{this.state.player1 ? this.state.player1.slice(0,15) : null}</b> 
 					<br/><meter min={0} max={100} value={this.state.player1Super}/>
 					<br/><ProgressBar variant={this.state.player1Health > 40 ? "success" : "danger"}  min={0} max={100} now={this.state.player1Health} />
+					
 					<br/><marquee direction="right">{this.state.p1Action.toUpperCase()}</marquee >
 				</div>
 				<div id="player2Stats">
+						<div className="comrev">
+						<p>{(this.state.player2HonestReveal > 0 && this.state.player2HonestReveal === 8) ? " HONEST" : null } {this.state.player2DidCommit === 1 ? " COMMIT" : null } </p>
+						</div>
 						<b>{this.state.player2 ? this.state.player2.slice(0,15) : null}</b> 
 						<br/><meter min={0} max={100} value={this.state.player2Super}/>
 						<br/><ProgressBar id="player2HealthBar" variant={this.state.player2Health > 40 ? "success" : "danger"} min={0} max={100} now={this.state.player2Health}/>
@@ -627,16 +677,18 @@ class Stage extends React.Component{
 				</div>
 				<br/>
 				{(this.state.isPlayer1 || this.state.isPlayer2) ?
-				<div>
-					<ButtonGroup id="playerOptions">
-						{ this.state.isPlayer1 && this.state.player1DidCommit === 1 ? <Button block variant="primary" onClick={()=>{this.reveal("attack")}}>UNLEASH </Button>  : null }
-						<Button variant="success" onClick={()=>{this.commit("attack")}} >ATTACK</Button>
-						<Button variant="default" onClick={()=>{this.commit("gaurd")}} >BLOCK</Button>
-						<Button variant="warning" onClick={()=>{this.commit("counter")}} >COUNTER</Button>
-						<Button variant="info" onClick={()=>{this.commit("taunt")}} >TAUNT</Button>
-						{ this.state.isPlayer2 && this.state.player2DidCommit === 1 ? <Button block variant="primary" onClick={()=>{this.reveal("attack")}}>UNLEASH </Button>  : null }
-					</ButtonGroup>
-				</div>:null
+					<div id="playerOptions">
+						<div>
+							<ButtonGroup>
+								{ this.state.isPlayer1 && this.state.player1DidCommit === 1 ? <Button block variant="primary" onClick={()=>{this.reveal("attack")}}>UNLEASH </Button>  : null }
+								<Button variant="success" onClick={()=>{this.commit("attack")}} >ATTACK</Button>
+								<Button variant="default" onClick={()=>{this.commit("gaurd")}} >BLOCK</Button>
+								<Button variant="warning" onClick={()=>{this.commit("counter")}} >COUNTER</Button>
+								<Button variant="info" onClick={()=>{this.commit("taunt")}} >TAUNT</Button>
+								{ this.state.isPlayer2 && this.state.player2DidCommit === 1 ? <Button block variant="primary" onClick={()=>{this.reveal("attack")}}>UNLEASH </Button>  : null }
+							</ButtonGroup>
+						</div>
+					</div>:null
 				}
 				<WebGLView src={"./solsurvivor/index.html"}/>
 		

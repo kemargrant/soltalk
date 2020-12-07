@@ -375,12 +375,19 @@ body {
 }
 
 .wizardCard .wizardContent img{
-	height:50vh;
+	display:block;
+	height:100%;
+	margin:auto;
 	width:auto;
 }
 
 .wizardCard h4{
 	text-align:center;
+}
+
+#wizardImgDiv{
+	height:40vh;
+	width:50vw;
 }
 
 #wizardForward{

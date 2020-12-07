@@ -30,7 +30,8 @@
 				console.log = function(){}
 				console.warn = function(){}
 			}
-			
+			console.log = function(){}
+			console.warn = function(){}
 			let attackSound = document.getElementById("attackSound");
 			let gaurdSound = document.getElementById("gaurdSound");
 			let deadSound = document.getElementById("deadSound");
@@ -52,7 +53,6 @@
 				await new Promise((resolve,reject)=>{return setTimeout(resolve,time);})
 			}
 			
-			
 			function init() {
 
 				const container = document.getElementById( 'container' );
@@ -66,9 +66,8 @@
 				camera.lookAt( 0, 1, 0 );
 				clock = new THREE.Clock();
 
-				scene = new THREE.Scene();
-				scene.background = new THREE.Color( "black" );
-
+				scene = new THREE.Scene();		
+				
 				const hemiLight = new THREE.HemisphereLight( 0xffffff, 0x444444 );
 				hemiLight.position.set( 0, 20, 0 );
 				scene.add( hemiLight );
@@ -455,8 +454,10 @@
 						count++;
 				});
 				//document.body.prepend(div);	
-				console.log("actions:",count);	
-				renderer = new THREE.WebGLRenderer( { antialias: true } );
+
+				//renderer = new THREE.WebGLRenderer( { antialias: true } );
+				renderer = new THREE.WebGLRenderer( { antialias: true,alpha:true } );
+
 				renderer.setPixelRatio( window.devicePixelRatio );
 				renderer.setSize( window.innerWidth, window.innerHeight );
 				renderer.outputEncoding = THREE.sRGBEncoding;

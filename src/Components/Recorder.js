@@ -1,5 +1,7 @@
 import React from 'react';
-import { Button,Modal } from 'react-bootstrap';
+import { Modal } from 'react-bootstrap';
+import Button from '@material-ui/core/Button';
+import MicIcon from '@material-ui/icons/Mic';
 
 /**
 * Audio recording component
@@ -74,7 +76,7 @@ function Recorder(props){
 		return setTimeout(()=>{
 			target.disabled = false;
 			mediaRecorder.stop();
-			audioModal.setAttribute("style","display:block;position:absolute;top:-50vh;left:40%");
+			audioModal.setAttribute("style","display:block;position:absolute;top:50vh;left:40%");
 			assemble(file);
 			clearInterval(timer);		
 			recordTime.innerHTML = (msToRecord/1000)-1;
@@ -87,7 +89,12 @@ function Recorder(props){
 	* @return {null}
 	*/	
 	function uploadAudio(){
-		props.uploadAudioFile(recordedMessage,"audio.ogg");	
+		props.uploadAudioFile(recordedMessage,"audio.ogg")
+		.then(()=>{
+			let audioModal = document.getElementById("audioModal");
+			audioModal.setAttribute("style","display:none");
+		})
+		.catch(console.warn);
 		return;
 	}
 	
@@ -103,12 +110,14 @@ function Recorder(props){
 				</Modal.Body>
 
 				<Modal.Footer>
-					<Button variant="danger" onClick={closeModal}>Cancel</Button>
-					<Button variant="primary" onClick={uploadAudio}>Upload</Button>
+					<Button variant="contained" onClick={closeModal}>Cancel</Button>
+					<Button variant="contained" onClick={uploadAudio}>Upload</Button>
 				</Modal.Footer>
 			</Modal.Dialog>
 		}
-		<Button variant="primary" onClick={setupRecorder}><span role="img" aria-label="envelope">🎙️</span>  <b id="recordTime"> {(msToRecord/1000)-1} </b>s </Button>
+		<Button color={props.color} variant={props.variant} onClick={setupRecorder}>
+			<MicIcon /> <b id="recordTime"> {(msToRecord/1000)-1} </b>s
+		</Button>
 	</div>)
 }
 

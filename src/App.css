@@ -1,12 +1,26 @@
 .App{
 	height:100vh;
 	overflow-x:hidden;
-	overflow-y:auto-scroll;
+	overflow-y:hidden;
 	width:100vw;
 }
 
-#addContact{
-	background-image:linear-gradient(180deg,#dddbd1,#d2dbdc);
+body {
+	font-family: system-ui;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "kern";
+    text-rendering:optimizeLegibility;
+    -webkit-font-feature-settings: "kern";
+    -moz-font-feature-settings: "kern";
+}
+
+/* desktop */
+#addContactActions{
+	display:block;
+}
+
+#addContactButton{
+	float:right;
 }
 
 #addContact button{
@@ -15,28 +29,39 @@
 }
 
 #addContactForm{
-	left:40vw;
+	background:blue;
+	height:5vh;
 	position:absolute;
-	top:45%;
-	width:100%;
+	top:35%;
+	width:45%;
 	z-index:99;
 }
-
+#appRow{
+	display:flex;
+}
 .avatar{
-	background:darkgrey;
-	border-radius:3em;
 	height:55px;
 	margin-left:1.2em;
 }
 
-body {
-	font-family: system-ui;
-	font-size:large;
-    text-rendering: optimizeLegibility;
-    font-feature-settings: "kern";
-    text-rendering:optimizeLegibility;
-    -webkit-font-feature-settings: "kern";
-    -moz-font-feature-settings: "kern";
+#barAccountInfo{
+	display:flex;
+	margin:auto;
+}
+
+.cardAvatar{
+	background-size:contain !important;
+	display:block !important;
+	height:128px;
+	margin:auto;
+	width:auto;
+}
+
+#chainSelectionButtons{
+    display: block;
+    float: right;
+    margin-bottom: auto;
+    margin-top: auto;
 }
 
 #chat{
@@ -46,9 +71,9 @@ body {
     animation-iteration-count: 20;	
     animation-delay:0.1s;
     animation-timing-function:linear;
-	/* background: radial-gradient(circle, rgba(2,0,36,1) 0%, rgba(145,85,117,1) 26%, rgba(0,212,255,1) 100%);	*/
+	/*background: radial-gradient(circle, rgba(2,0,36,1) 0%, rgba(145,85,117,1) 26%, rgba(0,212,255,1) 100%);*/
 	/*border:0.2em solid black;*/
-	height:81vh;
+	height:79vh;
 	overflow-x:hidden;
 	overflow-y:auto-scroll;
 	width:99%;
@@ -61,109 +86,116 @@ body {
 }
 
 #chatHolderDesktop{
-	background:lightgrey;
 	margin:auto;
 	width:100%;
 }
-
 #charCount{
 	bottom:3em;
-	color:purple;
+	color:red;
 	position:absolute;
 }
 
-.connectButtons{
-	display:block;
-	margin:auto;
-	padding-left:2%;
+.comrev{
+	background-color:purple;
+	color:white;
+	font-family:cursive;
+	font-size:large;
 }
 
 .contactCol{
-	display:block;
-	height:80vh;
-	margin-left:0px;
-	margin-right:0px;
-	padding:0px;
-	overflow-x:hidden;
-	overflow-y:auto-scroll;
-	width:100vw;
+	height:87vh;
+	margin:auto;
+	overflow-y:scroll;
 }
 
-.contactColHolder{
-	padding:0px;
-	margin:0px;
+.contactCol .col-4{
+	border:2px solid blue;
+}
+
+.contactHolder{
+	background:white;
+	border-left:3px solid black;
+	display:block;
+	height:100%;
+	margin:auto;
+	overflow-y:scroll;
+	width:100%;
 }
 
 .contactImg{
-	background:rgba(100,100,100,0.1);
-	border:0px dotted black;
-	border-radius:5em;
-	margin:0px;
-	padding:0px;
-	width:64px;
+	margin:5px;
+	width:25%;
 }
 
 .contactInfo{
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
+	font-size:x-small;
 	word-break:break-all;
 }
 
-.contactTime{
-	font-size:xx-small;
-	float:right;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
+.contactSlice{
+	background:#3f51b5;
+	border:2px solid lightgrey;
+	color:white;
+	font-size:small;
+	overflow-x:hidden;
+	position:sticky;
+	width:25%;
 }
 
-.currentContact{
+.credits{
+	text-align:center;
+	width:100%;
+}
+
+.currentContactAvatar{
+    width:50%;
+}
+
+.currentContactAvatar p{
+	float:right;
+}
+
+.currentContactAvatar img{
+	height:55px;
+}
+
+#desktopColBar{
+	background:white;
+	float:left;
+	height:100vh;
+}
+#desktopColView{
+	background:lightgrey;
 	display:block;
-	margin:auto;
+	height:100vh;
+	width:100%;
 }
 
 .desktopQR{
     display: block;
-    height: 40vh;
-    margin: auto;
+    height: 35vh;
+    margin:auto;
     width: auto;
-
 }
 
-#extras{
-	display:none;
-	margin-top:2em;
-	padding-left:2em;
+#gameIframe{
+    background-image: url("/images/grid1.jpg");
+    background-size: auto;
+    background-position: bottom;
 }
 
-.leftCol{
-	padding-left:5px;
-	padding-right:0px;
+#logo{
+	height: 96%;
+	padding-left:1vw;
+	padding-top:1vh;
 }
 
-#importedAccount p{
-	text-align:left;	
-	word-break:break-word;
+.loginButtons{
+	display:flex;
+	margin:auto;
 }
-
-.input-group-append Button {
-	border-left:2px solid black;
-}
-
-#logRow{
-	display:block;
-	height:10vh;
-	margin:1em;
-	z-index:9999999;
-}
-
-#logs{
-	display:block;
-	border:1px solid grey;
-	font-size:large;
-	height:10vh;
-	width:100%;
+#newMessageForm{
+	width:100%
 }
 
 .msgContact{
@@ -177,7 +209,10 @@ body {
 	border-bottom-left-radius:0em;
 	color:black;
 	float:left;
-	margin:0.9em;
+	margin-left:0.9em;
+	margin-right:0.8em;
+	margin-top:0.8em;
+	margin-bottom:0.8em;
 	padding:1% 3%;
 	word-break:break-all;
 }
@@ -198,52 +233,200 @@ body {
 	word-break:break-all;
 }
 
-#newMessage:focus{outline:none!important;}
 
 #progressBar{
-	position:absolute;
 	width:100%;
 	z-index:99;
 }
 
-#sendMessage{
-	width:100vw;
+#protectButton{
+	float:right;
+}
+
+.qrCapture{
+	left:25vw;
+	height:33vh;
+	position:absolute;
+	top:15vh;
+	width:50vw;
+}
+
+.recentContacts{
+	width:100px;
+}
+
+.recentContacts img{
+	height:auto;
+	width:100%;
+}
+
+#secureButtons{
+	width:100%;
+}
+
+.secureWalletCard {
+	left:33vw;
+	position:absolute;
+	top:20vh;
+	width:40vw;
+	word-break:break-word;
+	z-index:999;
+}
+
+.secureWalletCard .MuiTypography-h4{
+	text-align:center;
+}
+
+.secureWalletCard #titleButton{
+	display:block;
+	margin:auto;
+}
+
+#secureWalletPromise{
+	text-align:center;
+	width:100%;
+}
+
+.settingsCard{
+	display:block;
+	margin-left:auto;
+	margin-right:auto;
+	margin-top:3%;
+	width:80%;
+}
+
+#settingsAccount{
+	display:block;
+	text-align:center;
+}
+
+.settingsContent p{
+	text-align:center;
 }
 
 .settingsPanel{
 	display:block;
-	font-size:small;
-	height:84vh;
-	margin-left:0px;
-	margin-right:0px;
-	padding:0px;
+	height:100%;
 	overflow-x:hidden;
 	overflow-y:auto-scroll;
-	width:100vw;
 	word-break:break-all;
 }
 
-.solanaAccount{
+#topBar{
+	background:black;
+	color:white;
+	display:flex;
+	height:8vh;
+	width:100%;
+	word-break:break-all;
+}
+
+.transactionCard{
+	height:47vh;
+	overflow-y:scroll;
+	text-align:left;
+	word-break:break-all;
+}
+
+.transactionPopup{
+    background: white;
+    display: block;
+    height: 60vh;
+    left: 25vw;
+    margin: auto;
+	overflow: scroll;   
+    position: absolute;
+    top: 10vh;
+    width: 50vw;
+    z-index: 99;
+}
+
+.txHistory{
+	background:white;
+	display:block;
+	margin:auto;
+	font-size:xx-small;
+	height:91vh;
+	overflow-y:scroll;
+	width:50vw;
+}
+
+.txHistory b{
+	background:lightblue;
 	display:block;
 	font-size:small;
 	margin:auto;
+	text-align:center;
 }
 
-.solanaAccount p{
-	text-align:left;	
-	word-break:break-word;
+.wizardCard{
+	position:absolute;
+	top:10vh;
+	left:30vw;
+	z-index:999;
 }
 
-.topBar{
- background-color: rgba(0,0,0,.2);
- border-bottom:3px solid black;
- margin-left:1px;
- margin-right:1px;
+.wizardCard .MuiCardActions-root{
+	display:block;
 }
 
-.unconfirmed{
-	background:lightblue;
+.wizardCard .MuiTypography-body1{
+	text-align:center;
 }
+
+.wizardCard .wizardContent img{
+	height:50vh;
+	width:auto;
+}
+
+.wizardCard h4{
+	text-align:center;
+}
+
+#wizardForward{
+	float:right;
+}
+
+.userInput{
+	display:flex;
+	margin:auto;
+	width:95%;
+}
+/*end desktop*/
+
+/*extras*/
+#extras{
+	display:none;
+	margin-top:2em;
+	padding-left:2em;
+}
+
+#logRow{
+	display:block;
+	height:10vh;
+	margin:1em;
+	z-index:9999999;
+}
+
+#logs{
+	display:block;
+	border:1px solid grey;
+	font-size:large;
+	height:10vh;
+	width:100%;
+}
+/*extras*/
+
+/*Qr*/
+#qrView{
+    height: auto;
+    left: 26vw;
+	position: absolute;
+    top: 3vh;
+    width: 50vw;
+}
+/*Qr*/
+
 /*Stage*/
 #background{
     background-repeat: no-repeat;
@@ -260,12 +443,6 @@ body {
 	background-size: cover;
 }
 
-.explosion {
-  position: absolute;
-  width: 1vw;
-  height: 1vh;
-  pointer-events: none;
-}
 
 iframe{
 	border:0em solid black;
@@ -280,32 +457,26 @@ iframe{
 	width:20%;
 }
 
-.particle {
-    position: absolute; 
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    animation: pop 1s reverse forwards; 
-}
 
 
-@keyframes pop {
-  from {
-    opacity: 0;
-  }
-  to {
-    top: 50%;
-    left: 50%;
-    opacity: 1;
-  }
-}
 
 #playerOptions{
-	background: #3bb5ba;
-    position: fixed;
-    bottom: 15vh;
-    left:40%;
+    position: absolute;
+    top:90vh;
+    width:100%;
 }
+
+#playerOptions div{
+	display:flex;
+	margin:auto;
+}
+
+#playerOptions div .btn-group{
+	background:yellow;
+	border:0px solid white;
+	border-radius:5em;
+}
+
 
 #player1Sprite{
 	width:22vw;
@@ -319,7 +490,8 @@ iframe{
     border-left: none;
 }
 #player1Stats b{
-	color:white;
+	color:orange;
+	font-size:large;
 }
 
 #player1Stats{
@@ -345,7 +517,7 @@ iframe{
     border-left: none;
 }
 #player2Stats b{
-	color:yellow;
+	color:orange;
 	float:right;
 }
 #player2Stats meter{

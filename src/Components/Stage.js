@@ -11,7 +11,6 @@ import bs58 from 'bs58';
 import * as BufferLayout from 'buffer-layout';
 const sdbm = require('sdbm');
 
-//Uint8Array
 var Drift = 0;
 function get64BitTime(byteArray){
 	if(!byteArray){return 0;}

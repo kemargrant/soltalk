@@ -98,8 +98,8 @@ if(window.location.href.search("localhost") > -1){
 }
 else{	
 	console.log("Running Production")	
-	//console.log = function(){}
-	//console.warn = function(){}
+	console.log = function(){}
+	console.warn = function(){}
 }
 const Sol_Talk = {
 	"api.mainnet-beta":{defaultProgram:"8pXDrcpHJuYk4niJMRTiYv5dVbCZN15xTzFcAnqHTvsx",defaultChannel:"FjR5e2EFZ1dFEQ74JtFNvAgXhXLueCg6J2QEQsgwvbSg"},
@@ -807,10 +807,6 @@ class App extends React.Component{
 		else{
 			//auto setup the rsa keys for the user
 			this.createRSAKeyPair().catch(console.warn);
-		}
-		//Sign in local user
-		if(this.getLocalAccount()){
-			this.importKey(this.getLocalAccount());
 		}
 		if(window.location.pathname === "/sol-survivor"){
 			this.togglePlayGame();

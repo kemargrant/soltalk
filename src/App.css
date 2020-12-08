@@ -184,6 +184,12 @@ body {
     background-position: bottom;
 }
 
+#gitLink{
+	bottom:0px;
+	padding:0.8vw;
+	position:fixed;
+}
+
 #logo{
 	height: 96%;
 	padding-left:1vw;

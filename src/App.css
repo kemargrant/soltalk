@@ -397,6 +397,7 @@ body {
 }
 
 .wizardCard .wizardContent img{
+	background:black;
 	display:block;
 	height:100%;
 	margin:auto;
@@ -408,6 +409,7 @@ body {
 }
 
 #wizardImgDiv{
+	background:black;
 	height:40vh;
 	width:50vw;
 }

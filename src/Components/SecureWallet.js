@@ -108,6 +108,7 @@ class SecureWallet extends React.Component{
 		this.state = {
 			loggedIn:false,
 			mnemonic:false,
+			restoringAccount:false,
 			seed:false,
 			seedSaved:false,
 			unlocked:false,
@@ -115,6 +116,7 @@ class SecureWallet extends React.Component{
 		}
 		this.cancelPromise = this.cancelPromise.bind(this);
 		this.generateMnemonicAndSeed = this.generateMnemonicAndSeed.bind(this);
+		this.restoreAccount = this.restoreAccount.bind(this);
 		this.storeMnemonicAndSeed = this.storeMnemonicAndSeed.bind(this);
 		this.unlockAccount = this.unlockAccount.bind(this);
 		this.updatePromise = this.updatePromise.bind(this);
@@ -136,6 +138,18 @@ class SecureWallet extends React.Component{
 			this.setState({mnemonic,seed});
 		}
 		return;
+	}
+	
+	async restoreAccount(){
+		let mnemonic = document.getElementById("mnemonic").value;
+		let pwd1 = document.getElementById("pwd1");
+		let pwd2 = document.getElementById("pwd2");
+		if(pwd1.value !== pwd2.value){return alert("Passwords Do Not Match!");}
+		if(mnemonic && pwd1.value){
+			let seed = await mnemonicToSeed(mnemonic);
+			await storeMnemonicAndSeed(mnemonic, seed, pwd1.value);
+			await this.unlockAccount(pwd1.value);
+		}
 	}
 	
 	async storeMnemonicAndSeed(){
@@ -170,9 +184,10 @@ class SecureWallet extends React.Component{
 	render(){
 		return(<div>
 		{
-			!this.state.seedSaved ?
+			(!this.state.seedSaved && !this.state.restoringAccount)?
 			<div>
 				<Button color="primary" variant="contained" onClick={this.generateMnemonicAndSeed}> New Account </Button>
+				<Button color="secondary" variant="outlined" onClick={()=>{return this.setState({restoringAccount:true})}}> Restore Account </Button>
 				{
 					this.state.mnemonic && !this.state.seedSaved? 
 						<Card className="secureWalletCard">
@@ -215,7 +230,7 @@ class SecureWallet extends React.Component{
 			:null
 		}
 		{
-			(this.state.seedSaved && !this.state.unlocked) ?
+			((this.state.seedSaved && !this.state.unlocked) && !this.state.restoringAccount) ?
 			<div>
 				<Paper component="form"  id="newMessageForm">
 					<InputBase
@@ -224,8 +239,31 @@ class SecureWallet extends React.Component{
 						inputProps={{ 'aria-label': 'password' }}
 						onKeyDown={async (evt)=>{if(evt.keyCode === 13){evt.preventDefault(); return await this.unlockAccount();} }}
 					/>
-					<Button onClick={async()=>{return await this.unlockAccount();}} color="primary" variant="contained" >unlock account</Button>
+					<Button onClick={async()=>{return await this.unlockAccount();}} color="primary" variant="contained">unlock account</Button>
 				</Paper>
+			</div>
+			:null
+		}
+		{
+			this.state.restoringAccount ?
+			<div>
+				<Card className="restoreWalletCard">
+					<Button id="titleButton">MNEMONIC RESTORE</Button>
+					<div id="secureWalletPromise">
+						<form noValidate autoComplete="off">
+							<TextField fullWidth id="mnemonic" label="mnemonic" variant="outlined" type="text"/>
+							<br/>Password Protect<br/>
+							<br/><TextField fullWidth id="pwd1" label="new password" variant="outlined" type="password"/>
+							<br/><TextField fullWidth id="pwd2" label="confirm password" variant="outlined" type="password"/>
+						</form>
+					</div>
+					<CardActions>
+						<div id="secureButtons">
+							<Button onClick={()=>{return this.setState({restoringAccount:false})}} color="secondary" variant="contained">cancel</Button>
+							<Button id="protectButton" onClick={async()=>{return await this.restoreAccount();}} color="primary" variant="contained">restore account</Button>
+						</div>	
+					</CardActions>
+				</Card>
 			</div>
 			:null
 		}

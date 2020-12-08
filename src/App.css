@@ -266,6 +266,22 @@ body {
 	width:100%;
 }
 
+.restoreWalletCard {
+	left:33vw;
+	padding:1.2vw;
+	position:absolute;
+	top:20vh;
+	width:40vw;
+	word-break:break-word;
+	z-index:999;
+}
+
+.restoreWalletCard #titleButton{
+	display:block;
+	margin:auto;
+	text-align:center !important;
+}
+
 #secureButtons{
 	width:100%;
 }

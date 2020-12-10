@@ -87,7 +87,8 @@ var defaultChannel;
 var GAME_ID = "";
 var GAME_ACCOUNT = "";  
 
-var FILES = {}
+var FILES = {};
+var AccountDataQue = [];
 
 TimeAgo.addLocale(en)
 // Date formatter.
@@ -148,7 +149,8 @@ async function establishConnection(network): Promise<void> {
 		urlRoot = "https://testnet.solana.com/";
 	}
 	else if(network === "api.mainnet-beta"){
-		urlRoot = "https://api.mainnet-beta.solana.com/";
+		//urlRoot = "https://api.mainnet-beta.solana.com/";
+		urlRoot = "https://solana-api.projectserum.com";
 	}	
 	else if(network === "localhost"){
 		urlRoot = "http://localhost:8899";
@@ -448,6 +450,7 @@ class App extends React.Component{
 			showSolanaQR:false,
 			showContactForm:false,
 			solanaQRURL:"",
+			syncingHistory:false,
 			survivorHelpOpen:false,
 			transactionSignature:false,
 			wallet:false,
@@ -501,6 +504,7 @@ class App extends React.Component{
 
 		this.parseAccountData = this.parseAccountData.bind(this);
 		this.processFile = this.processFile.bind(this);
+		this.processQue = this.processQue.bind(this);
 		this.promptContactAddition = this.promptContactAddition.bind(this);
 		
 		this.notify = this.notify.bind(this);
@@ -812,7 +816,10 @@ class App extends React.Component{
 			this.togglePlayGame();
 		}
 		//sync previous messages
-		this.getHistory().catch(console.warn);
+		this.setState({syncingHistory:true});
+		this.getHistory()
+		.catch(console.warn)
+		.finally(this.processQue);
 	}
 	
 	/**
@@ -1736,6 +1743,25 @@ class App extends React.Component{
 		return;
 	}	
 	
+	/**
+	* Process account data que
+	* @method processQue
+	* @return {Promise}Resolve to undefined
+	*/	
+	async processQue(){
+		let item;
+		for(let i = 0;i < AccountDataQue.length;i++){
+			try{
+				item = AccountDataQue.pop();
+				await this.parseAccountData(item.data);
+				checkpoint(item.slot);
+			}
+			catch(e){
+				console.log(e);
+			}
+		}
+		return;
+	}
 	
 	/**
 	* Prompt user to add a new contact
@@ -2082,8 +2108,14 @@ class App extends React.Component{
 					if( account.params.result.value.owner === this.state.GAME_ID){
 						return bc.postMessage(accountData);
 					}
-					this.parseAccountData(accountData[0]);
-					checkpoint(account.params.result.context.slot);
+					//Manage Account Data
+					if(!this.state.syncingHistory){
+						this.parseAccountData(accountData[0]);
+						checkpoint(account.params.result.context.slot);
+					}
+					else{
+						AccountDataQue.push({ data:accountData[0],slot:account.params.result.context.slot });
+					}
 				}
 			}
 			catch(e){

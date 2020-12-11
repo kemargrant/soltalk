@@ -200,6 +200,7 @@ body {
 	display:flex;
 	margin:auto;
 }
+
 #newMessageForm{
 	width:100%
 }
@@ -284,6 +285,10 @@ body {
 
 #secureButtons{
 	width:100%;
+}
+
+#secureMessageForm{
+	width:100%
 }
 
 .secureWalletCard {

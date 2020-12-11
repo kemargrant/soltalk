@@ -149,8 +149,8 @@ async function establishConnection(network): Promise<void> {
 		urlRoot = "https://testnet.solana.com/";
 	}
 	else if(network === "api.mainnet-beta"){
-		//urlRoot = "https://api.mainnet-beta.solana.com/";
-		urlRoot = "https://solana-api.projectserum.com";
+		urlRoot = "https://api.mainnet-beta.solana.com/";
+		//urlRoot = "https://solana-api.projectserum.com";
 	}	
 	else if(network === "localhost"){
 		urlRoot = "http://localhost:8899";
@@ -2556,7 +2556,7 @@ class App extends React.Component{
 							<div id="charCount">#{this.state.characterCount}</div>
 							<div id="chatHolderDesktop">
 								<div className="userInput">
-									<Paper component="form"  id="newMessageForm">
+									<Paper component="form" id="newMessageForm">
 										<InputBase
 											fullWidth
 											id="newMessage"

@@ -232,7 +232,7 @@ class SecureWallet extends React.Component{
 		{
 			((this.state.seedSaved && !this.state.unlocked) && !this.state.restoringAccount) ?
 			<div>
-				<Paper component="form"  id="newMessageForm">
+				<Paper component="form" id="secureMessageForm">
 					<InputBase
 						id="pwd3"
 						type="password"

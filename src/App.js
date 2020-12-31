@@ -2120,7 +2120,11 @@ class App extends React.Component{
 		function onError(evt) {
 		  console.error(evt.data);
 		}
-		let socketRoot = "wss://"+network+".solana.com";
+		let endpoints = {
+			"testnet": "wss://testnet.solana.com",
+			"api.mainnet-beta": "wss://solana-api.projectserum.com"
+		}
+		let socketRoot = endpoints[network];
 		var websocket = new WebSocket(socketRoot);
 		websocket.onopen = onOpen;
 		websocket.onclose = onClose;

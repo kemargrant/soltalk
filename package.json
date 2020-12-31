@@ -14,15 +14,21 @@
     "bip32": "^2.0.6",
     "bip39": "^3.0.3",
     "bootstrap": "^4.5.0",
+    "emoji-mart": "^3.0.0",
     "javascript-time-ago": "^2.2.3",
     "json-to-pretty-yaml": "^1.2.2",
     "jsqr": "^1.3.1",
+    "node-sass": "^4.14.1",
     "qrcode": "^1.4.4",
     "react": "^16.13.1",
+    "react-alice-carousel": "^2.1.0",
     "react-bootstrap": "^1.3.0",
     "react-dom": "^16.13.1",
+    "react-image-lightbox": "^5.1.1",
     "react-scripts": "3.4.1",
-    "sdbm": "^1.2.0"
+    "reactstrap": "^8.7.1",
+    "sdbm": "^1.2.0",
+    "simplebar-react": "^2.3.0"
   },
   "scripts": {
     "start": "react-scripts start",

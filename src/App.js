@@ -382,7 +382,7 @@ class App extends React.Component{
 			currentContact:{},
 			contacts:[],
 			connected:[],
-			defaultNetwork:"testnet",
+			defaultNetwork:"api.mainnet-beta",
 			enableMusic:window.localStorage.getItem("enableMusic") ? JSON.parse(window.localStorage.getItem("enableMusic")) : false,
 			GAME_ACCOUNT,
 			GAME_ID,			

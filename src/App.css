@@ -13,7 +13,110 @@ body {
     -webkit-font-feature-settings: "kern";
     -moz-font-feature-settings: "kern";
 }
+/*legacy*/
 
+#audioModal{
+	text-align:center;
+}
+
+.auxLogin{
+	animation-name:pulsex;
+	animation-direction:alternate;
+	animation-duration:1s;
+    animation-iteration-count: infinite;	
+    animation-delay:0.1s;
+    animation-timing-function:linear;
+	background:black;
+	border:0.5em solid purple;
+	border-radius:1em;
+	left:40vw;
+	top:15vh;
+	position:absolute;
+	z-index:25;
+}
+
+.desktopQR{
+    display: block;
+    height: 35vh;
+    margin:auto;
+    width: auto;
+}
+#cancelProtect{
+	float:left;
+}
+
+.contact-avatar{
+    background: grey;
+    border: 2px solid grey;
+    border-radius: 1em;
+	display: block;
+    margin-right:0.2vw;
+    overflow: hidden;
+}
+
+.qrCapture{
+	left:25vw;
+	height:33vh;
+	position:absolute;
+	top:15vh;
+	width:50vw;
+}
+.qrCapture b{
+	display:block;
+	margin:auto;
+	text-align:center;
+}
+
+.restoreWalletCard{
+	left:-32vw;
+	position:absolute !important;
+	top:0vh;
+	width:75vw !important;
+	word-break:break-word;
+	z-index:999;
+}
+
+.secureWalletCard {
+	left:-32vw;
+	position:absolute !important;
+	text-align:center;
+	top:0vh;
+	width:90vw;
+	word-break:break-word;
+	z-index:999;
+}
+
+.secureWalletCard h4{
+	text-align:center;
+}
+
+#secureWalletPromise{
+	text-align:center;
+	width:100%;
+}
+.transactionCard{
+	height:55vh;
+	overflow-y:scroll;
+	text-align:left;
+	word-break:break-all;
+}
+
+.transactionPopup{
+    display: block;
+    height: 60vh;
+    left: 5vw;
+    margin: auto;
+    position: absolute;
+    top: 10vh;
+    width: 90%;
+    z-index: 99;
+}
+
+.txHistory{
+	height:98vh;
+	overflow-y:scroll;
+	word-break:break-word;
+}
 /* desktop */
 #addContactActions{
 	display:block;
@@ -90,9 +193,7 @@ body {
 	width:100%;
 }
 #charCount{
-	bottom:3em;
 	color:red;
-	position:absolute;
 }
 
 .comrev{
@@ -171,19 +272,6 @@ body {
 	width:100%;
 }
 
-.desktopQR{
-    display: block;
-    height: 35vh;
-    margin:auto;
-    width: auto;
-}
-
-#gameIframe{
-    background-image: url("/images/grid1.jpg");
-    background-size: auto;
-    background-position: bottom;
-}
-
 #gitLink{
 	bottom:0px;
 	padding:0.8vw;
@@ -242,7 +330,9 @@ body {
 
 
 #progressBar{
-	width:100%;
+	position:absolute;
+	top:0px;
+	width:100vw;
 	z-index:99;
 }
 
@@ -267,16 +357,6 @@ body {
 	width:100%;
 }
 
-.restoreWalletCard {
-	left:33vw;
-	padding:1.2vw;
-	position:absolute;
-	top:20vh;
-	width:40vw;
-	word-break:break-word;
-	z-index:999;
-}
-
 .restoreWalletCard #titleButton{
 	display:block;
 	margin:auto;
@@ -291,27 +371,9 @@ body {
 	width:100%
 }
 
-.secureWalletCard {
-	left:33vw;
-	position:absolute;
-	top:20vh;
-	width:40vw;
-	word-break:break-word;
-	z-index:999;
-}
-
-.secureWalletCard .MuiTypography-h4{
-	text-align:center;
-}
-
 .secureWalletCard #titleButton{
 	display:block;
 	margin:auto;
-}
-
-#secureWalletPromise{
-	text-align:center;
-	width:100%;
 }
 
 .settingsCard{
@@ -348,43 +410,10 @@ body {
 	word-break:break-all;
 }
 
-.transactionCard{
-	height:47vh;
-	overflow-y:scroll;
-	text-align:left;
-	word-break:break-all;
-}
 
-.transactionPopup{
-    background: white;
-    display: block;
-    height: 60vh;
-    left: 25vw;
-    margin: auto;
-	overflow: scroll;   
-    position: absolute;
-    top: 10vh;
-    width: 50vw;
-    z-index: 99;
-}
 
-.txHistory{
-	background:white;
-	display:block;
-	margin:auto;
-	font-size:xx-small;
-	height:91vh;
-	overflow-y:scroll;
-	width:50vw;
-}
 
-.txHistory b{
-	background:lightblue;
-	display:block;
-	font-size:small;
-	margin:auto;
-	text-align:center;
-}
+
 
 .wizardCard{
 	position:absolute;
@@ -467,18 +496,27 @@ body {
 #background{
     background-repeat: no-repeat;
     background:white;
-/*
-    background-image: url(/background2.png);
-*/
     margin: auto;
     position:absolute;
-    width: 98vw;
+    width: 100vw;
 	-webkit-background-size: cover;
 	-moz-background-size: cover;
 	-o-background-size: cover;
 	background-size: cover;
 }
 
+#gameTimer{
+	height:2vh;
+	font-size:medium;
+}
+
+/*
+#gameIframe{
+    background-image: url("/images/grid1.jpg");
+    background-size: cover;
+    background-position: bottom;
+}
+*/
 
 iframe{
 	border:0em solid black;
@@ -492,9 +530,6 @@ iframe{
 	margin:auto;
 	width:20%;
 }
-
-
-
 
 #playerOptions{
     position: absolute;
@@ -571,15 +606,30 @@ iframe{
 }
 
 .stageHolder{
-	background:black;
-	height:100%;
+    background-image: url("/images/grid1.jpg");
+    background-size: auto;
+    background-position: bottom;
+    height:100vh;
 	width:100%;
 	overflow:hidden;
 }
 
 #title{
-	color:white;
-	text-align:center;
+	display:flex;
+}
+
+#title .pressStart .btn{
+	animation-name:pulse;
+	animation-direction:alternate;
+	animation-duration:0.8s;
+    animation-iteration-count: infinite;	
+    animation-delay:0.1s;
+    animation-timing-function:linear;
+}
+
+#title .pressStart{
+	width:47vw;
+	margin:0.5vw;
 }
 
 
@@ -599,6 +649,11 @@ iframe{
 }
 
 @keyframes pulse {
-  from {background: radial-gradient(circle, rgba(2,0,36,1) 0%, rgba(145,85,117,1) 26%, rgba(0,212,255,1) 100%);}
-  to {background: radial-gradient(circle, rgba(2,0,36,1) 0%, rgba(145,85,117,1) 28%, rgba(0,212,255,1) 100%);}
+  from {background: radial-gradient(circle,red 0%, purple 60%, black 100%);}
+  to {background: radial-gradient(circle,red 0%, purple 40%, black 100%);}
+}
+
+@keyframes pulsex {
+  from {	border:0.5em solid purple;background:black;}
+  to {	border:0.5em solid red;background:red;}
 }

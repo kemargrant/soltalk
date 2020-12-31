@@ -1,0 +1,22 @@
+//
+// components-rtl.scss
+//
+
+// accordion
+
+.custom-accordion{
+    a.collapsed{
+        i.accor-plus-icon:before{
+            content: "\F0141";
+        }
+    }
+}
+
+@media (min-width: 992px){
+    .emoji-dropdown{
+        .dropdown-menu-lg-right {
+            right: auto!important;
+            left: 0!important;
+        }
+    }
+}

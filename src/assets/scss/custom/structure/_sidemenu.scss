@@ -1,0 +1,106 @@
+
+// 
+// Sidemenu
+// 
+
+
+
+.side-menu{
+    min-width: 75px;
+    max-width: 75px;
+    height: 100vh;
+    min-height: 570px;
+    background-color: $sidebar-bg;
+    display: flex;
+    z-index: 9;
+    box-shadow: 0 2px 4px rgba(15,34,58,.12);
+
+    @media (max-width: 991.98px) {
+        position: fixed;
+        bottom: 0;
+        height: 60px;
+        min-width: 100%;
+        min-height: auto;
+        display: block;
+        border-top: 1px solid $border-color;
+    }
+
+    .navbar-brand-box{
+        text-align: center;
+
+
+        @media (max-width: 991.98px) {
+            display: none;
+        }
+
+        .logo{
+            line-height: 70px;
+            
+        }
+
+        .logo-dark{
+            display: $display-block;
+        }
+
+        .logo-light{
+            display: $display-none;
+        }
+    }
+
+    .theme-mode-icon {
+        &:before {
+            content: $theme-mode-icon;
+        }
+    }
+}
+
+.side-menu-nav{
+
+    .nav-item{
+        margin: 7px 0;
+        @media (max-width: 991.98px) {
+            flex-basis: 0;
+            flex-grow: 1;
+            margin: 5px 0;
+        }
+        .nav-link{
+            text-align: center;
+            font-size: 24px;
+            color: $sidebar-menu-item-color;
+            width: 56px;
+            height: 56px;
+            line-height: 56px;
+            margin: 0px auto;
+            border-radius: 8px;
+            padding: 0;
+
+
+            @media (max-width: 991.98px) {
+                font-size: 20px;
+                width: 48px;
+                height: 48px;
+                line-height: 48px;
+            }
+
+            &.active{
+                background-color: $sidebar-menu-item-active-bg;
+                color: $primary;
+            }
+        }
+
+        &.show>.nav-link{
+            background-color: $sidebar-menu-item-active-bg;
+            color: $primary;
+        }
+    }
+
+    .profile-user {
+        height: 36px;
+        width: 36px;
+        background-color: $gray-300;
+        padding: 3px;
+    }
+}
+
+
+

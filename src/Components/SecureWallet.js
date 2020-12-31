@@ -5,15 +5,7 @@ import * as bip32 from 'bip32';
 import bs58 from 'bs58';
 import * as bip39 from 'bip39';
 
-import Button from '@material-ui/core/Button';
-import Card from '@material-ui/core/Card';
-import CardActionArea from '@material-ui/core/CardActionArea';
-import CardActions from '@material-ui/core/CardActions';
-import CardContent from '@material-ui/core/CardContent';
-import InputBase from '@material-ui/core/InputBase';
-import Paper from '@material-ui/core/Paper';
-import TextField from '@material-ui/core/TextField';
-import Typography from '@material-ui/core/Typography';
+import { Row, Col, Card, CardBody, FormGroup, Input, Button, InputGroup, InputGroupAddon } from 'reactstrap';
 
 async function generateMnemonicAndSeed() {
   const mnemonic = bip39.generateMnemonic(128);
@@ -186,90 +178,150 @@ class SecureWallet extends React.Component{
 		{
 			(!this.state.seedSaved && !this.state.restoringAccount)?
 			<div>
-				<Button color="primary" variant="contained" onClick={this.generateMnemonicAndSeed}> New Account </Button>
-				<Button color="secondary" variant="outlined" onClick={()=>{return this.setState({restoringAccount:true})}}> Restore Account </Button>
-				{
-					this.state.mnemonic && !this.state.seedSaved? 
-						<Card className="secureWalletCard">
-							<Button id="titleButton">seed words</Button>
-							<Typography variant="h4" component="p"> {this.state.mnemonic} </Typography>
-							<CardActionArea>
-								<CardContent>
-									<Typography variant="body2" color="textSecondary" component="p">
-										Your private keys are only stored on your current computer or device. 
-										You will need these words to restore your wallet 
-										if your browser's storage is cleared or your device is damaged or lost.										
-									</Typography>
-								</CardContent>
-							</CardActionArea>
-							<div id="secureWalletPromise">
-								{
-									!this.state.userPromise ?
-									<Button variant="contained" onClick={this.updatePromise}><span role="img" aria-label="handshake">🤝</span> I Promise I Have Saved My Seed Words <span aria-label="handshake" role="img">🤝</span></Button>
-									:
-									<form noValidate autoComplete="off">
-										<TextField fullWidth id="pwd1" label="password" variant="outlined" type="password"/>
-										<br/><TextField fullWidth id="pwd2" label="password" variant="outlined" type="password"/>
-									</form>
-								}
-							</div>
-							<CardActions>
-								{
-									this.state.userPromise ?
-									<div id="secureButtons">
-										<Button color="secondary" onClick={this.cancelPromise}>Cancel</Button>
-										<Button id="protectButton" color="primary" variant="contained" onClick={this.storeMnemonicAndSeed}>Password Protect Account</Button>
-									</div>	
-									: null
-								}	
-							</CardActions>
-						</Card>
-					:null
-				}
+				<Button color="info" block onClick={this.generateMnemonicAndSeed}> New Account </Button>
+				<Button color="danger" variant="outlined" block onClick={()=>{return this.setState({restoringAccount:true})}}> Restore Account </Button>
+				<div className="secureWalletCard">
+					<Row className="justify-content-center">
+						<Col md={8} lg={6} xl={5} >
+							{
+								this.state.mnemonic && !this.state.seedSaved?
+										<Card>
+											<CardBody className="p-4">
+												Your private keys are only stored on your current computer or device. 
+												You will need these words to restore your wallet 
+												if your browser's storage is cleared or your device is damaged or lost.										
+											</CardBody>
+											<h4> {this.state.mnemonic} </h4>
+											<br/>
+											<div id="secureWalletPromise">
+												{
+													!this.state.userPromise ?
+													<Button variant="contained" onClick={this.updatePromise}><i className="ri-service-fill mr-1 align-middle"></i> I Promise I Have Saved My Seed Words <i className="ri-service-fill mr-1 align-middle"></i></Button>
+													:
+													<FormGroup className="mb-4">
+														<InputGroup className="mb-3 bg-soft-light input-group-lg rounded-lg">
+															<InputGroupAddon addonType="prepend">
+																<span className="input-group-text border-light text-muted">
+																	<i className="ri-lock-2-line"></i>
+																</span>
+															</InputGroupAddon>
+															<Input
+																type="password"
+																id="pwd1"
+																name="password1"
+																className="form-control bg-soft-light border-light"
+																placeholder="Enter Password"
+															/>																						
+														</InputGroup>
+														<InputGroup className="mb-3 bg-soft-light input-group-lg rounded-lg">
+															<InputGroupAddon addonType="prepend">
+																<span className="input-group-text border-light text-muted">
+																	<i className="ri-lock-2-line"></i>
+																</span>
+															</InputGroupAddon>
+															<Input
+																type="password"
+																id="pwd2"
+																name="password2"
+																className="form-control bg-soft-light border-light"
+																placeholder="Confirm Password"
+															/>																						
+														</InputGroup>
+													</FormGroup>
+												}
+											</div>
+												{
+													this.state.userPromise ?
+													<div id="secureButtons">
+														<Button id="cancelProtect" color="secondary" onClick={this.cancelPromise}>Cancel</Button>
+														<Button id="protectButton" color="primary" vonClick={this.storeMnemonicAndSeed}>Submit</Button>
+													</div>	
+													: null
+												}
+											<br/>	
+										</Card>
+								:null
+							}
+						</Col>
+					</Row>
+				</div>
 			</div>
 			:null
 		}
 		{
 			((this.state.seedSaved && !this.state.unlocked) && !this.state.restoringAccount) ?
 			<div>
-				<Paper component="form" id="secureMessageForm">
-					<InputBase
-						id="pwd3"
-						type="password"
-						inputProps={{ 'aria-label': 'password' }}
-						onKeyDown={async (evt)=>{if(evt.keyCode === 13){evt.preventDefault(); return await this.unlockAccount();} }}
-					/>
-					<Button onClick={async()=>{return await this.unlockAccount();}} color="primary" variant="contained">unlock account</Button>
-				</Paper>
+				<Input
+					id="pwd3"
+					type="password"
+					className="form-control bg-soft-light border-light"
+					onKeyDown={async (evt)=>{if(evt.keyCode === 13){evt.preventDefault(); return await this.unlockAccount();} }}
+				/>
+				<Button color="primary" block className=" waves-effect waves-light" onClick={async()=>{return await this.unlockAccount();}}> LOGIN </Button>
 			</div>
 			:null
 		}
 		{
 			this.state.restoringAccount ?
-			<div>
-				<Card className="restoreWalletCard">
-					<Button id="titleButton">MNEMONIC RESTORE</Button>
-					<div id="secureWalletPromise">
-						<form noValidate autoComplete="off">
-							<TextField fullWidth id="mnemonic" label="mnemonic" variant="outlined" type="text"/>
-							<br/>Password Protect<br/>
-							<br/><TextField fullWidth id="pwd1" label="new password" variant="outlined" type="password"/>
-							<br/><TextField fullWidth id="pwd2" label="confirm password" variant="outlined" type="password"/>
-						</form>
-					</div>
-					<CardActions>
-						<div id="secureButtons">
-							<Button onClick={()=>{return this.setState({restoringAccount:false})}} color="secondary" variant="contained">cancel</Button>
-							<Button id="protectButton" onClick={async()=>{return await this.restoreAccount();}} color="primary" variant="contained">restore account</Button>
-						</div>	
-					</CardActions>
-				</Card>
+			<div className="restoreWalletCard">
+				<Row className="justify-content-center">
+					<Col md={8} lg={6} xl={5}>
+						<Card>
+							<div>
+								<FormGroup className="mb-4">
+									<InputGroup className="mb-3 bg-soft-light input-group-lg rounded-lg">
+										<Input
+											type="text"
+											id="mnemonic"
+											name="mnemonic"
+											className="form-control bg-soft-light border-light"
+											placeholder="mnemonic"
+										/>																						
+									</InputGroup>						
+									<InputGroup className="mb-3 bg-soft-light input-group-lg rounded-lg">
+										<InputGroupAddon addonType="prepend">
+											<span className="input-group-text border-light text-muted">
+												<i className="ri-lock-2-line"></i>
+											</span>
+										</InputGroupAddon>
+										<Input
+											type="password"
+											id="pwd1"
+											name="password1"
+											className="form-control bg-soft-light border-light"
+											placeholder="New Password"
+										/>																						
+									</InputGroup>
+									<InputGroup className="mb-3 bg-soft-light input-group-lg rounded-lg">
+										<InputGroupAddon addonType="prepend">
+											<span className="input-group-text border-light text-muted">
+												<i className="ri-lock-2-line"></i>
+											</span>
+										</InputGroupAddon>
+										<Input
+											type="password"
+											id="pwd2"
+											name="password2"
+											className="form-control bg-soft-light border-light"
+											placeholder="Confirm Password"
+										/>																						
+									</InputGroup>
+								</FormGroup>
+							</div>
+							<div id="secureButtons">
+								<Button onClick={()=>{return this.setState({restoringAccount:false})}} color="secondary" variant="contained">cancel</Button>
+								<Button id="protectButton" onClick={async()=>{return await this.restoreAccount();}} color="primary" variant="contained">restore account</Button>
+							</div>	
+						</Card>
+					</Col>
+				</Row>
 			</div>
 			:null
 		}
 		</div>)
 	}
 }
+
 
 
 

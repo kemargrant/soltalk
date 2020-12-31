@@ -1,0 +1,166 @@
+// 
+// chat-leftsidebar.scss
+//
+
+
+.chat-leftsidebar {
+    height: 100vh;
+    background-color: $sidebar-sub-bg;
+
+    @media (min-width: 992px) {
+        min-width: 380px;
+        max-width: 380px;
+    }
+
+    .user-status-box {
+        background-color: $light;
+        padding: 8px;
+        border-radius: 8px;
+        text-align: center;
+        margin-top: 16px;
+        display: block;
+
+        .chat-user-img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+        }
+    }
+}
+
+.chat-search-box {
+    .form-control {
+        border: 0;
+    }
+
+    .search-icon-btn {
+        font-size: 16px;
+        position: absolute;
+        right: 13px;
+        top: 0;
+    }
+}
+
+.chat-message-list {
+    height: calc(100vh - 280px);
+    @media (max-width: 991.98px) {
+        height: calc(100vh - 320px);
+    }
+}
+
+.chat-group-list {
+    height: calc(100vh - 160px);
+    @media (max-width: 991.98px) {
+        height: calc(100vh - 194px);
+    }
+}
+
+
+.chat-list {
+    margin: 0;
+
+    li {
+        &.active {
+            a {
+                background-color: $light;
+            }
+        }
+
+        a {
+            position: relative;
+            display: block;
+            padding: 15px 20px;
+            color: $gray-600;
+            transition: all 0.4s;
+            border-top: 1px solid $sidebar-sub-bg;
+            border-radius: 4px;
+
+            &:hover {
+                background-color: $light;
+            }
+        }
+
+        .chat-user-message {
+            font-size: 14px;
+        }
+
+
+        &.typing {
+            .chat-user-message {
+                color: $primary;
+                font-weight: $font-weight-medium;
+
+                .dot {
+                    background-color: $primary;
+                }
+            }
+        }
+
+        .unread-message {
+            position: absolute;
+            display: inline-block;
+            right: 24px;
+            top: 33px;
+
+            .badge {
+                line-height: 16px;
+                font-weight: $font-weight-semibold;
+                font-size: 10px;
+            }
+        }
+    }
+}
+
+.chat-user-img {
+    position: relative;
+
+    .user-status {
+        width: 10px;
+        height: 10px;
+        background-color: $gray-500;
+        border-radius: 50%;
+        border: 2px solid $card-bg;
+        position: absolute;
+        right: 0;
+        bottom: 0;
+
+
+    }
+
+    &.online {
+        .user-status {
+            background-color: $success;
+        }
+    }
+
+    &.away {
+        .user-status {
+            background-color: $warning;
+        }
+    }
+}
+
+// contact list
+
+.contact-list {
+    li {
+        cursor: pointer;
+        padding: 10px 20px;
+    }
+}
+
+
+// setting
+
+.profile-user {
+    position: relative;
+    display: inline-block;
+
+    .profile-photo-edit {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+    }
+}
+

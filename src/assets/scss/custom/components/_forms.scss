@@ -1,0 +1,83 @@
+//
+// Forms.scss
+//
+
+
+// checkbox color
+
+@each $color,
+$value in $theme-colors {
+  .custom-checkbox-#{$color}, .custom-radio-#{$color}{
+    .custom-control-input{
+      &:checked~.custom-control-label:before{
+        background-color: $value;
+        border-color: $value;
+      }
+    }
+  }
+
+}
+
+.custom-checkbox-dark, .custom-radio-dark{
+  .custom-control-input{
+    &:checked~.custom-control-label:before{
+      color: $dark;
+    }
+  }
+}
+
+
+.custom-control-label{
+  cursor: pointer;
+}
+
+// Switch sizes
+
+.custom-switch-md{
+  padding-left: 3rem;
+  .custom-control-label{
+    line-height: 20px;
+    &:before{
+      width: 40px;
+      height: 20px;
+      border-radius: 30px;
+      left: -3rem;
+    }
+    &:after{
+      width: calc(20px - 4px);
+      height: calc(20px - 4px);
+      left: calc(-3rem + 2px);
+    }
+  }
+  .custom-control-input:checked~.custom-control-label::after{
+    transform: translateX(1.25rem);
+  }
+}
+
+
+.custom-switch-lg{
+  padding-left: 3.75rem;
+  .custom-control-label{
+    line-height: 24px;
+    &:before{
+      width: 48px;
+      height: 24px;
+      border-radius: 30px;
+      left: -3.75rem;
+    }
+    &:after{
+      width: calc(24px - 4px);
+      height: calc(24px - 4px);
+      left: calc(-3.75rem + 2px);
+      border-radius: 50%;
+    }
+  }
+  .custom-control-input:checked~.custom-control-label::after{
+    transform: translateX(1.5rem);
+  }
+}
+
+
+.custom-control-label::before{
+  background-color: $input-bg;
+}

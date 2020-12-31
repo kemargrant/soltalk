@@ -8,55 +8,11 @@ import TimeAgo from 'javascript-time-ago';
 import en from 'javascript-time-ago/locale/en';
 //Crypto
 import nacl from 'tweetnacl';
-//Bootstrap
-import Col from 'react-bootstrap/Col'
-import Row from 'react-bootstrap/Row'
 
 //Material UI Bootstrap imports
-import Badge from '@material-ui/core/Badge';
-import ButtonGroup from '@material-ui/core/ButtonGroup';
-import Button from '@material-ui/core/Button';
-import Card from '@material-ui/core/Card';
-import CardActionArea from '@material-ui/core/CardActionArea';
-import CardActions from '@material-ui/core/CardActions';
-import CardContent from '@material-ui/core/CardContent';
-import CardMedia from '@material-ui/core/CardMedia';
-
-import FormGroup from '@material-ui/core/FormGroup';
-import FormControlLabel from '@material-ui/core/FormControlLabel';
-import Divider from '@material-ui/core/Divider';
-
-import InputBase from '@material-ui/core/InputBase';
-
 import LinearProgress from '@material-ui/core/LinearProgress';
-import List from '@material-ui/core/List';
-import ListItem from '@material-ui/core/ListItem';
-
 import MuiAlert from '@material-ui/lab/Alert';
-
-import Paper from '@material-ui/core/Paper';
-
 import Snackbar from '@material-ui/core/Snackbar';
-import Switch from '@material-ui/core/Switch';
-
-import TextField from '@material-ui/core/TextField';
-import Tooltip from '@material-ui/core/Tooltip';
-import Typography from '@material-ui/core/Typography';
-
-//Icons
-import CancelIcon from '@material-ui/icons/Cancel';
-import ChatIcon from '@material-ui/icons/Chat';
-import DeleteIcon from '@material-ui/icons/Delete';
-import FastForwardIcon from '@material-ui/icons/FastForward';
-import FastRewindIcon from '@material-ui/icons/FastRewind';
-import GamesIcon from '@material-ui/icons/Games';
-import MailIcon from '@material-ui/icons/Mail';
-import NotesIcon from '@material-ui/icons/Notes';
-import PhotoCameraIcon from '@material-ui/icons/PhotoCamera';
-import HelpOutlineIcon from '@material-ui/icons/HelpOutline';
-import RecordVoiceOverIcon from '@material-ui/icons/RecordVoiceOver';
-import SettingsIcon from '@material-ui/icons/Settings';
-import SupervisorAccountIcon from '@material-ui/icons/SupervisorAccount';
 
 //Solana imports
 import {
@@ -74,10 +30,9 @@ import {
 import Wallet from '@project-serum/sol-wallet-adapter';
 import {sendAndConfirmTransaction} from './util/send-and-confirm-transaction';
 //Components
-import { Recorder } from './Components/Recorder';
-import { ScanQR } from './Components/ScanQR';
-import { Stage } from './Components/Stage';
-import { SecureWallet } from './Components/SecureWallet';
+import { TransactionInfo } from './Components/TransactionInfo';
+
+import Layout from './Components/Layout/index.js';
 
 
 var Intervals = []
@@ -286,7 +241,7 @@ function getContacts(clearUnread){
 	}
 	if(clearUnread){
 		Object.keys(contacts).map((item)=>{
-			return contacts[item].message =0;
+			return contacts[item].message = 0;
 		});
 		window.localStorage.setItem("contacts",JSON.stringify(contacts));	
 	}
@@ -427,7 +382,8 @@ class App extends React.Component{
 			currentContact:{},
 			contacts:[],
 			connected:[],
-			defaultNetwork:"api.mainnet-beta",
+			defaultNetwork:"testnet",
+			enableMusic:window.localStorage.getItem("enableMusic") ? JSON.parse(window.localStorage.getItem("enableMusic")) : false,
 			GAME_ACCOUNT,
 			GAME_ID,			
 			loading:false,
@@ -450,6 +406,8 @@ class App extends React.Component{
 			showSolanaQR:false,
 			showContactForm:false,
 			solanaQRURL:"",
+			soltalkProgram:defaultProgram,
+			soltalkAccount:defaultChannel,
 			syncingHistory:false,
 			survivorHelpOpen:false,
 			transactionSignature:false,
@@ -469,6 +427,7 @@ class App extends React.Component{
 
 		this.broadcastPresence = this.broadcastPresence.bind(this);
 		
+		//delete cancelcontactform
 		this.cancelContactForm = this.cancelContactForm.bind(this);
 		this.changeNetwork = this.changeNetwork.bind(this);
 		this.checkBroadcast = this.checkBroadcast.bind(this);
@@ -514,8 +473,8 @@ class App extends React.Component{
 		this.removeContact = this.removeContact.bind(this);
 		this.removeImportedAccount = this.removeImportedAccount.bind(this);		
 		this.removeRSAKeys = this.removeRSAKeys.bind(this);
-		this.renderDesktop = this.renderDesktop.bind(this);
-
+		this.renderResponsive = this.renderResponsive.bind(this);
+		
 		this.saveMessageHistory = this.saveMessageHistory.bind(this);
 		this.saveNewContact = this.saveNewContact.bind(this);	
 		this.scrollToBottom = 	this.scrollToBottom.bind(this);
@@ -541,8 +500,8 @@ class App extends React.Component{
 		this.uploadAudioFile = this.uploadAudioFile.bind(this);	
 		this.updateAvatarStyle = this.updateAvatarStyle.bind(this);	
 		this.updateAutoSaveHistory = this.updateAutoSaveHistory.bind(this);
-		this.updateAutoSign = this.updateAutoSign.bind(this);		
-		this.updateViewStyle = this.updateViewStyle.bind(this);			
+		this.updateAutoSign = this.updateAutoSign.bind(this);
+		this.updateEnableMusic = this.updateEnableMusic.bind(this);
 		this.uploadImageFile = this.uploadImageFile.bind(this);
 		this.unsubscribe = this.subscribe.bind(this);
 		this.updateCharacterCount = this.updateCharacterCount.bind(this);
@@ -567,10 +526,18 @@ class App extends React.Component{
 			}
 		}
 		else{
-			addContact(solanaPublicKey,rsaPublicKey)
-		}
-		this.getContacts();
-		return;
+			addContact(solanaPublicKey,rsaPublicKey);
+			//Remove from contact from potential contacts
+			if(this.state.potentialContacts.length > 0){
+				let potentialContacts = [];
+				for(let i = 0; i < this.state.potentialContacts.length;i++){
+					if(this.state.potentialContacts[i].publicKey === solanaPublicKey){continue;}
+					else{potentialContacts.push(this.state.potentialContacts[i]);}
+				}
+				this.setState({potentialContacts});
+			}
+		}		
+		return this.getContacts();
 	}
 	
 	/**
@@ -578,16 +545,21 @@ class App extends React.Component{
 	* @method appendAudio
 	* @param {String} Audio objectURL src
 	* @param {String} Solana public key of contact ?
+	* @param {Array} Transaction Ids 
 	* @return {Null}
 	*/
-	appendAudio(audio_src,solanaPublicKey){
+	appendAudio(audio_src,solanaPublicKey,txids){
 		let message_history = this.state.MESSAGE_HISTORY;
+		let myself = this.state.localPayerAccount ? this.state.localPayerAccount.publicKey.toBase58() : false;
+		if(!myself){myself = this.state.localAccount ? this.state.localAccount.publicKey.toBase58() : false;}
 		if(!message_history[solanaPublicKey]){
 			message_history[solanaPublicKey] = []
 		}
 		message_history[solanaPublicKey].push({
 			audio_src,
-			time:new Date().getTime(),			
+			myself,
+			time:new Date().getTime(),	
+			txids		
 		});	
 		this.setState({MESSAGE_HISTORY:message_history},this.saveMessageHistory);	
 		return;			
@@ -603,11 +575,14 @@ class App extends React.Component{
 	*/
 	appendChat(message,txid,solanaPublicKey){
 		let message_history = this.state.MESSAGE_HISTORY;
+		let myself = this.state.localPayerAccount ? this.state.localPayerAccount.publicKey.toBase58() : false;
+		if(!myself){myself = this.state.localAccount ? this.state.localAccount.publicKey.toBase58() : false;}
 		if(!message_history[solanaPublicKey]){
 			message_history[solanaPublicKey] = []
 		}
 		message_history[solanaPublicKey].push({
 			message,
+			myself,
 			time:new Date().getTime(),
 			txid,
 			
@@ -615,7 +590,8 @@ class App extends React.Component{
 		if(solanaPublicKey !== this.state.currentContact.publicKey){
 			let contacts = this.state.contacts;
 			if(contacts[solanaPublicKey]){
-				contacts[solanaPublicKey].message += 1;
+				if(!contacts[solanaPublicKey].message){ contacts[solanaPublicKey].message = 1; }
+				else { contacts[solanaPublicKey].message += 1; }
 			}
 			else{
 				contacts[solanaPublicKey] = {
@@ -643,16 +619,21 @@ class App extends React.Component{
 	* @method appendImage
 	* @param {String} Image objectURL src
 	* @param {String} Solana public key of contact ?
+	* @param {Array} Transaction Ids 
 	* @return {Null}
 	*/
-	appendImage(img_src,solanaPublicKey){
-		let message_history = this.state.MESSAGE_HISTORY;		
+	appendImage(img_src,solanaPublicKey,txids){
+		let message_history = this.state.MESSAGE_HISTORY;	
+		let myself = this.state.localPayerAccount ? this.state.localPayerAccount.publicKey.toBase58() : false;
+		if(!myself){myself = this.state.localAccount ? this.state.localAccount.publicKey.toBase58() : false;}			
 		if(!message_history[solanaPublicKey]){
 			message_history[solanaPublicKey] = []
 		}
 		message_history[solanaPublicKey].push({
 			img_src,
-			time:new Date().getTime(),			
+			myself,
+			time:new Date().getTime(),	
+			txids		
 		});	
 		this.setState({MESSAGE_HISTORY:message_history},this.saveMessageHistory);	
 		return;			
@@ -667,6 +648,7 @@ class App extends React.Component{
 		if(!this.state.wallet && !this.state.localPayerAccount){
 			await this.connectWallet();
 		}
+		this.setState({loading:true});
 		let rsaPublicKey_JWK = await crypto.subtle.exportKey("jwk",this.state.rsaKeyPair.publicKey);
 		let transaction = {
 			addSignature:function(key,signature){
@@ -694,7 +676,11 @@ class App extends React.Component{
 		}
 		let presence = transaction.message+" "+transaction.signature.join(",");
 		setTimeout(this.getBalance,2000);
-		return this.constructAndSendTransaction(presence,true);
+		return this.constructAndSendTransaction(presence,true)
+			.catch(console.warn)
+			.finally(()=>{
+				this.setState({loading:false});
+			})
 		
 	}
 	
@@ -716,17 +702,19 @@ class App extends React.Component{
 	*/	
 	changeNetwork(defaultNetwork){
 		connection = null;
-		if(this.state.ws){
-			this.state.ws.close();
-		}
+		if(this.state.ws){this.state.ws.close();}
 		//Update sol-survivor addresses
 		GAME_ACCOUNT = Sol_Survivor[defaultNetwork].account;
 		GAME_ID = Sol_Survivor[defaultNetwork].id;
-		//
+		//Update sol-talk addresses
+		defaultProgram = Sol_Talk[defaultNetwork].defaultProgram;
+		defaultChannel = Sol_Talk[defaultNetwork].defaultChannel;
 		this.setState({
 			defaultNetwork,
 			GAME_ACCOUNT,
 			GAME_ID,
+			soltalkProgram:defaultProgram,
+			soltalkAccount:defaultChannel,
 			ws:false,
 			connection:false,
 			providerUrl:"https://www.sollet.io/#origin="+window.location.origin+"&network="+defaultNetwork.replace("api.mainnet-beta","mainnet")
@@ -795,14 +783,13 @@ class App extends React.Component{
 			providerUrl: "https://www.sollet.io/#origin="+window.location.origin+"&network="+this.state.defaultNetwork,
 			GAME_ACCOUNT,
 			GAME_ID,
+			soltalkProgram:defaultProgram,
+			soltalkAccount:defaultChannel
 		});
 		establishConnection(this.state.defaultNetwork).catch(console.warn);;	
 		let contacts = await this.getContacts(true);
 		this.subscribe(contacts,this.state.defaultNetwork);
-		//Set current contact
-		if(Object.keys(contacts).length > 0){
-			this.setCurrentContact( contacts[ Object.keys(contacts)[0] ] );
-		}
+
 		//Setup rsa keys
 		let rsaKeyPair = await getRSAKeys();
 		if(Object.keys(rsaKeyPair).length > 1){
@@ -812,14 +799,14 @@ class App extends React.Component{
 			//auto setup the rsa keys for the user
 			this.createRSAKeyPair().catch(console.warn);
 		}
-		if(window.location.pathname === "/sol-survivor"){
-			this.togglePlayGame();
-		}
 		//sync previous messages
 		this.setState({syncingHistory:true});
 		this.getHistory()
+		.then(this.processQue)
 		.catch(console.warn)
-		.finally(this.processQue);
+		.finally(()=>{
+			this.setState({syncingHistory:false});
+		})
 	}
 	
 	/**
@@ -861,7 +848,7 @@ class App extends React.Component{
 	*/	
 	async constructAndSendFile(encryptedBytesArray){
 		if(!encryptedBytesArray || encryptedBytesArray.length < 1){return this.notify("Unable to send blank file","error");}
-		let programId = this.state.currentContact.programId ? this.state.currentContact.programId : defaultProgram ;
+		let programId = defaultProgram;
 		programId = new PublicKey(programId);
 		let transactions = [];
 		this.setState({loading:true,loadingMessage:"Sending File"});
@@ -870,7 +857,7 @@ class App extends React.Component{
 			if(this.state.payerAccount){
 				let instruction = new TransactionInstruction({
 					keys: [
-						{pubkey:this.state.currentContact.channel ? this.state.currentContact.channel : defaultChannel, isSigner: false, isWritable: true},
+						{pubkey:defaultChannel, isSigner: false, isWritable: true},
 						{pubkey:this.state.payerAccount, isSigner: true, isWritable: false}
 					],
 					programId,
@@ -887,7 +874,7 @@ class App extends React.Component{
 			else{
 				let instruction = new TransactionInstruction({
 					keys: [
-						{pubkey:this.state.currentContact.channel ? new PublicKey(this.state.currentContact.channel) : new PublicKey(defaultChannel), isSigner: false, isWritable: true},
+						{pubkey: new PublicKey(defaultChannel), isSigner: false, isWritable: true},
 						{pubkey:this.state.localPayerAccount.publicKey , isSigner: true, isWritable: false}
 					],
 					programId,
@@ -927,14 +914,14 @@ class App extends React.Component{
 	*/	
 	async constructAndSendTransaction(message,isBroadcast=false){
 		if(!message || message.length < 1){return this.notify("Unable to send blank message","error");}
-		let programId = this.state.currentContact.programId ? this.state.currentContact.programId : defaultProgram ;
+		let programId = defaultProgram;
 		programId = new PublicKey(programId);
 		let buffer = isBroadcast ? padText(message) : await this.encryptMessage(message);
 		let txid;
 		if(this.state.payerAccount){	
 			let instruction = new TransactionInstruction({
 				keys: [
-					{pubkey:this.state.currentContact.channel ? this.state.currentContact.channel : defaultChannel, isSigner: false, isWritable: true},
+					{pubkey: defaultChannel, isSigner: false, isWritable: true},
 					{pubkey:this.state.payerAccount, isSigner: true, isWritable: false}
 				],
 				programId,
@@ -945,14 +932,14 @@ class App extends React.Component{
 			_transaction.recentBlockhash = blockhash;		
 			_transaction.setSigners(this.state.payerAccount);
 			let signed = await this.state.wallet.signTransaction(_transaction);
-			let tx = await this.state.connection.sendRawTransaction(signed.serialize());
-			if(!isBroadcast){this.updateInputBox(message,tx);}
-			txid = this.state.connection.confirmTransaction(tx);	
+			txid = await this.state.connection.sendRawTransaction(signed.serialize());
+			if(!isBroadcast){this.updateInputBox(message,txid);}
+			await this.state.connection.confirmTransaction(txid);	
 		}
 		else{
 			let instruction = new TransactionInstruction({
 				keys: [
-					{pubkey: this.state.currentContact.channel ? new PublicKey(this.state.currentContact.channel) : new PublicKey(defaultChannel), isSigner: false, isWritable: true},
+					{pubkey: new PublicKey(defaultChannel), isSigner: false, isWritable: true},
 					{pubkey: this.state.localPayerAccount.publicKey, isSigner: true, isWritable: false}
 				],
 				programId,
@@ -974,7 +961,7 @@ class App extends React.Component{
 				this.state.localPayerAccount,
 			);
 			if(!isBroadcast){ this.updateInputBox(message,txid);}
-		}	
+		}
 		saveTransaction(txid,this.state.defaultNetwork,"sendMessage").catch(console.warn);
 		return txid;
 	}	
@@ -1336,6 +1323,7 @@ class App extends React.Component{
 		}
 		cBalance = (balance - (cBalance*LAMPORTS_PER_SOL));
 		let mq = document.getElementById("balanceChange");
+		if(!mq){return;}
 		mq.innerHTML = "$" + cBalance;
 		setTimeout(()=>{
 			this.setState({showBalanceChange:false});
@@ -1464,7 +1452,6 @@ class App extends React.Component{
 		//
 		console.log("local account imported:",localPayerAccount.publicKey.toBase58());
 		this.setState({localPayerAccount,solanaQRURL},this.getBalance);
-		if(!secure){window.localStorage.setItem("myAccount",privateKey);}
 		return;		
 	}
 	
@@ -1881,14 +1868,7 @@ class App extends React.Component{
 	*/	
 	scrollToBottom(){
 		return new Promise((resolve,reject)=>{
-			let chat;
-			if(this.state.viewStyle === "mobile"){
-				chat = document.getElementsByClassName("mobileChatHolder");
-				if(chat){chat = chat[0]}
-			}
-			else{
-				chat = document.getElementById("chat");
-			}
+			let chat = document.getElementById("chat");
 			if(chat){chat.scrollTo(0,chat.scrollHeight);}
 			return resolve(true);
 		});
@@ -2074,22 +2054,21 @@ class App extends React.Component{
 				_ws.send(JSON.stringify(message));
 			}
 			else{
-				Object.keys(contacts).map(async(key)=>{
+				Object.keys(contacts).map(async(key,ind)=>{
 					if(!contacts[key].channel){return}
 					if(_ws.send && uniqueChannels.indexOf(contacts[key].channel) < 0){
 						uniqueChannels.push(contacts[key].channel);
-						message.id = uniqueChannels.length;
-						message.params = [ contacts[key].channel,{"encoding":"jsonParsed"} ]; 
-						await setTimeout(()=>{_ws.send(JSON.stringify(message));},1500);
+						message.id = ind;
+						message.params = [ contacts[key].channel,{"encoding":"jsonParsed","commitment":"singleGossip"} ]; 
+						await _ws.send(JSON.stringify(message));
 					}
 				})
 			}
 			this.setState({connected:uniqueChannels});	
-			console.log("Subscribed to Accounts::",uniqueChannels);		
+			console.log("Subscribed to Accounts:",uniqueChannels);		
 			return;
 		}	
 		const onOpen = (obj)=>{
-			console.log("Websocket open",obj);
 			let ws = obj.target;
 			this.setState({ws},this.getBlockHash);
 			let heartbeat = setInterval( ()=>ws.send(JSON.stringify({"jsonrpc":"2.0","method":"ping","params":null})),4998);
@@ -2109,11 +2088,13 @@ class App extends React.Component{
 						return bc.postMessage(accountData);
 					}
 					//Manage Account Data
+					
 					if(!this.state.syncingHistory){
 						this.parseAccountData(accountData[0]);
 						checkpoint(account.params.result.context.slot);
 					}
 					else{
+						console.warn("syncing....");
 						AccountDataQue.push({ data:accountData[0],slot:account.params.result.context.slot });
 					}
 				}
@@ -2311,6 +2292,17 @@ class App extends React.Component{
 	}
 	
 	/**
+	* Update enable music settings
+	* @method updateEnableMusic
+	* @return {Null}
+	*/	
+	updateEnableMusic(){
+		window.localStorage.setItem("enableMusic",!this.state.enableMusic);
+		this.setState({enableMusic:!this.state.enableMusic});
+		return;		
+	}	
+	
+	/**
    * Clear the user input form
    * @method updateInputBox
    * @param {String} User text message
@@ -2323,20 +2315,6 @@ class App extends React.Component{
 		input.disabled = false;
 		input.value = "";
 		this.updateCharacterCount();
-	}	
-	
-	/**
-	* Update the view style of the site
-	* @method updateViewStyle
-	* @return {Null}
-	*/	
-	updateViewStyle(){
-		let newStyle = ""
-		if(this.state.viewStyle === "mobile"){ newStyle = "desktop";}
-		else{newStyle = "mobile";}
-		window.localStorage.setItem("viewStyle",newStyle);
-		this.setState({viewStyle:newStyle});
-		return;
 	}		
 	
 	/**
@@ -2350,9 +2328,9 @@ class App extends React.Component{
 		let arrayBuffer = await blob.arrayBuffer();
 		let encryptedBytesArray = await this.encryptFile(arrayBuffer,fileName);
 		if(encryptedBytesArray){
-			this.sendFile(encryptedBytesArray).then(()=>{
+			this.sendFile(encryptedBytesArray).then((txids)=>{
 				let objectURL = URL.createObjectURL(blob);
-				this.appendAudio(objectURL,this.state.currentContact.publicKey);
+				this.appendAudio(objectURL,this.state.currentContact.publicKey,txids);
 			});
 		}			
 	}	
@@ -2379,8 +2357,8 @@ class App extends React.Component{
 			bufferReader.onload = async ()=>{
 				let encryptedBytesArray = await this.encryptFile(bufferReader.result,input.files[0].name);
 				if(encryptedBytesArray){
-					this.sendFile(encryptedBytesArray).then(()=>{
-						this.appendImage(imageSRC,this.state.currentContact.publicKey);
+					this.sendFile(encryptedBytesArray).then((txids)=>{
+						this.appendImage(imageSRC,this.state.currentContact.publicKey,txids);
 					});
 				}
 			};      
@@ -2401,17 +2379,14 @@ class App extends React.Component{
 		this.state.ws.send(JSON.stringify(rpcMessage));
 		return;
 	}	
-	
+
 	/**
-   * Render Desktop page
-   * @method renderDesktop
+   * Render Responsive page
+   * @method renderResponsive
    * @return {Null}
    */		
-	renderDesktop(){
-		return(
-		<div className="App">
-			<Wizard open={this.state.survivorHelpOpen} close={this.toggleSurvivorHelpOpen}/>
-			{ this.state.transactionSignature ? <TransactionInfo resolveSignature={this.state.resolveSignature}/> : null }
+	renderResponsive(){
+		return (<div>
 			<Snackbar
 				anchorOrigin={{
 					vertical: 'top',
@@ -2425,661 +2400,82 @@ class App extends React.Component{
 					{this.state.notificationMessage}
 				</MuiAlert>
 			</Snackbar>
-			<div id="topBar">
-				<div>
-					<img alt="sologo" id="logo" src="./logo192.png" />
-				</div>
-				{
-					(!this.state.payerAccount && !this.state.localPayerAccount) ?
-					<div className="loginButtons">
-						<Button color="secondary" variant="contained" size="small" onClick={this.connectWallet}>Sollet</Button> 
-						<SecureWallet importKey={this.importKey} notify={this.notify}/>
-					</div>
-					:null
-				}
-				{ 
-					(this.state.payerAccount || ( this.state.localPayerAccount && this.state.localPayerAccount.publicKey))? 
-					<div id="barAccountInfo">
-						{
-								this.state.payerAccount ? 
-								<img alt="accountImg" className="avatar" src={"https://robohash.org/"+ this.state.payerAccount.toBase58() +"?size=128x128"+this.state.avatarStyle }/> :
-								<img alt="accountImg" className="avatar" src={"https://robohash.org/"+this.state.localPayerAccount.publicKey.toBase58() +"?size=128x128"+this.state.avatarStyle}/>
-						}
-						{this.state.payerAccount? this.state.payerAccount.toBase58().slice(0,6) : null} 
-						{this.state.localPayerAccount ? this.state.localPayerAccount.publicKey.toBase58().slice(0,6) : null}		
-						<br/>
-						{this.state.payerAccount? this.state.payerAccountBalance : null}
-						{this.state.localPayerAccount ? this.state.localPayerBalance : null} sol	
-						{ this.state.showBalanceChange ? <div><marquee id="balanceChange" direction="left" loop={1}>0</marquee></div>: null }		
-					</div>
-					:null
-				}
-				<div id="chainSelectionButtons">
-					<Button 
-						onClick={()=>{this.changeNetwork("api.mainnet-beta")}} 
-						color={ this.state.defaultNetwork === "api.mainnet-beta" ? "primary" : "secondary" } 
-						variant={ this.state.defaultNetwork === "api.mainnet-beta" ? "contained" : "outlined" } >
-						Mainet
-					</Button>
-					<Button 
-						onClick={()=>{this.changeNetwork("testnet")}} 
-						color={ this.state.defaultNetwork === "testnet" ? "primary" : "secondary" } 
-						variant={ this.state.defaultNetwork === "testnet" ? "contained" : "outlined" } >
-						Testnet
-					</Button>
-				</div>							
-			</div>
-			<div id="appRow">
-				<div id="desktopColBar">
-					<List>
-						<ListItem>
-						{ 
-							this.state.loading ? 
-							<LinearProgress id="progressBar" now={this.state.loadingValue} label={this.state.loadingMessage}/>
-							: null 
-						}
-						</ListItem>
-						<ListItem>
-							{ 
-								this.state.potentialContacts.length > 0 ? 
-								<Badge color="secondary" badgeContent={this.state.potentialContacts.length}> </Badge> 
-								: null 
-							}
-							<Tooltip title="Contacts" placement="top">	
-								<Button color="primary"  variant={this.state.viewContacts ? "contained" : "text"} onClick={this.toggleContactsView}><SupervisorAccountIcon /> </Button>
-							</Tooltip>	
-						</ListItem>
-						<ListItem>
-							<Tooltip title="Games" placement="top">	
-								<Button color="primary" variant={this.state.playGame ? "contained" : "text"} onClick={this.togglePlayGame}> <GamesIcon /> </Button>
-							</Tooltip>
-						</ListItem>
-						<ListItem>
-							<Tooltip title="Settings" placement="top">	
-								<Button color="primary" variant={this.state.viewSettings ? "contained" : "text"} onClick={this.toggleSettingsView}>	<SettingsIcon /> </Button>
-							</Tooltip>
-						</ListItem>
-						<ListItem>
-							{
-								(this.state.rsaKeyPair && this.state.rsaKeyPair.publicKey && ( this.state.localPayerAccount || this.state.payerAccount ) ) ? 
-								<Tooltip title="Broadcast Presence" placement="top">	
-									<Button onClick={this.broadcastPresence}><RecordVoiceOverIcon color="primary" variant="contained" /> </Button>
-								</Tooltip>	
-								:null
-							}						
-						</ListItem>						
-						<ListItem>
-							<Tooltip title="Transaction" placement="top">	
-								<Button color="primary" variant={this.state.viewTransactions ? "contained" : "text"} onClick={this.toggleTransactionView}>	<NotesIcon /> </Button>
-							</Tooltip>
-						</ListItem>
-						{
-							this.state.playGame ?
-							<ListItem>
-									<Button color="primary" variant="text" onClick={this.toggleSurvivorHelpOpen}> <HelpOutlineIcon /> </Button>						
-							</ListItem>
-							:null
-						}
-						<RecentContacts avatarStyle={this.state.avatarStyle} recentContacts={this.state.recentContacts} setCurrentContact={this.setCurrentContact}/>
-					</List>					
-				</div>
-				<div id="desktopColView">
-					{
-						this.state.viewChat?
-						<div id="chatCol">
-							<div> 
-								{ 
-									this.state.currentContact ?
-									<div className="contactSlice">
-										<img alt="currentContactImg" className="avatar" src={"https://robohash.org/"+ this.state.currentContact.publicKey +"?size=128x128"+this.state.avatarStyle }/>
-										<br/>{this.state.currentContact.publicKey ? this.state.currentContact.publicKey : null}
-									</div>
-									:null
-
-								}
-								<div id="chat"> 						
-									{
-										this.state.MESSAGE_HISTORY[this.state.currentContact.publicKey] && this.state.MESSAGE_HISTORY[this.state.currentContact.publicKey].map((info,ind)=>(
-											<div key={ind} className={info.txid ? "msgSelf" : "msgContact"}>	
-												<p>
-												{ info.message ? info.message.trim() : null }
-												
-												{ info.img_src ? <img alt="img" src={info.img_src} /> : null }
-												
-												{ info.audio_src ? <audio alt="img" src={info.audio_src} controls /> : null }
-												</p>
-											</div>
-										))
-									}	
-								</div>
-							</div>
-							<div id="charCount">#{this.state.characterCount}</div>
-							<div id="chatHolderDesktop">
-								<div className="userInput">
-									<Paper component="form" id="newMessageForm">
-										<InputBase
-											fullWidth
-											id="newMessage"
-											placeholder="Type a message"
-											inputProps={{ 'aria-label': 'type a message' }}
-											onKeyDown={this.messageKeyDown}
-										/>
-									</Paper>
-									<Button variant="contained" color="primary" onClick={this.sendMessage}>
-										<MailIcon />
-									</Button>
-									<Button variant="contained" color="secondary" onClick={this.uploadImageFile}>
-										<PhotoCameraIcon/>
-									</Button>
-									<Recorder uploadAudioFile={this.uploadAudioFile} variant={"contained"} color="primary"/>
-								</div>
-							</div>
-						</div>
-						:null
-					}
-					{
-						this.state.playGame ?
-						<Stage 
-							_connection={connection}
-							connection={this.state.connection}
-							currentContact={this.state.currentContact}
-							defaultNetwork={this.state.defaultNetwork}
-							GAME_ID={this.state.GAME_ID} 
-							GAME_ACCOUNT={this.state.GAME_ACCOUNT}
-							localPayerAccount={this.state.localPayerAccount}
-							localSign={this.localSign}
-							payerAccount={this.state.payerAccount}
-							notify={this.notify}
-							saveTransaction={saveTransaction}
-							setLoading={this.setLoading}
-							stringToBytes={stringToBytes}
-							urlRoot={"https://"+this.state.defaultNetwork+".solana.com"}
-							wallet={this.state.wallet}
-							ws={this.state.ws}
-						/>
-						: null
-					}
-					{
-						this.state.viewContacts ?
-						<ContactsView 
-							addContact={this.addContact} 
-							avatarStyle={this.state.avatarStyle}
-							contacts={this.state.contacts} 
-							cancelContactForm={this.cancelContactForm} 
-							currentContact={this.state.currentContact}
-							potentialContacts={this.state.potentialContacts}
-							removeContact={this.removeContact}
-							saveNewContact={this.saveNewContact}
-							setCurrentContact={this.setCurrentContact}
-							showContactForm_state={this.state.showContactForm} 
-							showContactForm={this.showContactForm}
-						/>
-						: null
-					}
-					{
-						this.state.viewSettings ?		
-						<Settings 
-							addContact={this.addContact}
-							autoSaveHistory={this.state.autoSaveHistory}
-							autoSign={this.state.autoSign}
-							avatarStyle={this.state.avatarStyle}
-							copySolanaAddress={this.copySolanaAddress}
-							currentContact={this.state.currentContact}
-							broadcastPresence={this.broadcastPresence}
-							defaultNetwork={this.state.defaultNetwork}
-							deleteMessageHistory={this.deleteMessageHistory}
-							exportContacts={this.exportContacts}
-							exportPrivateKey={this.exportPrivateKey}
-							exportRSAKeys={this.exportRSAKeys}
-							importRSAKeys_JSON={this.importRSAKeys_JSON}
-							localPayerAccount={this.state.localPayerAccount}
-							localPayerBalance={this.state.localPayerBalance}
-							payerAccount={this.state.payerAccount}
-							payerAccountBalance={this.state.payerAccountBalance}
-							providerUrl={this.state.providerUrl}
-							removeImportedAccount={this.removeImportedAccount}
-							removeRSAKeys={this.removeRSAKeys}
-							rsaKeyPair={this.state.rsaKeyPair}
-							sendSol={this.sendSol}
-							showSolanaQR={this.state.showSolanaQR}
-							solanaQRURL={this.state.solanaQRURL}
-							toggleShowSolanaQR={this.toggleShowSolanaQR}
-							viewStyle={this.state.viewStyle}
-							updateAutoSaveHistory={this.updateAutoSaveHistory}
-							updateAutoSign={this.updateAutoSign}
-							updateAvatarStyle={this.updateAvatarStyle}
-							updateViewStyle={this.updateViewStyle}
-						/>:null				
-					}
-					{
-						this.state.viewTransactions ?
-						<TransactionHistory
-							transactions={ localStorage.getItem("transactionHistory")? JSON.parse(localStorage.getItem("transactionHistory")) : [] }
-						/>
-						: null
-					}
-				</div>
-			</div>
-
-		<div id="logRow">
-			<div>
-				<p>Logs</p>
-				<textarea id="logs"></textarea>
-			</div>
-		</div>
-		<div>
-			<div>
-				<div id="extras">
-				{ 
-					this.state.localPayerAccount ?
-					<div>
-						<p> 
-							LocalAccount: <b>{this.state.localPayerAccount.publicKey.toBase58()}</b>  
-							<br/>balance:<b>{this.state.localPayerBalance}</b>
-							<br/> Program: {this.state.latestProgram ? this.state.latestProgram : null}
-							<br/> Account: {this.state.latestAccount ? this.state.latestAccount : null}		
-						</p>				
-						<ButtonGroup> 
-							<Button variant="contained" onClick={()=>{this.loadProgram(0)}}>Deploy Chat</Button>
-							<Button onClick={()=>{this.loadProgram(1)}}>Deploy Game</Button>
-							<Button variant="contained" onClick={()=>this.importKey()}>Import New Private Key</Button>
-							<Button onClick={()=>{this.loadProgramControlledAccount(0)}}> Launch a new chat room  </Button>
-							<Button onClick={()=>{this.loadProgramControlledAccount(1)}}> Launch a new game room  </Button>
-						</ButtonGroup>
-					</div>
-					:<Button variant="contained" onClick={()=>{this.importKey()}}>Import Private Key </Button>
-				}
-				</div>
-			</div>
-		</div>
-		</div>);
-	}
-
-	render(){
-		if(this.state.viewStyle !== "mobile"){
-			return this.renderDesktop();
-		}
-		return this.renderDesktop();
-	}
-}
-
-
-function ContactsView(props){
-	function proxyAddContact(){
-			let solanaPublicKey = document.getElementById("new_contact_key").value;
-			let rsaPublicKey = document.getElementById("new_chat_key").value;
-			if(solanaPublicKey.value && !rsaPublicKey.value){rsaPublicKey = "";}
-			props.addContact(solanaPublicKey,rsaPublicKey);
-			props.cancelContactForm();
-	}
-	//Merge Unsaved Contacts
-	for(let i = 0;i < props.potentialContacts.length;i++){
-		props.contacts[ props.potentialContacts[i].publicKey ] = props.potentialContacts[i];
-	}
-	
-	return(<div className="contactHolder">
-			<div>
-				<Row className="contactCol">
-				{
-					Object.keys(props.contacts).length > 0 && Object.keys(props.contacts).map((item,ind)=>(
-						<Col xs={4} key={ind} style={{background: props.currentContact.publicKey === props.contacts[item].publicKey ? "#cfe7f14a" : "" }}>
-							{ props.contacts[item].message > 0 ? <Badge color="secondary" badgeContent={props.contacts[item].message}> </Badge>:null }
-							<img alt="contactImg" className="contactImg" src={"https://robohash.org/"+props.contacts[item].publicKey+"?size=256x256"+props.avatarStyle} />
-							<p className="contactInfo">
-								<Button size="large">
-									<ChatIcon onClick={()=>{props.setCurrentContact(props.contacts[item])}} variant="outlined" color="primary"  > </ChatIcon>
-								</Button>
-								<Button size="large">
-									<DeleteIcon variant="contained" color="secondary" size="small" onClick={()=>{props.removeContact(item); }}> remove </DeleteIcon>
-								</Button>	
-								<br/>
-								<b>Solana Address</b>
-								<br/>{props.contacts[item].publicKey}
-								<br/><b>RSA Public Key</b>
-								<br/>{props.contacts[item].chatPublicKey}
-								<br/><b>Program</b>
-								<br/>{props.contacts[item].programId}
-								<br/><b>Account</b>
-								<br/>{props.contacts[item].channel}
-								<br/>
-								{
-									props.contacts[item].unsaved === true ? 
-									<Button color="primary" onClick={()=>{props.saveNewContact( props.contacts[item] );}}>save contact</Button>
-									:null
-								}
-							</p>
-						</Col>
-					))
-				}
-				</Row>
-				<div id="addContact">
-					{
-						props.showContactForm_state ?
-						<Button variant="contained" color="secondary" onClick={props.cancelContactForm}>CANCEL</Button>		
-						: <Button variant="contained" color="primary" onClick={props.showContactForm}>ADD CONTACT</Button>		
-					}
-				</div>	
-			</div>
-		
-		{
-			props.showContactForm_state ? <NewContact cancelContactForm={props.cancelContactForm} proxyAddContact={proxyAddContact} />: null
-		}
-	</div>)
-}
-
-function NewContact(props){
-	return(<Card className="secureWalletCard">
-		<Button id="titleButton">Add Contact</Button>
-		<div>
-			<form noValidate autoComplete="off">
-				<TextField fullWidth id="new_contact_key" label="Solana Public Key" variant="outlined" type="text"/>
-			    <br/><TextField fullWidth id="new_chat_key" label="RSA Public Key" variant="outlined" type="text"/>
-			</form>
-		</div>
-		<CardActions id="addContactActions">
-			<Button color="secondary" onClick={props.cancelContactForm}>Cancel</Button>
-			<Button id="addContactButton" color="primary" variant="contained" onClick={props.proxyAddContact}>Add</Button>
-		</CardActions>
-	</Card>)
-}
-
-function RecentContacts(props){
-	return(<div className="recentContacts">
-			<div id="gitLink"> <a className="github-button" href="https://github.com/kemargrant/soltalk" data-icon="octicon-star" aria-label="Star soltalk on GitHub" data-size="large" >Star</a></div>
-			{
-				props.recentContacts.length > 0 && props.recentContacts.map((contact,ind)=>(
-					<Button key={ind} onClick={()=>{ return props.setCurrentContact(contact);}}>
-						<img alt="recent contact avatar" key={ind} src={"https://robohash.org/"+contact.publicKey+"?size=128x128"+props.avatarStyle} />
-					</Button>
-				))
-			}
-	</div>)
-}
-
-function Settings(props){	
-	return(<div className="settingsPanel">
-			<Card className="settingsCard">
-				<b id="settingsAccount">{ props.payerAccount ? props.payerAccount.toBase58() : null } { props.localPayerAccount ? props.localPayerAccount.publicKey.toBase58() : null } </b>
-				<CardActionArea>
-				{
-						props.payerAccount ?
-						<CardMedia className={"cardAvatar"} image={"https://robohash.org/"+props.payerAccount.toBase58()+"?size=720x720"+props.avatarStyle} title="card avatar"/>
-						:null 
-				}
-				{
-						props.localPayerAccount ?
-						<CardMedia className={"cardAvatar"} image={"https://robohash.org/"+props.localPayerAccount.publicKey.toBase58()+"?size=720x720"+props.avatarStyle} title="card avatar"/>
-						:null 
-				}
-				{
-					props.showSolanaQR ?
-					<img alt="userQRCode" className="desktopQR" src={props.solanaQRURL}/>
-					:null
-				}
-				<CardContent className="settingsContent">
-					<Typography variant="body2" color="textSecondary" component="p">
-						{props.payerAccount ? props.payerAccountBalance : null } { props.localPayerAccount ? props.localPayerBalance : null } SOL
-						<br/>
-						{ 
-							props.providerUrl && props.payerAccount?  props.providerUrl : null
-						} 
-						<br/>
-						<b>PROGRAM </b>
-						<a rel="noopener noreferrer" href={'https://explorer.solana.com/address/'+defaultProgram+'?cluster='+props.defaultNetwork} target="_blank">{props.currentContact.channel}</a>   
-						<br/> 
-						<b>ACCOUNT </b> 
-						<a rel="noopener noreferrer" href={'https://explorer.solana.com/address/'+defaultChannel+'?cluster='+props.defaultNetwork} target="_blank">{props.currentContact.programId} </a>
-					</Typography>
-				</CardContent>
-				</CardActionArea>
-				<List>
-					<Divider/>
-					<ListItem>
-						<b>AutoSave Messages</b> 
-						<FormGroup aria-label="position" row>
-							<FormControlLabel
-							control={<Switch color="primary" />}
-							labelPlacement="start"
-							checked={props.autoSaveHistory ? true : false}
-							onClick={props.updateAutoSaveHistory}
-							/>
-						</FormGroup>
-					</ListItem>
-					<Divider/>	
-					<ListItem>
-						<b>Auto Sign Transactions</b> 
-						<FormGroup aria-label="position" row>
-							<FormControlLabel
-							control={<Switch color="primary" />}
-							labelPlacement="start"
-							checked={props.autoSign ? true : false}
-							onClick={async()=>{await props.updateAutoSign(); }}
-							/>
-						</FormGroup>
-					</ListItem>
-					<Divider/>						
-					<ListItem>
-						<b>Avatar Style</b> 
-						<FormGroup aria-label="position" row>
-							<FormControlLabel
-							control={<Switch color="primary" />}
-							labelPlacement="start"
-							checked={props.avatarStyle === "" ? true : false}
-							onClick={props.updateAvatarStyle}
-							/>
-						</FormGroup>
-					</ListItem>
-					<Divider/>	
-					<ListItem>
-						<ButtonGroup size="small">
-							<Button color="primary">QR CODE</Button>
-							<Button variant="contained" color="primary" onClick={props.toggleShowSolanaQR}>View</Button>
-							<Button variant="contained" color="primary"><ScanQR title={"Scan"} addContact={props.addContact} avatarStyle={props.avatarStyle} sendSol={props.sendSol}/></Button>
-						</ButtonGroup>
-					</ListItem>						
-					<Divider/>	
-					<ListItem>
-						<ButtonGroup size="small">
-							<Button color="primary">import</Button>
-							<Button variant="contained" color="primary" onClick={props.importRSAKeys_JSON}>Import RSA Keys</Button>
-						</ButtonGroup>
-					</ListItem>			
-					<Divider/>	
-					<ListItem>
-						<ButtonGroup size="small">
-							<Button color="primary">export</Button>
-							<Button variant="contained" color="primary" onClick={props.exportContacts}>Contacts</Button>
-							{ props.localPayerAccount?
-								<Button variant="contained" color="primary" onClick={props.exportPrivateKey}>Private Key</Button> : null
-							}
-							{ props.rsaKeyPair?
-								<Button variant="contained" color="primary" onClick={props.exportRSAKeys}>RSA Keys</Button> : null
-							}
-						</ButtonGroup>
-					</ListItem>
-					<Divider/>	
-					<ListItem>
-						<ButtonGroup size="small">
-							<Button color="secondary">remove</Button>
-							<Button variant="contained" color="secondary" onClick={props.deleteMessageHistory}> Message History </Button>
-							{ props.localPayerAccount?
-								<Button variant="contained" color="secondary" onClick={props.removeImportedAccount}> Imported Account </Button> : null
-							}
-							{ props.rsaKeyPair?
-								<Button variant="contained" color="secondary" onClick={props.removeRSAKeys}> RSA Keys </Button> : null
-							}
-						</ButtonGroup>
-					</ListItem>
-					<Divider/>
-					{
-						(!props.rsaKeyPair && ( props.localPayerAccount || props.payerAccount ) ) ? 
-						<ListItem>
-							<Button onClick={props.createRSAKeyPair}>Create RSA key pair</Button>
-						</ListItem>
-						:null
-					}	
-					<Divider/>
-					<ListItem>
-						<p className="credits">
-							<a href="robohash.org" target='_blank' rel="noopener noreferrer">Robots lovingly delivered by Robohash.org</a>
-							<br/> <a href="https://www.fesliyanstudios.com/royalty-free-music/download/dragon-boss-fight/993"> "Dragon Boss Fight" by David Fesliyan </a>
-						</p>
-					</ListItem>
-				</List>		
-			</Card>	
-
+			{ this.state.transactionSignature ? <TransactionInfo resolveSignature={this.state.resolveSignature}/> : null }
+			{ this.state.loading ? <LinearProgress id="progressBar" now={this.state.loadingValue} label={this.state.loadingMessage}/>: null }
+			<Layout 
+				//Stage
+				_connection={connection}
+				enableMusic={this.state.enableMusic}
+				GAME_ID={this.state.GAME_ID} 
+				GAME_ACCOUNT={this.state.GAME_ACCOUNT}
+				setLoading={this.setLoading}
+				stringToBytes={stringToBytes}
+				survivorHelpOpen={this.state.survivorHelpOpen}
+				toggleSurvivorHelpOpen={this.toggleSurvivorHelpOpen}
+				urlRoot={"https://"+this.state.defaultNetwork+".solana.com"}
+				wallet={this.state.wallet}
+				ws={this.state.ws}
+				//Standard
+				addContact={this.addContact}
+				broadcastPresence={this.broadcastPresence}
+				changeNetwork={this.changeNetwork}
+				characterCount={this.state.characterCount}
+				connection={this.state.connection}
+				connectWallet={this.connectWallet}
+				contacts={this.state.contacts}
+				currentContact={this.state.currentContact}
+				getContacts={this.getContacts}
+				importKey={this.importKey}
+				messageKeyDown={this.messageKeyDown}
+				localSign={this.localSign}
+				MESSAGE_HISTORY={this.state.MESSAGE_HISTORY}
+				notify={this.notify}
+				playGame={this.state.playGame}
+				potentialContacts={this.state.potentialContacts}
+				removeContact={this.removeContact}
+				saveTransaction={saveTransaction}
+				sendMessage={this.sendMessage}
+				setCurrentContact={this.setCurrentContact}
+				togglePlayGame={this.togglePlayGame}
+				timeAgo={timeAgo}
+				uploadAudioFile={this.uploadAudioFile}
+				//Settings
+				autoSaveHistory={this.state.autoSaveHistory}
+				autoSign={this.state.autoSign}
+				avatarStyle={this.state.avatarStyle}
+				copySolanaAddress={this.copySolanaAddress}
+				defaultNetwork={this.state.defaultNetwork}
+				defaultChannel={defaultChannel}
+				defaultProgram={defaultProgram}
+				deleteMessageHistory={this.deleteMessageHistory}
+				exportContacts={this.exportContacts}
+				exportPrivateKey={this.exportPrivateKey}
+				exportRSAKeys={this.exportRSAKeys}
+				importRSAKeys_JSON={this.importRSAKeys_JSON}
+				localPayerAccount={this.state.localPayerAccount}
+				localPayerBalance={this.state.localPayerBalance}
+				payerAccount={this.state.payerAccount}
+				payerAccountBalance={this.state.payerAccountBalance}
+				providerUrl={this.state.providerUrl}
+				removeImportedAccount={this.removeImportedAccount}
+				removeRSAKeys={this.removeRSAKeys}
+				rsaKeyPair={this.state.rsaKeyPair}
+				sendSol={this.sendSol}
+				showSolanaQR={this.state.showSolanaQR}
+				solanaQRURL={this.state.solanaQRURL}
+				toggleShowSolanaQR={this.toggleShowSolanaQR}
+				viewStyle={this.state.viewStyle}
+				updateAutoSaveHistory={this.updateAutoSaveHistory}
+				updateAutoSign={this.updateAutoSign}
+				updateAvatarStyle={this.updateAvatarStyle}
+				updateEnableMusic={this.updateEnableMusic}
+				updateViewStyle={this.updateViewStyle}
+		/>
 		</div>)
-}		
-
-function TransactionInfo(props){
-	let popChannel = new BroadcastChannel('tran_pop');	
-	let cancel = ()=>{ 
-		return props.resolveSignature({'tran_resp':true,'tran_sig':false});
 	}
-	let sendSig = (autoSign=false)=>{ 
-		let sig =  document.getElementById("signature").innerHTML;
-		sig = new Uint8Array(sig.split(','));
-		props.resolveSignature({'tran_resp':true,'tran_sig':sig,autoSign});
-	}
-	popChannel.onmessage = (evt)=>{
-		if(evt.data && evt.data.signature){
-			let sig = document.getElementById("signature");
-			document.getElementById("msg").innerHTML = evt.data.message;
-			document.getElementById("base64_message").innerHTML = Buffer.from(evt.data.message).toString("base64");
-			document.getElementById("base64_signature").innerHTML = Buffer.from(evt.data.signature).toString("base64");
-			sig.innerHTML = evt.data.signature;
-			if(evt.data.transaction && evt.data.transaction.feePayer){
-				let data = document.createElement("p");
-				let feePayer = document.createElement("p");	
-				let keys = document.createElement("p");				
-				let programId = document.createElement("p");					
-				data.innerHTML = "<b>transaction data:</b><br/>" + evt.data.transaction.instructions[0].data;
-				feePayer.innerHTML = "<b>feePayer:</b><br/>"+ evt.data.transaction.feePayer;
-				keys.innerHTML = "KEYS:<br/>"
-				evt.data.transaction.instructions[0].keys.map((acc,i)=>{
-					return keys.innerHTML += `<b>${i}:</b> pubkey:<b>` +acc.pubkey +"</b> isSigner:"+acc.isSigner+" isWritable:"+acc.isWritable+ "<br/>";
-				});
-				programId.innerHTML = "<b>programId:</b><br/>"+ evt.data.transaction.instructions[0].programId;
-				sig.parentElement.appendChild(data);
-				sig.parentElement.appendChild(feePayer);
-				sig.parentElement.appendChild(keys);
-				sig.parentElement.appendChild(programId);
-			}
-			popChannel.onmessage = null;
-			popChannel = null;
-		}
-	}
-	return(<div className="transactionPopup">
-			<Button color="primary" variant="outlined" onClick={()=>{return sendSig(true);}}>Auto Sign Transactions</Button>
-			<div>	
-				<Card>
-					<Button id="titleButton">Transaction Details</Button>
-					<CardActionArea className="transactionCard">
-						<CardContent>
-							<Typography variant="body2" color="textSecondary" component="p">
-								message:<p id="msg"></p>
-								<br/>message(base64):<p id="base64_message"></p>	
-								<p id="signature" style={{display:"none"}}></p>
-								<br/>signature(base64):<p id="base64_signature"></p>										
-							</Typography>
-						</CardContent>
-					</CardActionArea>
-					<CardActions>
-						<div id="secureButtons">
-							<Button color="secondary" variant="contained" onClick={cancel}>Cancel</Button>
-							<Button id="protectButton" color="primary" variant="contained" onClick={sendSig}>Confirm</Button>
-						</div>
-					</CardActions>
-				</Card>
-			</div>
-	</div>)
-}
-
-function TransactionHistory(props){	
-	return(<div className="txHistory">
-		<b>Transactions</b>
-		<List>
-			{
-				props.transactions && props.transactions.reverse().map((transaction,ind)=>(
-					<div key={ind}>
-						<ListItem>
-							<p>
-							{timeAgo.format(new Date(transaction.date),'round')}
-							<br/>
-							{transaction.type}
-							<br/>
-								<a rel="noopener noreferrer" 
-								href={transaction.link} 
-								target="_blank">
-									{transaction.txid}
-								</a>  
-							</p> 
-						</ListItem>
-						<Divider/>
-					</div>
-				))
-			}
-		</List>	
-	</div>)
-}
-
-class Wizard extends React.Component{ 
-	constructor(props){
-		super(props);
-		this.state = {
-			content:{
-				1:"Player1 Press Start",
-				2:"Wait For Player2 to Press Start",
-				3:"Player1 Select Action(Commit) & Approve Transaction",
-				4:"Wait For Player2 Action(Commit)",
-				5:"Unleash(Reveal) Your Action",
-				6:"Player2 Has 10 Seconds to Unleash(Reveal) Action"
-			},
-			step:1
-		}
-		this.backward = this.backward.bind(this);
-		this.forward = this.forward.bind(this);
-	}
-	
-	backward(){
-		let step = this.state.step;
-		if(step > 1){step--}
-		this.setState({step});
-		return;
-	}
-	
-	forward(){
-		let step = this.state.step;
-		if(step < 6){step++}
-		this.setState({step});
-		return;
-	}	
-	
 	render(){
-		if(!this.props.open){
-			return null;
-		}
-		return(<div className="wizardCard">
-				<Card>
-					<Button variant="contained" color="secondary" onClick={this.props.close}> <CancelIcon/> </Button> 						
-					<h4>How To Play</h4>	
-					<CardActionArea>
-						<CardContent className="wizardContent">
-							<div id="wizardImgDiv">
-								<img src={"./images/step"+this.state.step+".png"} alt="wizard instruction step"/>
-							</div>
-							<Typography variant="body1" color="textSecondary" component="p">
-							{this.state.content[this.state.step]}
-							</Typography>
-						</CardContent>
-				</CardActionArea>
-					<CardActions>
-						<Button variant="contained" color="primary" onClick={this.backward}>  <FastRewindIcon/> </Button> 						
-						<Button variant="contained" color="primary" id="wizardForward" onClick={this.forward}> <FastForwardIcon/> </Button>
-					</CardActions>
-				</Card>
-	</div>)
+		return this.renderResponsive();
 	}
-}	
-	
+}
+
 export default App;

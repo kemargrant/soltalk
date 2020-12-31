@@ -1,0 +1,38 @@
+// 
+//  User profile details.scss
+//
+
+// User profile details
+
+.user-profile-sidebar {
+    height: 100vh;
+    background-color: $card-bg;
+    display: none;
+    min-width: 380px;
+    max-width: 380px;
+
+    @media (min-width: 992px) {
+        border-left: 4px solid $border-color;
+    }
+
+    @media (max-width: 1199.98px) {
+        position: fixed;
+        right: 0;
+        top: 0;
+        z-index: 99;
+    }
+
+    @media (max-width: 575.98px) {
+        min-width: 100%;
+    }
+}
+
+.user-profile-desc {
+    height: calc(100vh - 300px);
+
+    @media (max-width: 991.98px) {
+        height: calc(100vh - 324px);
+    }
+}
+
+

@@ -1,0 +1,25 @@
+
+//
+// accordion.scss
+//
+
+.custom-accordion {
+    .card {
+        + .card {
+            margin-top: 0.5rem;
+        }
+    }
+
+    a {
+        i.accor-plus-icon {
+            font-size: 16px;
+        }
+        &.collapsed {
+            i.accor-plus-icon {
+                &:before {
+                    content: "\F0142";
+                }
+            }
+        }
+    }
+}

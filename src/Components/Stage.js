@@ -1,6 +1,6 @@
 import React from 'react';
-import { Button,ButtonGroup,
-ProgressBar } from 'react-bootstrap';
+import { Button,ButtonGroup } from 'reactstrap';
+import { ProgressBar } from 'react-bootstrap';
 import {
   PublicKey,  
   TransactionInstruction,
@@ -9,6 +9,9 @@ import {
 import {sendAndConfirmTransaction} from '../util/send-and-confirm-transaction';
 import bs58 from 'bs58';
 import * as BufferLayout from 'buffer-layout';
+
+import { Wizard } from './Wizard';
+
 const sdbm = require('sdbm');
 
 var Drift = 0;
@@ -84,6 +87,9 @@ class Stage extends React.Component{
 	}
 	
 	async acceptChallenge(){
+		if(!this.props.payerAccount && !this.props.localPayerAccount){
+			return alert("Please Log In!");
+		}		
 		this.props.setLoading(true);
 		this.setState({gameStart:false});
 		this.playMusic().catch(console.warn);
@@ -214,6 +220,7 @@ class Stage extends React.Component{
 	}
 		
 	componentDidMount(){
+		document.title = "survivor(alpha)";
 		this.playMusic().catch(console.warn);
 		react_game_channel.onmessage = (ev)=> { 
 			if(ev && ev.data){
@@ -272,6 +279,9 @@ class Stage extends React.Component{
 	}
 	
 	async createChallenge(){
+		if(!this.props.payerAccount && !this.props.localPayerAccount){
+			return alert("Please Log In!");
+		}
 		this.setState({gameStart:false});
 		this.props.setLoading(true);
 		this.playMusic().catch(console.warn);
@@ -490,6 +500,7 @@ class Stage extends React.Component{
 		});
 		let player1;
 		let player2;
+		console.warn(state[2].join("") )
 		if(state[1][0] > 1){
 			let p1 = dataInfo.fields[1].property;
 			player1 = bs58.encode(this.props.stringToBytes(p1));
@@ -499,6 +510,9 @@ class Stage extends React.Component{
 			let p2 = dataInfo.fields[2].property;
 			player2 = bs58.encode(this.props.stringToBytes(p2));
 			this.setState({player2});
+		}
+		else if(state[2].join() === "0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0"){
+			iframe_game_channel.postMessage( "reset" );   
 		}
 		if(!this.state.isPlayer1){
 			if(player1){
@@ -537,12 +551,10 @@ class Stage extends React.Component{
 	}
 	
 	async playMusic(){
-		if(!this.state.backroundMusic){
+		if(!this.state.backroundMusic && this.props.enableMusic){
 			this.setState({backgroundMusic:"./Sounds/2020-07-05_-_Dragon_Boss_Fight_-_David_Fesliyan.mp3"});
 			let audio = document.getElementById("backgroundMusic");
-			if(window.location.href.search("localhost") === -1){	
-				return await audio.play();
-			}
+			return await audio.play();
 		}
 	}
 	
@@ -616,7 +628,7 @@ class Stage extends React.Component{
 			"method":"accountSubscribe",
 			"params":[]
 		}
-		message.params = [this.props.GAME_ACCOUNT,{"encoding":"jsonParsed"} ]; 
+		message.params = [this.props.GAME_ACCOUNT,{"encoding":"jsonParsed","commitment":"singleGossip"} ]; 
 		this.props.ws.send(JSON.stringify(message));		
 	}
 
@@ -628,25 +640,27 @@ class Stage extends React.Component{
 			let gameStart = data.slice(117,125);	
 			let startDate = get64BitTime(this.props.stringToBytes(gameStart));
 			this.setState({gameStart:startDate.getTime()},resolve);
-			console.log("game started @ ",startDate);
+			//console.log("game started @ ",startDate);
 		})
 	}
 
 	render(){
 		return(<div className="stageHolder">
-			<h3 id="title">			
+			<h3 id="title">		
+				<div className="pressStart">	
 				{
 					( this.state.timeLimit < 0 || this.state.gameStatus === 0  ) || this.state.winner > 0 ?
-					<Button block variant="danger" onClick={this.createChallenge}> PLAYER 1 PRESS START </Button> : null
+					<Button color="danger" block className=" waves-effect waves-light" onClick={this.createChallenge}> PLAYER 1 PRESS START </Button> : null
 				}
-				
-				◎ survivor *alpha*
+				</div>
+				<div className="pressStart">
 				{ 
 					(this.state.gameStatus === 1) ?
-					<Button block variant="danger" onClick={this.acceptChallenge}> PLAYER 2 PRESS START </Button> : null	
+					<Button color="danger" block className=" waves-effect waves-light" onClick={this.acceptChallenge}> PLAYER 2 PRESS START </Button> : null	
 				}
+				</div>
 			</h3>
-			<div><ProgressBar variant={this.state.timeLimit > 40 ? "primary" : "danger"} striped min={0} max={180} now={this.state.timeLimit} label={"TIME: "+Math.floor(this.state.timeLimit)+"s"} /></div>
+			<div><ProgressBar id="gameTimer" variant={this.state.timeLimit > 40 ? "primary" : "danger"} striped min={0} max={180} now={this.state.timeLimit} label={"TIME: "+Math.floor(this.state.timeLimit)+"s"} /></div>
 			<div id="moveTimeout">
 				<ProgressBar variant="warning" 
 					 striped min={0} max={10} 
@@ -662,7 +676,6 @@ class Stage extends React.Component{
 					<b>{this.state.player1 ? this.state.player1.slice(0,15) : null}</b> 
 					<br/><meter min={0} max={100} value={this.state.player1Super}/>
 					<br/><ProgressBar variant={this.state.player1Health > 40 ? "success" : "danger"}  min={0} max={100} now={this.state.player1Health} />
-					
 					<br/><marquee direction="right">{this.state.p1Action.toUpperCase()}</marquee >
 				</div>
 				<div id="player2Stats">
@@ -679,20 +692,19 @@ class Stage extends React.Component{
 					<div id="playerOptions">
 						<div>
 							<ButtonGroup>
-								{ this.state.isPlayer1 && this.state.player1DidCommit === 1 ? <Button block variant="primary" onClick={()=>{this.reveal("attack")}}>UNLEASH </Button>  : null }
-								<Button variant="success" onClick={()=>{this.commit("attack")}} >ATTACK</Button>
-								<Button variant="default" onClick={()=>{this.commit("gaurd")}} >BLOCK</Button>
-								<Button variant="warning" onClick={()=>{this.commit("counter")}} >COUNTER</Button>
-								<Button variant="info" onClick={()=>{this.commit("taunt")}} >TAUNT</Button>
-								{ this.state.isPlayer2 && this.state.player2DidCommit === 1 ? <Button block variant="primary" onClick={()=>{this.reveal("attack")}}>UNLEASH </Button>  : null }
+								{ this.state.isPlayer1 && this.state.player1DidCommit === 1 ? <Button block color="danger" onClick={()=>{this.reveal("attack")}}>UNLEASH </Button>  : null }
+								<Button color="success" onClick={()=>{this.commit("attack")}} >ATTACK</Button>
+								<Button color="default" onClick={()=>{this.commit("gaurd")}} >BLOCK</Button>
+								<Button color="warning" onClick={()=>{this.commit("counter")}} >COUNTER</Button>
+								<Button color="info" onClick={()=>{this.commit("taunt")}} >TAUNT</Button>
+								{ this.state.isPlayer2 && this.state.player2DidCommit === 1 ? <Button block color="danger" onClick={()=>{this.reveal("attack")}}>UNLEASH </Button>  : null }
 							</ButtonGroup>
 						</div>
 					</div>:null
 				}
 				<WebGLView src={"./solsurvivor/index.html"}/>
-		
+				<Wizard open={this.props.survivorHelpOpen} close={this.props.toggleSurvivorHelpOpen}/>
 			</div>
-			<Button block size="sm" variant="info" onClick={this.muteMusic}> <span role="img"> { !this.state.muted ? "🔇": "📢"} </span>  </Button>
 			<audio id="backgroundMusic" src={this.state.backgroundMusic} />
 		</div>)
 	}

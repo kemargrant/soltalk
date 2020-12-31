@@ -1,0 +1,112 @@
+//Import Icon css
+@import "./icons.scss";
+
+//light mode
+//@import "./bootstrap.scss";
+//@import "./app.scss";
+
+//rtl mode
+// @import "./bootstrap.scss";
+// @import "./app-rtl.scss";
+
+//dark mode
+@import "./bootstrap-dark.scss";
+@import "./app-dark.scss";
+
+.nav-item{
+    cursor: pointer;
+}
+
+.dropdown {
+    cursor: pointer;
+}
+
+.slick-slide{
+    margin-left: 8px;
+    margin-right: 8px;
+}
+
+.slick-arrow{
+    display: none;
+}
+
+.emoji-mart{
+    border: none!important;
+}
+
+.emoji-mart-preview{
+    display: none!important;
+}
+
+.emoji-mart-bar{
+    border: none!important;
+}
+
+.alice-carousel__stage-item {
+    margin-left: 8px;
+    margin-right: 8px;
+    width: 71px!important;
+}
+
+.input-file {
+    label{
+        margin-bottom: 0;
+    }        
+    input[type="file"] {
+        display: none;
+    }
+}
+
+.emoji-mart-light{
+    background-color: $card-bg!important;
+}
+
+.emoji-mart-search{
+    input{
+        background-color: $card-bg!important;
+        border-color: $card-border-color!important;
+    }
+}
+
+.emoji-mart-category-label{
+    span{
+        background-color: $card-bg!important;
+        color: $gray-700;
+    }
+}
+
+.emoji-mart-category{
+    .emoji-mart-emoji {
+        &:hover{
+            background-color: $gray-300!important;
+        }
+
+        &::before {
+            background-color: $gray-300!important;
+            border-radius: 100%!important;
+        }
+    }
+}
+.w-70
+{
+    width : 73%!important;
+}
+
+.ctext-wrap-content {
+    animation: flyIn 0.60s ease-in-out;
+}
+
+.blank-div {
+    width: 36px;
+    height: 36px;
+}
+
+.profile-user-dropdown{
+    .dropdown-item{
+        &.active {
+            color: $white;
+            text-decoration: none;
+            background-color: $primary;
+        }
+    }
+}

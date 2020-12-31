@@ -1,18 +1,6 @@
 import React from 'react';
-import Button from '@material-ui/core/Button';
-import Card from '@material-ui/core/Card';
-import CardActionArea from '@material-ui/core/CardActionArea';
-import CardActions from '@material-ui/core/CardActions';
-import CardContent from '@material-ui/core/CardContent';
-import CardMedia from '@material-ui/core/CardMedia';
-import FormControl from '@material-ui/core/FormControl';
-import InputLabel from '@material-ui/core/InputLabel';
-import InputAdornment from '@material-ui/core/InputAdornment';
-
 import Modal from '@material-ui/core/Modal';
-import OutlinedInput from '@material-ui/core/OutlinedInput';
-
-import Typography from '@material-ui/core/Typography';
+import {Card, CardBody, FormGroup, Input, Button, InputGroup, InputGroupAddon } from 'reactstrap';
 
 class ScanQR extends React.Component{
 	constructor(props){
@@ -115,28 +103,37 @@ class ScanQR extends React.Component{
 					{
 						this.state.contact ?
 						<Card className="qrCapture">
-							<CardActionArea>
-									<CardMedia
+							<CardBody>
+								<img
+									alt="card avatar"
 									className={"cardAvatar"}
-									image={"https://robohash.org/"+this.state.contact.split(" ")[0]+"?size=720x720"+this.props.avatarStyle}
-									title="card avatar"/>
-							<CardContent>
-								<Typography variant="body2" color="textSecondary" component="p">{this.state.contact.split(" ").join(" ")}</Typography>
-							</CardContent>
-							</CardActionArea>
-								<FormControl fullWidth className="amoutInput" variant="outlined">
-								<InputLabel htmlFor="outlined-adornment-amount">Amount</InputLabel>
-									<OutlinedInput
-									type="Number"
-									id="amountInSol"
-									startAdornment={<InputAdornment position="start">$</InputAdornment>}
-									labelWidth={60}
+									src={"https://robohash.org/"+this.state.contact.split(" ")[0]+"?size=720x720"+this.props.avatarStyle}
+									title="card avatar"
 								/>
-								</FormControl>	
-								<CardActions>
-									<Button size="small" variant="contained" color="primary" onClick={this.addQRContact} >Add Contact</Button>
-									<Button size="small" variant="contained" color="secondary" onClick={this.sendQRSol}>Send SOL</Button>
-							</CardActions>
+								<b>{this.state.contact.split(" ").join(" ")}</b>
+								<FormGroup className="mb-4">
+									<InputGroup className="mb-3 bg-soft-light input-group-lg rounded-lg">
+										<InputGroupAddon addonType="prepend">
+											<span className="input-group-text border-light text-muted">
+												<i className="ri-money-dollar-box-fill"></i>
+											</span>
+										</InputGroupAddon>
+										<Input
+											type="number"
+											id="amountInSol"
+											name="Amount"
+											className="form-control bg-soft-light border-light"
+											placeholder="Enter Almount In SOL"
+										/>	
+										<InputGroupAddon addonType="append">
+											<Button color="primary" onClick={this.sendQRSol}>Send Sol</Button>
+										</InputGroupAddon>
+										<InputGroupAddon addonType="append">
+											<Button color="info" onClick={this.addQRContact} >Add Contact</Button>
+										</InputGroupAddon>																						
+									</InputGroup>
+								</FormGroup>
+							</CardBody>
 						</Card>
 						:null
 					}	

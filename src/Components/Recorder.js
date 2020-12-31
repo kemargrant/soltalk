@@ -1,55 +1,61 @@
-import React from 'react';
-import { Modal } from 'react-bootstrap';
-import Button from '@material-ui/core/Button';
-import MicIcon from '@material-ui/icons/Mic';
+import React,{Component} from 'react';
+import { Button,Modal, ModalBody,ModalFooter } from 'reactstrap';
 
 /**
 * Audio recording component
 */		
 
-function Recorder(props){
-	let recordedMessage;
-	let mimeType = "audio/ogg;codecs=opus"
-	let msToRecord = 3000;	
+class Recorder extends Component {
+    constructor(props) {
+        super(props);
+        this.state = { 
+			displayModal:false,
+			recording:false,
+		}
+		this.assemble = this.assemble.bind(this);
+		this.closeModal = this.closeModal.bind(this);
+		this.setupRecorder = this.setupRecorder.bind(this);
+		this.uploadAudio = this.uploadAudio.bind(this);
+		this.recordedMessage = null;
+		this.mimeType = "audio/ogg;codecs=opus"
+		this.msToRecord = 3000;
+	}
+		
 	/**
 	* Create audio file
 	* @method assemble
 	* @param {Array} Array of blobs
 	* @return {null}
 	*/	
-	function assemble(recordedChunks){
-		recordedMessage = new Blob(recordedChunks, {
-			type: mimeType
+	assemble(recordedChunks){
+		this.recordedMessage = new Blob(recordedChunks, {
+			type: this.mimeType
 		});
 		let audioElement = document.getElementById("voiceNote");
-		audioElement.src = URL.createObjectURL(recordedMessage);
+		audioElement.src = URL.createObjectURL(this.recordedMessage);
 		return;
 	}
 	
 	/**
-	* Close audio modal
+	* Close Modal
 	* @method closeModal
-	* @param {Object} Button press event
 	* @return {null}
-	*/	
-	function closeModal(recordedChunks){
-		let audioModal = document.getElementById("audioModal");
-		audioModal.setAttribute("style","display:none");
-	}	
-
+	*/		
+	closeModal(){
+		this.setState({displayModal:false});
+		return;
+	}
+	
 	/**
 	* Setup media recorder
 	* @method setupRecorder
 	* @param {Event} Button click event
 	* @return {null}
 	*/		
-	async function setupRecorder(evt){
+	async setupRecorder(evt){
 		let target = evt.target;
 		target.disabled = true;	
 		let file = [];
-		let recordTime = document.getElementById("recordTime");
-		let audioModal = document.getElementById("audioModal");
-		let rt = 0;
 		let stream = await navigator.mediaDevices.getUserMedia({
 			audio:{
 				channelCount:{exact:1}
@@ -68,19 +74,14 @@ function Recorder(props){
 				return file.push(event.data);
 			} 
 		}
+		this.setState({recording:true});
 		mediaRecorder.start(250);
-		let timer = setInterval(function(){
-			rt++;
-			recordTime.innerHTML = (msToRecord/1000) - rt;
-		},1000);
 		return setTimeout(()=>{
+			this.setState({displayModal:true,recording:false});
 			target.disabled = false;
 			mediaRecorder.stop();
-			audioModal.setAttribute("style","display:block;position:absolute;top:50vh;left:40%");
-			assemble(file);
-			clearInterval(timer);		
-			recordTime.innerHTML = (msToRecord/1000)-1;
-		},msToRecord);
+			this.assemble(file);
+		},this.msToRecord);
 	}
 	
 	/**
@@ -88,37 +89,29 @@ function Recorder(props){
 	* @method uploadAudio
 	* @return {null}
 	*/	
-	function uploadAudio(){
-		props.uploadAudioFile(recordedMessage,"audio.ogg")
+	uploadAudio(){
+		this.props.uploadAudioFile(this.recordedMessage,"audio.ogg")
 		.then(()=>{
-			let audioModal = document.getElementById("audioModal");
-			audioModal.setAttribute("style","display:none");
+			return this.setState({displayModal:false});
 		})
 		.catch(console.warn);
 		return;
 	}
 	
-	return(<div>
-		{
-			<Modal.Dialog id="audioModal" style={{display:"none"}}>
-				<Modal.Header >
-					<Modal.Title>Voice Note</Modal.Title>
-				</Modal.Header>
-
-				<Modal.Body>
-					<audio id="voiceNote" controls/>
-				</Modal.Body>
-
-				<Modal.Footer>
-					<Button variant="contained" onClick={closeModal}>Cancel</Button>
-					<Button variant="contained" onClick={uploadAudio}>Upload</Button>
-				</Modal.Footer>
-			</Modal.Dialog>
-		}
-		<Button color={props.color} variant={props.variant} onClick={setupRecorder}>
-			<MicIcon /> <b id="recordTime"> {(msToRecord/1000)-1} </b>s
-		</Button>
-	</div>)
+	render(){
+		return(<div>
+				<Modal id="audioModal" isOpen={this.state.displayModal} centered toggle={this.closeModal} >
+					<ModalBody>
+						<audio id="voiceNote" controls/>
+					</ModalBody>
+					<ModalFooter>
+						<Button type="button" color="link" onClick={this.closeModal}>Cancel</Button>
+						<Button color="primary" onClick={this.uploadAudio}>Upload</Button>
+					</ModalFooter>
+				</Modal>
+				<Button color={this.state.recording? "danger" : this.props.color} onClick={this.setupRecorder}> <i className="ri-mic-fill"></i> </Button>
+		</div>)
+	}
 }
 
 export { Recorder };

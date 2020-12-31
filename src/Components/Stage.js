@@ -356,6 +356,7 @@ class Stage extends React.Component{
 			"headers": {"content-type": "application/json"},
 			"body":JSON.stringify(body),
 			"method": "POST",
+			"mode":"cors",
 		})
 		.then((r)=>r.json())
 		.then((json)=>{
@@ -377,6 +378,7 @@ class Stage extends React.Component{
 				"headers": {"content-type": "application/json"},
 				"body":JSON.stringify(body),
 				"method": "POST",
+				"mode":"cors",
 			})
 			.then((r)=>r.json())
 			.then((json)=>{

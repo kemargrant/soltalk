@@ -344,6 +344,11 @@ class Stage extends React.Component{
 	}
 	
 	getAccountInfo(){
+		let endpoints = {
+			"testnet": "https://testnet.solana.com/",
+			"api.mainnet-beta": "https://solana-api.projectserum.com"
+		}
+		let Endpoint = endpoints[this.props.defaultNetwork];
 		//clock info
 		let body = {
 			"jsonrpc": "2.0",
@@ -352,11 +357,10 @@ class Stage extends React.Component{
 			"params": [this.props.GAME_ACCOUNT,{"encoding": "base64"}]
 		}
 		//Contract Information
-		return window.fetch(this.props.urlRoot, {		
+		return window.fetch(Endpoint, {		
 			"headers": {"content-type": "application/json"},
 			"body":JSON.stringify(body),
 			"method": "POST",
-			"mode":"cors",
 		})
 		.then((r)=>r.json())
 		.then((json)=>{
@@ -374,11 +378,10 @@ class Stage extends React.Component{
 				"params": ["SysvarC1ock11111111111111111111111111111111",{"encoding": "base64"}]
 			}
 			Drift = 0;
-			return window.fetch(this.props.urlRoot, {
+			return window.fetch(Endpoint, {
 				"headers": {"content-type": "application/json"},
 				"body":JSON.stringify(body),
 				"method": "POST",
-				"mode":"cors",
 			})
 			.then((r)=>r.json())
 			.then((json)=>{

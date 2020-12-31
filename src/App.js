@@ -104,8 +104,8 @@ async function establishConnection(network): Promise<void> {
 		urlRoot = "https://testnet.solana.com/";
 	}
 	else if(network === "api.mainnet-beta"){
-		urlRoot = "https://api.mainnet-beta.solana.com/";
-		//urlRoot = "https://solana-api.projectserum.com";
+		//urlRoot = "https://api.mainnet-beta.solana.com/";
+		urlRoot = "https://solana-api.projectserum.com";
 	}	
 	else if(network === "localhost"){
 		urlRoot = "http://localhost:8899";
@@ -1360,6 +1360,11 @@ class App extends React.Component{
 	* @return {null}
 	*/
 	getHistory(){
+		let endpoints = {
+			"testnet": "https://testnet.solana.com/",
+			"api.mainnet-beta": "https://solana-api.projectserum.com"
+		}
+		let Endpoint = endpoints[this.state.defaultNetwork];
 		return new Promise((resolve,reject)=>{
 			let getSignatures = {
 				"jsonrpc": "2.0",
@@ -1377,7 +1382,7 @@ class App extends React.Component{
 			}
 			let cursor = checkpoint();
 			requestIdleCallback(()=>{
-				return window.fetch("https://"+this.state.defaultNetwork+".solana.com/", {
+				return window.fetch(Endpoint, {
 					"headers": {"content-type": "application/json"},
 					"body":JSON.stringify(getSignatures),
 					"method": "POST",
@@ -1394,7 +1399,7 @@ class App extends React.Component{
 						getTransactions.params[0] = resp.result[i].signature;
 						await sleep(50);
 						console.log(i,resp.result.length,resp.result[i].signature);
-						await window.fetch("https://"+this.state.defaultNetwork+".solana.com/", {
+						await window.fetch(Endpoint, {
 							"headers": {"content-type": "application/json"},
 							"body":JSON.stringify(getTransactions),
 							"method": "POST",

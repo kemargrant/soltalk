@@ -8,14 +8,27 @@
 			a {
 				color: #f00;
 			}
+			body{width:100vw;height:100vh;overflow:hidden;}
 			.ac {  /* prevent dat-gui from being selected */
 				-webkit-user-select: none;
 				-moz-user-select: none;
 				-ms-user-select: none;
 				user-select: none;
 			}
+			#container{
+				background-image:url("./grid1.jpg");
+				background-size: auto;
+				background-position: bottom;
+			}
 			.no-pointer-events {
 				pointer-events: none;
+			}
+			#recordButton{
+				background:red;
+				color:black;
+				position:absolute;
+				bottom:0vh;
+				left:1vw;
 			}
 			.control-disabled {
 				color: #888;
@@ -24,33 +37,720 @@
 		</style>
 	</head>
 	<body>
-		<div id="container" style="overflow:hidden;height:90vh"></div>
+		<div id="container" style="overflow:hidden;height:100vh"><button style="color:white;font-size:medium;border:2px solid white;" id="recordButton">record</button></div>
 		<script type="module">
-			if(location.host.search("localhost") < 0){
+			function runningLocal(){
+				if(location.host.search("localhost") < 0){
+					return false;
+				}
+				return true;
+			}
+			if(!runningLocal()){
 				console.log = function(){}
 				console.warn = function(){}
 			}
-			console.log = function(){}
-			console.warn = function(){}
 			let attackSound = document.getElementById("attackSound");
 			let gaurdSound = document.getElementById("gaurdSound");
 			let deadSound = document.getElementById("deadSound");
 			let taunt1Sound = document.getElementById("taunt1Sound");
 			let taunt2Sound = document.getElementById("taunt2Sound");
-			import * as THREE from 'https://unpkg.com/three@0.122.0/build/three.module.js';
-			import { GUI } from 'https://unpkg.com/three@0.122.0/examples/jsm/libs/dat.gui.module.js';
+			import * as THREE from './three.js';
+			import { GUI } from './dat.gui.module.js';
+			import { GLTFLoader } from './GLTFLoader.js';
+			import { OrbitControls } from './OrbitControls.js';
+			import * as Utils from './util.js';
 
-			import { GLTFLoader } from 'https://unpkg.com/three@0.122.0/examples/jsm/loaders/GLTFLoader.js';
-			import { OrbitControls } from 'https://unpkg.com/three@0.122.0/examples/jsm/controls/OrbitControls.js';
-
+			let util = Utils.default;
+			let recordButton = document.getElementById("recordButton");
+			recordButton.onclick = util.Record;
 			let scene, renderer, camera;
-			let model, skeleton, mixer, mixer2,clock;
-
-			let attack,punch,gaurd,death,hitReaction,taunt,kick,counter,combo,idle
+			let model, model2, skeleton, mixer, mixer2,clock;
+			let player1,p1sphere,hips1;
+			let player2,p2sphere,hips2;
+			let p1Action;
+			let p2Action;
+			let attack,punch,gaurd,death,hitReaction,taunt,kick,FlyingKick,counter,combo,idle,current1,dancing1;
+			let attack2,punch2,gaurd2,death2,hitReaction2,hitReaction2_2,taunt2,FlyingKick2,kick2,counter2,combo2,idle2,current2,dancing2;
+			function hitBack(x,step,timeout,timeBetweenStep){
+				let current = x.position.z;
+				let interval = setInterval(()=>{ 
+						x.position.set(0,0,current-step);
+						current=x.position.z;
+					}
+				,timeBetweenStep);
+				return setTimeout(()=>{clearInterval(interval)},timeout);
+				
+			}
+			function beginMovie(){
+				if(current1){
+					current1.stop();
+					current1._mixer.stopAllAction();
+				}
+				if(current2){
+					current2.stop();
+					current2._mixer.stopAllAction();
+				}
+			}
+			function MOVIE(){
+				return {
+					"attack-attack":()=>{
+						console.log(util);
+						beginMovie();
+						player1.position.set(0,0,-50);
+						current1 = attack;
+						current2 = attack2;
+						current1.clampWhenFinished = true;
+						current2.clampWhenFinished = true;
+						current1.play();
+						current2.play();
+						attackSound.play();	
+						return setTimeout(()=>{
+							beginMovie();
+							current1.stop();
+							current2.stop();
+							current1 = hitReaction;
+							current2 = gaurd2;
+							current1.clampWhenFinished = true;
+							current2.clampWhenFinished = true;
+							current1.play();
+							current2.play();
+						},current1._clip.duration*510);
+					},
+					"attack-gaurd":()=>{
+						if(current1){
+							current1.stop();
+							current1._mixer.stopAllAction();
+							current1 = attack;
+							current1.clampWhenFinished = true;
+							current1.play();
+						}
+						if(current2){
+							return setTimeout(()=>{
+								current2.stop();
+								current2._mixer.stopAllAction();
+								current2 = gaurd2;
+								current2.clampWhenFinished = true;
+								attackSound.play();	
+								current2.play();
+							},current1._clip.duration*250);	
+						}
+					},
+					"gaurd-attack":()=>{
+						if(current2){
+							current2.stop();
+							current2._mixer.stopAllAction();
+							current2 = attack2;
+							current2.clampWhenFinished = true;
+							current2.play();
+						}
+						if(current1){
+							player1.position.set(0,0,-100);
+							return setTimeout(()=>{
+								current1.stop();
+								current1._mixer.stopAllAction();
+								current1 = gaurd;
+								current1.clampWhenFinished = true;
+								attackSound.play();	
+								current1.play();
+							},current2._clip.duration*450);	
+						}
+					},
+					"attack-counter":()=>{
+						beginMovie();
+						player1.position.set(0,0,-55);
+						current1 = attack;
+						current2 = counter2;
+						current1.clampWhenFinished = true;
+						current2.clampWhenFinished = true;
+						current1.play();
+						attackSound.play();	
+						current2.play();
+						return setTimeout(()=>{
+							hitBack(player1,10,450,100);
+							current1.stop();
+							current1 = hitReaction;
+							current1.clampWhenFinished = true;
+							current1.play();
+							attackSound.play();	
+						},current2._clip.duration*550);
+					},
+					"counter-attack":()=>{
+						beginMovie();
+						player1.position.set(0,0,-55);
+						current1 = counter;
+						current2 = attack2;
+						current1.clampWhenFinished = true;
+						current2.clampWhenFinished = true;
+						current1.play();
+						attackSound.play();	
+						current2.play();
+						return setTimeout(()=>{
+							hitBack(player2,-15,450,100);
+							current2.stop();
+							current2 = hitReaction2;
+							current2.clampWhenFinished = true;
+							current2.play();
+							attackSound.play();	
+						},current1._clip.duration*580);
+					},
+					"attack-hit":()=>{
+						if(current1){
+							current1.stop();
+							current1._mixer.stopAllAction();
+							current1 = attack;
+							current1.clampWhenFinished = true;
+							current1.play();
+						}
+						if(current2){
+							return setTimeout(()=>{
+								hitBack(player2,-5,150,100);
+								current2.stop();
+								current2._mixer.stopAllAction();
+								current2 = hitReaction2;
+								current2.clampWhenFinished = true;
+								attackSound.play();	
+								current2.play();
+							},current1._clip.duration*250);	
+						}
+					},	
+					"hit-attack":()=>{
+						if(current2){
+							current2.stop();
+							current2._mixer.stopAllAction();
+							current2 = attack2;
+							current2.clampWhenFinished = true;
+							current2.play();
+						}
+						if(current1){
+							player1.position.set(0,0,-75);
+							return setTimeout(()=>{
+								hitBack(player1,5,150,100);
+								current1.stop();
+								current1._mixer.stopAllAction();
+								current1 = hitReaction;
+								current1.clampWhenFinished = true;
+								attackSound.play();	
+								current1.play();
+							},current2._clip.duration*250);	
+						}
+					},								
+					"attack-taunt":()=>{
+						return MOVIE()["attack-hit"]();
+					},
+					"taunt-attack":()=>{
+						return MOVIE()["hit-attack"]();
+					},					
+					"attack-idle":()=>{
+						return MOVIE()["attack-hit"]();
+					},
+					"idle-attack":()=>{
+						return MOVIE()["hit-attack"]();
+					},
+					"attack-dead":()=>{
+						if(current1){
+							player1.position.set(0,0,-110);
+							current1.stop();
+							current1._mixer.stopAllAction();
+							current1 = FlyingKick;
+							current1.clampWhenFinished = true;
+							current1.play();
+						}
+						if(current2){
+							player2.position.set(0,0,110);
+							return setTimeout(()=>{
+								hitBack(player2,-15,450,100);
+								current2.stop();
+								current2._mixer.stopAllAction();
+								current2 = death2;
+								current2.clampWhenFinished = true;
+								attackSound.play();	
+								deadSound.play();
+								current2.play();
+							},current1._clip.duration*250);	
+						}
+					},
+					"dead-attack":()=>{
+						if(current2){
+							player2.position.set(0,0,120);
+							current2.stop();
+							current2._mixer.stopAllAction();
+							current2 = FlyingKick2;
+							current2.clampWhenFinished = true;
+							current2.play();
+						}
+						if(current1){
+							player1.position.set(0,0,-120);
+							return setTimeout(()=>{
+								hitBack(player1,5,450,100);
+								current1.stop();
+								current1._mixer.stopAllAction();
+								current1 = death;
+								current1.clampWhenFinished = true;
+								attackSound.play();	
+								deadSound.play();
+								current1.play();
+							},current2._clip.duration*450);	
+						}
+					},
+					"gaurd-gaurd":()=>{
+						if(current1){
+							current1.stop();
+							current1._mixer.stopAllAction();
+							current1 = gaurd;
+							current1.clampWhenFinished = true;
+							current1.play();
+						}
+						if(current2){
+							current2.stop();
+							current2._mixer.stopAllAction();
+							current2 = gaurd2;
+							current2.clampWhenFinished = true;
+							current2.play();
+						}						
+					},
+					"gaurd-counter":()=>{
+						if(current2){
+							current2.stop();
+							current2._mixer.stopAllAction();
+							current2 = counter2;
+							current2.clampWhenFinished = true;
+							current2.play();
+						}
+						if(current1){	
+							player1.position.set(0,0,-55);
+							return setTimeout(()=>{
+								current1.stop();
+								current1._mixer.stopAllAction();
+								hitBack(player1,10,550,90);
+								current1 = gaurd;
+								current1.clampWhenFinished = true;
+								current1.play();
+								attackSound.play();	
+							},current2._clip.duration*550);	
+						}				
+					},
+					"counter-gaurd":()=>{
+						if(current1){
+							current1.stop();
+							current1._mixer.stopAllAction();
+							current1 = counter;
+							current1.clampWhenFinished = true;
+							current1.play();							
+						}	
+						if(current2){
+							player2.position.set(0,0,55);
+							return setTimeout(()=>{
+								current2.stop();
+								current2._mixer.stopAllAction();
+								hitBack(player2,-10,550,90);
+								current2 = gaurd2;
+								current2.clampWhenFinished = true;
+								current2.play();
+								attackSound.play();	
+							},current1._clip.duration*550);		
+						}	
+					},
+					"gaurd-taunt":()=>{
+						if(current1){
+							current1.stop();
+							current1._mixer.stopAllAction();
+							current1 = gaurd;
+							current1.clampWhenFinished = true;
+							current1.play();	
+							taunt2Sound.play();						
+						}	
+						if(current2){
+							current2.stop();
+							current2._mixer.stopAllAction();
+							current2 = taunt2;
+							current2.clampWhenFinished = true;
+							current2.play();	
+							
+						}	
+					},
+					"taunt-gaurd":()=>{
+						if(current1){
+							current1.stop();
+							current1._mixer.stopAllAction();
+							current1 = taunt;
+							current1.clampWhenFinished = true;
+							current1.play();		
+							taunt1Sound.play();						
+						}	
+						if(current2){
+							current2.stop();
+							current2._mixer.stopAllAction();
+							current2 = gaurd2;
+							current2.clampWhenFinished = true;
+							current2.play();	
+						}	
+					},
+					"gaurd-idle":()=>{
+						if(current1){
+							current1.stop();
+							current1._mixer.stopAllAction();
+							current1 = gaurd;
+							current1.clampWhenFinished = true;
+							current1.play();	
+						}	
+					},
+					"idle-gaurd":()=>{
+						if(current2){
+							current2.stop();
+							current2._mixer.stopAllAction();
+							current2 = gaurd2;
+							current2.clampWhenFinished = true;
+							current2.play();	
+						}	
+					},
+					"gaurd-dead":()=>{
+						if(current1){
+							player1.position.set(0,0,0);
+							current1.stop();
+							current1._mixer.stopAllAction();
+							current1 = counter;
+							current1.clampWhenFinished = true;
+							current1.play();
+							attackSound.play();
+							setTimeout(()=>{
+								taunt.clampWhenFinished = true;
+								taunt.play();
+								taunt1Sound.play();
+								taunt.crossFadeFrom(current1,0.5);
+								setTimeout(()=>{idle.play();taunt.crossFadeTo(idle,0);taunt.stop();},taunt._clip.duration*1000);
+							},current1._clip.duration*440)	
+						}
+						if(current2){
+							setTimeout(()=>{
+								current2.stop();
+								current2._mixer.stopAllAction();
+								current2 = death2;
+								current2.clampWhenFinished = true;
+								current2.play();
+							},current1._clip.duration*440);
+						}	
+					},
+					"dead-gaurd":()=>{
+						if(current2){
+							current2.stop();
+							current2._mixer.stopAllAction();
+							current2 = counter2;
+							current2.clampWhenFinished = true;
+							current2.play();
+							attackSound.play();
+							setTimeout(()=>{
+								taunt2.clampWhenFinished = true;
+								taunt2.play();
+								taunt2Sound.play();
+								taunt2.crossFadeFrom(current2,0.5);
+								setTimeout(()=>{idle2.play();taunt2.crossFadeTo(idle2,0);taunt2.stop();},taunt2._clip.duration*1000);
+							},current2._clip.duration*440)	
+						}
+						if(current1){
+							setTimeout(()=>{
+								current1.stop();
+								current1._mixer.stopAllAction();
+								current1 = death;
+								current1.clampWhenFinished = true;
+								current1.play();
+							},current2._clip.duration*440);
+						}	
+					},
+					"counter-counter":()=>{
+						beginMovie()
+						if(current1){
+							current1 = counter;
+							current1.clampWhenFinished = true;
+							current1.play();
+							setTimeout(()=>{
+								current1.crossFadeTo(idle,0.5);
+								current1 = idle;
+								current1.play();
+							},current1._clip.duration*410)	
+						}
+						if(current2){
+							current2 = counter2;
+							current2.clampWhenFinished = true;
+							current2.play();
+							setTimeout(()=>{
+								current2.crossFadeTo(idle2,0.5);
+								current2 = idle2;
+								current2.play();
+							},current2._clip.duration*410)	
+						}
+					},
+					"counter-taunt":()=>{
+						beginMovie()
+						if(current1){
+							current1 = counter;
+							current1.clampWhenFinished = true;
+							current1.play();
+							setTimeout(()=>{
+								current1.crossFadeTo(idle,0.5);
+								current1 = idle;
+								current1.play();
+							},current1._clip.duration*410)	
+						}
+						if(current2){
+							current2 = taunt2;
+							current2.clampWhenFinished = true;
+							current2.play();
+							taunt2Sound.play();
+							setTimeout(()=>{
+								current2.crossFadeTo(idle2,0.5);
+								current2 = idle2;
+								current2.play();
+							},current2._clip.duration*410)	
+						}
+					},
+					"taunt-counter":()=>{
+						beginMovie()
+						if(current2){
+							current2 = counter2;
+							current2.clampWhenFinished = true;
+							current2.play();
+							setTimeout(()=>{
+								current2.crossFadeTo(idle2,0.5);
+								current2 = idle2;
+								current2.play();
+							},current2._clip.duration*410)	
+						}
+						if(current1){
+							current1 = taunt;
+							current1.clampWhenFinished = true;
+							current1.play();
+							taunt1Sound.play();
+							setTimeout(()=>{
+								current1.crossFadeTo(idle2,0.5);
+								current1 = idle;
+								current1.play();
+							},current1._clip.duration*410)	
+						}
+					},
+					"counter-idle":()=>{
+						if(current1){
+							current1.stop();
+							current1._mixer.stopAllAction();
+							current1 = counter;
+							current1.clampWhenFinished = true;
+							current1.play();
+							setTimeout(()=>{
+								current1.crossFadeTo(idle,0.5);
+								current1 = idle;
+								current1.play();
+							},current1._clip.duration*410)	
+						}
+					},
+					"idle-counter":()=>{
+						if(current2){
+							current2.stop();
+							current2._mixer.stopAllAction();
+							current2 = counter2;
+							current2.clampWhenFinished = true;
+							current2.play();
+							setTimeout(()=>{
+								current2.crossFadeTo(idle2,0.5);
+								current2 = idle2;
+								current2.play();
+							},current2._clip.duration*410)	
+						}
+					},	
+					"counter-dead":()=>{
+						beginMovie();
+						player1.position.set(0,0,-60);
+						player2.position.set(0,0,60);
+						current1 = counter;
+						current2 = attack2;
+						current1.clampWhenFinished = true;
+						current2.clampWhenFinished = true;
+						current1.play();
+						attackSound.play();	
+						current2.play();
+						return setTimeout(()=>{
+							hitBack(player2,-15,450,100);
+							current2.stop();
+							current2 = death2;
+							current2.clampWhenFinished = true;
+							current2.play();
+							attackSound.play();
+							deadSound.play();
+						},current1._clip.duration*580);
+					},	
+					"dead-counter":()=>{
+						beginMovie();
+						player1.position.set(0,0,-30);
+						current2 = counter2;
+						current1 = attack;
+						current1.clampWhenFinished = true;
+						current2.clampWhenFinished = true;
+						current1.play();
+						attackSound.play();	
+						current2.play();
+						return setTimeout(()=>{
+							hitBack(player1,12,450,100);
+							current1.stop();
+							current1 = death;
+							current1.clampWhenFinished = true;
+							current1.play();
+							attackSound.play();	
+							deadSound.play();
+						},current2._clip.duration*550);
+					},	
+					"taunt-taunt":()=>{
+						beginMovie();
+						if(current1){
+							current1 = taunt;
+							current1.clampWhenFinished = true;
+							current1.play();
+							taunt1Sound.play();
+						}
+						if(current2){
+							current2 = taunt2;
+							current2.clampWhenFinished = true;
+							current2.play();
+							taunt2Sound.play();
+						}						
+					},
+					"taunt-idle":()=>{
+						if(current1){
+							current1.stop();
+							current1._mixer.stopAllAction();
+							current1 = taunt;
+							current1.clampWhenFinished = true;
+							current1.play();
+							taunt1Sound.play();
+						}												
+					},	
+					"idle-taunt":()=>{
+						if(current2){
+							current2.stop();
+							current2._mixer.stopAllAction();
+							current2 = taunt2;
+							current2.clampWhenFinished = true;
+							current2.play();
+							taunt2Sound.play();
+						}												
+					},	
+					"taunt-dead":()=>{
+						if(current1){
+							current1.stop();
+							current1._mixer.stopAllAction();
+							current1 = taunt;
+							current1.clampWhenFinished = true;
+							current1.play();
+							taunt1Sound.play();
+						}
+						if(current2){
+							setTimeout(()=>{
+								current2.stop();
+								current2._mixer.stopAllAction();
+								current2 = death2;
+								current2.clampWhenFinished = true;
+								current2.play();
+								deadSound.play();
+							},current1._clip.duration*500);
+						}													
+					},	
+					"dead-taunt":()=>{
+						if(current2){
+							current2.stop();
+							current2._mixer.stopAllAction();
+							current2 = taunt2;
+							current2.clampWhenFinished = true;
+							current2.play();
+							taunt2Sound.play();
+						}
+						if(current1){
+							setTimeout(()=>{
+								current1.stop();
+								current1._mixer.stopAllAction();
+								current1 = death;
+								current1.clampWhenFinished = true;
+								current1.play();
+								deadSound.play();
+							},current2._clip.duration*800);
+						}													
+					},
+					"idle-idle":function(){},
+					"idle-dead":()=>{
+						if(current2){
+							current2.stop();
+							current2._mixer.stopAllAction();
+							current2 = death2;
+							current2.clampWhenFinished = true;
+							current2.play();
+							deadSound.play();
+						}
+					},
+					"dead-idle":()=>{
+						if(current1){
+							current1.stop();
+							current1._mixer.stopAllAction();
+							current1 = death;
+							current1.clampWhenFinished = true;
+							current1.play();
+							deadSound.play();
+						}
+					},
+					"dead-dead":()=>{
+						if(current1){
+							current1.stop();
+							current1._mixer.stopAllAction();
+							current1 = death;
+							current1.clampWhenFinished = true;
+							current1.play();
+							deadSound.play();
+						}
+						if(current2){
+							current2.stop();
+							current2._mixer.stopAllAction();
+							current2 = death2;
+							current2.clampWhenFinished = true;
+							current2.play();
+							deadSound.play();
+						}						
+					},
+					"reset":()=>{
+						if(current1){
+							resetPosition(player1,true);
+							current1.stop();
+							current1._mixer.stopAllAction();
+							current1 = idle;
+							current1.play();
+						}
+						if(current2){
+							resetPosition(player2,false,true);
+							current2.stop();
+							current2._mixer.stopAllAction();
+							current2 = idle2;
+							current2.play();
+						}						
+					},																	
+																																																																																																	
+				}
+				
+			}
+			function resetPlayers(){
+				
+			}
+			const bc = new BroadcastChannel('game_commands');
+			bc.onmessage = async (ev)=> { 
+				if(ev && ev.data){
+					console.log(ev.data);
+					let msg = ev.data.split("-"); 
+					return MOVIE()[ev.data]();
+				}
+			}
+	
 			init();
-			
-			async function sleep(time){
-				await new Promise((resolve,reject)=>{return setTimeout(resolve,time);})
+			function resetPosition(m,p1,p2){
+				return new Promise((resolve,reject)=>{ 
+					let ix=0; let iy=0;let iz;
+					if(p1){iz = -41;}
+					else{iz = 41;}
+					console.log("resetting:",p1,p2,iz);
+					return resolve(m.position.set(ix,iy,iz));
+				;})
 			}
 			
 			function init() {
@@ -65,8 +765,7 @@
 
 				camera.lookAt( 0, 1, 0 );
 				clock = new THREE.Clock();
-
-				scene = new THREE.Scene();		
+				scene = new THREE.Scene();	
 				
 				const hemiLight = new THREE.HemisphereLight( 0xffffff, 0x444444 );
 				hemiLight.position.set( 0, 20, 0 );
@@ -91,369 +790,114 @@
 
 				const loader = new GLTFLoader();
 				
-				loader.load( 'models/soldier.glb', function ( gltf ) {
-
-					model = gltf.scene;
-					scene.add( model );
-
-					model.traverse( function ( object ) {
-
+				loader.load( 'models/soldier.gltf', function ( gltf ) {
+					player1 = gltf.scene;
+					hips1 =  player1.children[0].children[0].children[0].children[0].children[0].position;
+					scene.add( player1 );
+					player1.traverse( function ( object ) {
 						if ( object.isMesh ) object.castShadow = true;
-						model.position.set(0,0,-40);
-
-					} );
-
+						player1.position.set(0,0,-41);
+					});
 					//
 
-					skeleton = new THREE.SkeletonHelper( model );
+					skeleton = new THREE.SkeletonHelper( player1 );
 					skeleton.visible = false;
 					scene.add( skeleton );
 					const animations = gltf.animations;
-					console.log("halo",animations);
-					
-					mixer = new THREE.AnimationMixer( model );
 
-					attack = mixer.clipAction(THREE.AnimationClip.findByName( animations, 'punch' ) );
-					gaurd = mixer.clipAction(THREE.AnimationClip.findByName( animations, 'block' ) );
+					console.log("chief",animations);
+					///tracking ball
+					//p1sphere = util.createSphere(16,32,32,"blue",THREE);
+					//scene.add( p1sphere );
+					//tracking ball
+
+					mixer = new THREE.AnimationMixer( player1 );
+
+					attack = mixer.clipAction(THREE.AnimationClip.findByName( animations, 'Uppercut' ) );
+					gaurd = mixer.clipAction(THREE.AnimationClip.findByName( animations, 'impact' ) );
 					idle = mixer.clipAction(THREE.AnimationClip.findByName( animations, 'Idle' ) );
 					death = mixer.clipAction(THREE.AnimationClip.findByName( animations, 'FallingBackDeath' ) );
 					taunt = mixer.clipAction(THREE.AnimationClip.findByName( animations, 'Taunt' ) );
 					hitReaction = mixer.clipAction(THREE.AnimationClip.findByName( animations, 'HitReaction' ) );
 					kick = mixer.clipAction(THREE.AnimationClip.findByName( animations, 'Kicking' ) );
+					FlyingKick = mixer.clipAction(THREE.AnimationClip.findByName( animations, 'FlyingKick' ) );
 					counter = mixer.clipAction(THREE.AnimationClip.findByName( animations, 'BackFlipToUppercut' ) );
 					combo = mixer.clipAction(THREE.AnimationClip.findByName( animations, 'QuadPunch' ) );
-					let actions = [gaurd,death,hitReaction,taunt,kick,counter,combo,idle,attack];
-					let current = idle;
+					dancing1 = mixer.clipAction(THREE.AnimationClip.findByName( animations, 'dancing1' ) );
+					current1 = idle;
 					let que = [];
 
 					mixer.addEventListener( 'loop', function( e ) {
-							if(e.action._clip.name === "Idle"){return}
-							if(que.length < 1){
-								idle.enabled = true;
-								idle.play();
-								idle.crossFadeFrom(current,0);
-								current = idle;
-							}
-							else{
-								let temp = que.shift();
-								temp.play();
-								if(temp._clip.name === "HitReaction"){
-									attackSound.play();
-								}
-								current.crossFadeTo(temp,0.15);
-								current = temp;
-							}
-							
+						if(e.action._clip.name !== "Idle"){
+							idle.play();
+							current1.stop();
+							current1 = idle;
+							resetPosition(player1,true);
+						}
 					});
-					death.loop = 1;
-					death.clampWhenFinished = true;
-					death.repetitions = 1;	
-			
-					actions.map((item,i)=>{
-						
-						let button = document.createElement("button");
-						button.onclick = async()=>{
-							console.log(item);
-							if(!item.enabled){item.enabled = true;}
-							item.play();
-							item.crossFadeFrom(current,0);
+					if(death){
+						death.loop = 1;
+						death.clampWhenFinished = true;
+						death.repetitions = 1;	
+					}
 
-							current = item;
-						}
-						button.innerHTML = item._clip ? item._clip.name : i;
-						//document.body.prepend(button);
-					})
-					let Timeouts = [];
-					const returnToNormal = (item) =>{
-						return Timeouts.push(setTimeout(async()=>{
-							item._mixer.stopAllAction();
-							await sleep (5);
-							idle.play()
-						},item._clip.duration*1000));
-					}
-					const takeDamage = (item) =>{
-						return Timeouts.push(setTimeout(async()=>{
-							item._mixer.stopAllAction();
-							await sleep (5);
-							hitReaction.play();
-							attackSound.play();
-							returnToNormal(hitReaction);
-						},item._clip.duration*1000));
-					}	
-					const bc = new BroadcastChannel('game_commands');
-									
-					bc.onmessage = async (ev)=> { 
-						if(ev && ev.data){
-							let msg = ev.data.split("-"); 
-							let p1Action = msg[0];
-							let p2Action = msg[1]
-							let na;
-							idle._mixer.stopAllAction();
-							//Clear timeouts
-							try{
-								Timeouts.map((to)=>{
-									console.log("clearning timeouts");
-									return clearTimeout(to);
-								});
-							}
-							catch(e){console.log(e)}
-							await sleep(5);
-							console.log(p1Action,"vs",p2Action);
-							if(p1Action === "attack"){na = attack;}
-							if(p1Action === "gaurd"){na = gaurd}
-							if(p1Action === "counter"){na = counter}
-							if(p1Action === "taunt"){na = taunt; }
-							if(p1Action === "idle"){na = idle; }
-							if(p1Action === "dead"){
-								na = death;
-								if(p2Action === "counter"){
-									idle.play();
-									return setTimeout(()=>{
-										attackSound.play();
-										deadSound.play();
-										idle.stop();
-										death.play();
-										},na._clip.duration*1300);
-								}
-								attackSound.play();
-								deadSound.play();
-								return na.play()
-							}
-							if(p1Action === "counter" && (p2Action !== "attack" && p2Action !== "dead")){
-								na = idle;
-							}
-							current = na;
-							na.play();
-							if(p2Action !== "counter" && p2Action !== "attack"){
-								Timeouts.push(returnToNormal(na));
-							}
-							else if(p2Action === "attack" && (p1Action !== "counter" && p1Action !== "gaurd")){
-								console.log("(p1)both damage");
-								que.push(hitReaction);
-							}
-							else if(p2Action === "counter" && (p1Action === "attack" || p1Action === "dead")){
-								console.log("(p1),p2 counter");
-								//P1 Gets hit by a counter:
-								setTimeout(()=>{
-									hitReaction.play();
-									attackSound.play();
-									hitReaction.crossFadeFrom(current,0);
-									current = hitReaction;
-								},(counter._clip.duration * 1000)*0.55)
-								
-							}
-							else if(p2Action === "attack" && p1Action === "counter"){
-								console.log("p1counter");
-								Timeouts.push(returnToNormal(na));
-							}
-							else if(p2Action === "attack" && p1Action === "gaurd"){
-								console.log("p1gaurd");
-								Timeouts.push(returnToNormal(na));
-							}
-							else{
-								console.warn("unknown")
-								Timeouts.push(returnToNormal(na));
-							}
-							//taunt
-							if(p1Action === "taunt"){
-								taunt1Sound.play();
-							}
-						}
-					}
-					idle.play();
+					current1 = idle ? idle : dancing;
+					current1.play();
 					animate();
 				});
 
-				
-				
 				loader.load( 'models/knight.glb', function ( gltf ) {
-					let model = gltf.scene;
-					scene.add( model );
-					model.traverse( function ( object ) {
+					player2 = gltf.scene;
+					scene.add( player2 );
+					hips2 = player2.children[0].children[0].children[0].children[0].children[0].position;
+					player2.traverse( function ( object ) {
 						if ( object.isMesh ) {object.castShadow = true;}
-						model.position.set(0,0,70);
-						model.scale.set(4/5,4/5,4/5);
-						model.rotation.set(0,3.141,0);
+						player2.position.set(0,0,41);
+						player2.scale.set(4/5,4/5,4/5);
+						player2.rotation.set(0,3.141,0);
 					} );
 
-					let skeleton = new THREE.SkeletonHelper( model );
+					let skeleton = new THREE.SkeletonHelper( player2 );
 					skeleton.visible = false;
 					scene.add( skeleton );
 					const animations = gltf.animations;
 					console.log("knight",animations);
-					
-					mixer2 = new THREE.AnimationMixer( model );
+					//p2sphere = util.createSphere(16,32,32,"red",THREE);
+					//scene.add( p2sphere );
 
-					let attack2 = mixer2.clipAction(THREE.AnimationClip.findByName( animations, 'punch' ) );
-					let gaurd2 = mixer2.clipAction(THREE.AnimationClip.findByName( animations, 'gaurd' ) );
-					let idle2 = mixer2.clipAction(THREE.AnimationClip.findByName( animations, 'Idle' ) );
-					let death2 = mixer2.clipAction(THREE.AnimationClip.findByName( animations, 'FallingBackDeath' ) );
-					let taunt2 = mixer2.clipAction(THREE.AnimationClip.findByName( animations, 'Taunt' ) );
-					let hitReaction2 = mixer2.clipAction(THREE.AnimationClip.findByName( animations, 'HitReaction' ) );
-					let counter2 = mixer2.clipAction(THREE.AnimationClip.findByName( animations, 'BackFlipToUppercut' ) );
-					let combo2 = mixer2.clipAction(THREE.AnimationClip.findByName( animations, 'QuadPunch' ) );
-					let actions2 = [attack2,gaurd2,death2,hitReaction2,taunt2,counter2,combo2,idle2];
+					mixer2 = new THREE.AnimationMixer( player2 );
+
+					attack2 = mixer2.clipAction(THREE.AnimationClip.findByName( animations, 'Kick' ) );
+					gaurd2 = mixer2.clipAction(THREE.AnimationClip.findByName( animations, 'block' ) );
+					idle2 = mixer2.clipAction(THREE.AnimationClip.findByName( animations, 'Idle' ) );
+					death2 = mixer2.clipAction(THREE.AnimationClip.findByName( animations, 'FallingBackDeath' ) );
+					taunt2 = mixer2.clipAction(THREE.AnimationClip.findByName( animations, 'Taunt' ) );
+					hitReaction2 = mixer2.clipAction(THREE.AnimationClip.findByName( animations, 'HitReaction' ) );
+					hitReaction2_2 = mixer2.clipAction(THREE.AnimationClip.findByName( animations, 'GettingHitBackwards' ) );
+					counter2 = mixer2.clipAction(THREE.AnimationClip.findByName( animations, 'BackFlipToUppercut' ) );
+					combo2 = mixer2.clipAction(THREE.AnimationClip.findByName( animations, 'QuadPunch' ) );
+					FlyingKick2 = mixer2.clipAction(THREE.AnimationClip.findByName( animations, 'counterkick' ) );
 					
-					let current = idle2;
-					let que = []
+					current2 = idle2;
+
 					mixer2.addEventListener( 'loop', function( e ) {
-							if(e.action._clip.name === "Idle"){return}
-							if(que.length < 1){
-								idle2.enabled = true;
-								idle2.play();
-								idle2.crossFadeFrom(current,0);
-								current = idle2;
-							}
-							else{
-								let temp = que.shift();
-								temp.play();
-								if(temp._clip.name === "HitReaction"){
-									attackSound.play();
-								}
-								current.crossFadeTo(temp,0.15);
-								current = temp;
-							}
+						if(e.action._clip.name !== "Idle"){
+							idle2.play();
+							current2.stop();
+							current2 = idle2;
+							return resetPosition(player2,false,true);
+						}
 					});
 					death2.loop = 1;
 					death2.clampWhenFinished = true;
 					death2.repetitions = 1;	
-					
-					actions2.map((item,i)=>{
-						let button = document.createElement("button");
-						button.onclick = function(){
-							item._mixer.stopAllAction();
-							item.play();
-							setTimeout(()=>{
-								item._mixer.stopAllAction();
-								if(item._name !== "idle" && item._name !== "death"){
-									idle.play();
-								}
-							},item._clip.duration*1000);
-						}
-						button.innerHTML = item._clip ? item._clip.name+"-p2" : i
-						//document.body.prepend(button);
-					})
-
-					const bc = new BroadcastChannel('game_commands');
-					let Timeouts = [];
-					const returnToNormal = (item) =>{
-						return Timeouts.push(setTimeout(async()=>{
-							item._mixer.stopAllAction();
-							await sleep(5);
-							idle2.play()
-						},item._clip.duration*1000));
-					}
-					const takeDamage = (item) =>{
-						return Timeouts.push(setTimeout(async()=>{
-							item._mixer.stopAllAction();
-							await sleep(5);
-							hitReaction2.play();
-							attackSound.play();
-							returnToNormal(hitReaction2);
-						},item._clip.duration*1000));
-					}	
-					bc.onmessage =async (ev)=> { 
-						if(ev && ev.data){
-							let msg = ev.data.split("-"); 
-							let p1Action = msg[0];
-							let p2Action = msg[1]
-							let na;
-							idle2._mixer.stopAllAction();
-							//Clear timeouts
-							try{
-								Timeouts.map((to)=>{
-									console.log("clearning timeouts");
-									return clearTimeout(to);
-								});
-							}
-							catch(e){console.log(e)}
-							await sleep(10);
-							console.warn(p1Action,"vs",p2Action);
-							if(p2Action === "attack"){na = attack2;}
-							if(p2Action === "gaurd"){na = gaurd2}
-							if(p2Action === "counter"){na = counter2}
-							if(p2Action === "taunt"){na = taunt2; }
-							if(p2Action === "idle"){na = idle2; }
-							if(p2Action === "dead"){
-								na = death2;
-								if(p1Action === "counter"){
-									idle2.play();
-									return setTimeout(()=>{
-										attackSound.play();
-										deadSound.play();
-										idle2.stop();
-										death2.play();
-									},na._clip.duration*1300);
-								}
-								attackSound.play();
-								deadSound.play();
-								return na.play()
-							}
-							if(p2Action === "counter" && (p1Action !== "attack" && p1Action !== "dead") ){
-								na = idle2;
-							}
-							current = na;
-							na.play();
-							if(p1Action !== "counter" && p1Action !== "attack"){
-								Timeouts.push(returnToNormal(na));
-							}
-							else if(p1Action === "attack" && ( p2Action !== "counter" && p2Action !== "gaurd" )){
-								console.log("(p2),both damage");
-								que.push(hitReaction2);
-								//Timeouts.push(takeDamage(attack2));
-							}
-							else if(p1Action === "counter" && (p2Action === "attack" || p2Action === "dead" )){
-								console.log("p1 counter")
-								//P2 Gets hit by counter
-								setTimeout(()=>{
-									hitReaction2.play();
-									attackSound.play();
-									hitReaction2.crossFadeFrom(current,0);
-									current = hitReaction2;
-								},(counter2._clip.duration * 1000)*0.55)
-							}
-							else if(p1Action === "attack" && p2Action === "counter"){
-								console.log("p2counter");
-								Timeouts.push(returnToNormal(na));
-							}
-							else if(p1Action === "attack" && p2Action === "gaurd"){
-								console.log("p2gaurd");
-								Timeouts.push(returnToNormal(na));
-							}
-							else{
-								console.warn("unknown");
-								Timeouts.push(returnToNormal(na))
-							}
-							///
-							if(p2Action === "taunt"){
-								taunt2Sound.play();
-							}
-						}
-					}
-					idle2.play();
+					current2.play();
+					//animate();
 				});
 				
-				let t1 = ["attack","gaurd","counter","taunt","idle","dead"];
-				let outcomes = []
-				for(let i = 0;i < t1.length;i++){
-					for(let j = 0;j < t1.length;j++){
-						outcomes.push(t1[i] + "-"+t1[j])
-					}
+				if(runningLocal()){
+					util.createCommands();
 				}
-				let div =  document.createElement("div");
-				div.setAttribute("style","border:5px solid black");
-				let count = 0;
-				const bc = new BroadcastChannel('game_commands');
-				outcomes.map((item,i)=>{
-						let button = document.createElement("button");
-						button.innerHTML = item;
-						button.onclick =()=>{
-							bc.postMessage(item);
-						}
-						div.appendChild(button);
-						count++;
-				});
-				//document.body.prepend(div);	
 
 				//renderer = new THREE.WebGLRenderer( { antialias: true } );
 				renderer = new THREE.WebGLRenderer( { antialias: true,alpha:true } );
@@ -463,7 +907,10 @@
 				renderer.outputEncoding = THREE.sRGBEncoding;
 				renderer.shadowMap.enabled = true;
 				container.appendChild( renderer.domElement );
-				//const controls = new OrbitControls( camera, renderer.domElement );
+				//camera touch controls
+				if(runningLocal()){
+					const controls = new OrbitControls( camera, renderer.domElement );
+				}
 			}
 			
 			function onWindowResize() {
@@ -471,15 +918,17 @@
 				camera.updateProjectionMatrix();
 				renderer.setSize( window.innerWidth, window.innerHeight );
 			}
+			
 			let count = 0;
+			let normalRate = 1000/24
 			function animate() {
-				setTimeout(()=>{requestAnimationFrame( animate );},1000/24);
-				count++;
-				//if(count % 24 === 0){console.log(camera.position)}
 				let mixerUpdateDelta = clock.getDelta();
 				mixer.update( mixerUpdateDelta );
 				if(mixer2){mixer2.update( mixerUpdateDelta );}
 				renderer.render( scene, camera );
+				setTimeout(()=>{requestAnimationFrame( animate );},normalRate);
+				//count++;
+				//if(count % 24 === 0){console.log(camera.position)}
 			}
 		</script>
 		<audio id="attackSound" src="./sounds/attack.mp3">

@@ -30,6 +30,7 @@ import {
 import Wallet from '@project-serum/sol-wallet-adapter';
 import {sendAndConfirmTransaction} from './util/send-and-confirm-transaction';
 //Components
+import { SecureWallet } from './Components/SecureWallet';
 import { TransactionInfo } from './Components/TransactionInfo';
 
 import Layout from './Components/Layout/index.js';
@@ -405,6 +406,7 @@ class App extends React.Component{
 			showBalanceChange:false,
 			showSolanaQR:false,
 			showContactForm:false,
+			showLoginButtons:false,
 			solanaQRURL:"",
 			soltalkProgram:defaultProgram,
 			soltalkAccount:defaultChannel,
@@ -473,7 +475,6 @@ class App extends React.Component{
 		this.removeContact = this.removeContact.bind(this);
 		this.removeImportedAccount = this.removeImportedAccount.bind(this);		
 		this.removeRSAKeys = this.removeRSAKeys.bind(this);
-		this.renderResponsive = this.renderResponsive.bind(this);
 		
 		this.saveMessageHistory = this.saveMessageHistory.bind(this);
 		this.saveNewContact = this.saveNewContact.bind(this);	
@@ -488,6 +489,7 @@ class App extends React.Component{
 		
 		this.toggleContactsView = this.toggleContactsView.bind(this);
 		this.toggleChatView = this.toggleChatView.bind(this);
+		this.toggleLoginButtons = this.toggleLoginButtons.bind(this);		
 		this.togglePlayGame = this.togglePlayGame.bind(this);
 		this.toggleSettingsView = this.toggleSettingsView.bind(this);
 		this.toggleShowSolanaQR = this.toggleShowSolanaQR.bind(this);
@@ -2134,16 +2136,6 @@ class App extends React.Component{
 	}	
 	
 	/**
-	* Toggle between settings and viewing contacts
-	* @method showSolanaQR
-	* @return {Null}
-	*/			
-	async toggleShowSolanaQR(){
-		this.setState({showSolanaQR:!this.state.showSolanaQR});
-		return;
-	}		
-	
-	/**
 	* Toggle between chat view
 	* @method toggleChatView
 	* @return {Null}
@@ -2155,7 +2147,29 @@ class App extends React.Component{
 		}
 		this.setState({viewChat:!this.state.viewChat});
 		return;
-	}
+	}	
+	
+	/**
+	* Toggle showing login buttons
+	* @method toggleLoginButtons
+	* @return {Null}
+	*/			
+	async toggleLoginButtons(){
+		this.setState({showLoginButtons:!this.state.showLoginButtons});
+		return;
+	}	
+	
+	/**
+	* Toggle between showing QR code
+	* @method showSolanaQR
+	* @return {Null}
+	*/			
+	async toggleShowSolanaQR(){
+		this.setState({showSolanaQR:!this.state.showSolanaQR});
+		return;
+	}		
+	
+
 		
 	/**
 	* Toggle between contacts view
@@ -2388,13 +2402,8 @@ class App extends React.Component{
 		this.state.ws.send(JSON.stringify(rpcMessage));
 		return;
 	}	
-
-	/**
-   * Render Responsive page
-   * @method renderResponsive
-   * @return {Null}
-   */		
-	renderResponsive(){
+	
+	render(){
 		return (<div>
 			<Snackbar
 				anchorOrigin={{
@@ -2411,6 +2420,10 @@ class App extends React.Component{
 			</Snackbar>
 			{ this.state.transactionSignature ? <TransactionInfo resolveSignature={this.state.resolveSignature}/> : null }
 			{ this.state.loading ? <LinearProgress id="progressBar" now={this.state.loadingValue} label={this.state.loadingMessage}/>: null }
+			{ 
+				this.state.showLoginButtons && (!this.state.payerAccount && !this.state.localPayerAccount) ? 
+				<SecureWallet connectWallet={this.connectWallet} importKey={this.importKey} notify={this.notify} toggleLoginButtons={this.toggleLoginButtons}/> : null 
+			}
 			<Layout 
 				//Stage
 				_connection={connection}
@@ -2472,6 +2485,7 @@ class App extends React.Component{
 				sendSol={this.sendSol}
 				showSolanaQR={this.state.showSolanaQR}
 				solanaQRURL={this.state.solanaQRURL}
+				toggleLoginButtons={this.toggleLoginButtons}
 				toggleShowSolanaQR={this.toggleShowSolanaQR}
 				viewStyle={this.state.viewStyle}
 				updateAutoSaveHistory={this.updateAutoSaveHistory}
@@ -2481,9 +2495,6 @@ class App extends React.Component{
 				updateViewStyle={this.updateViewStyle}
 		/>
 		</div>)
-	}
-	render(){
-		return this.renderResponsive();
 	}
 }
 

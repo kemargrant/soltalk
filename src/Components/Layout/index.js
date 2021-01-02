@@ -1,11 +1,8 @@
 import React, { Component } from 'react';
-import { Button } from "reactstrap";
 //Import Components
 import LeftSidebarMenu from "./LeftSidebarMenu";
 import Dashboard from "../Dashboard/index";
-import { SecureWallet } from '../../Components/SecureWallet';
 import { Stage } from '../../Components/Stage';
-
 
 class Index extends Component {
     constructor(props) {
@@ -20,6 +17,7 @@ class Index extends Component {
 		if(window.location.pathname === "/sol-survivor"){
 			this.setTab({activeTab:"games"});
 			this.props.togglePlayGame();
+			this.props.toggleLoginButtons();
 		}
     }
     
@@ -43,30 +41,11 @@ class Index extends Component {
                 <div className="layout-wrapper d-lg-flex">
                     {/* left sidebar menu */}
                     <LeftSidebarMenu setActiveTab={this.setTab} activeTab={this.state.activeTab} avatar1={avatar1}  {...this.props} />
-                    { this.props.playGame ?
-						<div>
-						<AuxLogin {...this.props} />
-						<Stage {...this.props} /> 
-						</div>
-						: 
-						<Dashboard activeTab={this.state.activeTab} avatar1={avatar1} {...this.props} /> 
-					}
+                    { this.props.playGame ? <Stage {...this.props} /> : <Dashboard activeTab={this.state.activeTab} avatar1={avatar1} {...this.props} /> }
                 </div>
             </React.Fragment>
         );
     }
-}
-
-function AuxLogin(props){
-	return(<div>{
-			(!props.payerAccount && !props.localPayerAccount) ?
-			<div className="auxLogin">
-				<Button blk block className="btn btn-block" onClick={async()=>{return await props.connectWallet()}}><i className="ri-login-circle-line"></i> SOLLET </Button>
-				<br/>
-				<SecureWallet importKey={props.importKey} notify={props.notify}/>
-			</div>
-			:null
-		}</div>)
 }
 
 export default Index;

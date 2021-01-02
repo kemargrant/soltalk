@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { Dropdown, DropdownMenu, DropdownItem, DropdownToggle, Card, Media, Button,Input, Label } from "reactstrap";
+import { Dropdown,DropdownToggle, Card, Media, Button,Input, Label } from "reactstrap";
 import { ScanQR } from '../../../Components/ScanQR';
-import { SecureWallet } from '../../../Components/SecureWallet';
 import SimpleBar from "simplebar-react";
 
 //Import components
@@ -10,7 +9,6 @@ import CustomCollapse from "../components/CustomCollapse";
 //Import Images
 
 function Settings(props) {
-	const [dropdownOpen, setDropdownOpen] = useState(false);
 	const [isOpen1, setIsOpen1] = useState(true);
 	const [isOpen2, setIsOpen2] = useState(false);
 	const [isOpen3, setIsOpen3] = useState(false);
@@ -50,7 +48,6 @@ function Settings(props) {
 		setIsOpen2(false);
 	};
 
-	const toggle = () => setDropdownOpen(!dropdownOpen);
 	const proxyChangeNetwork = (evt)=>{
 		if(evt.currentTarget.checked){ return props.changeNetwork("api.mainnet-beta");}
 		return props.changeNetwork("testnet");
@@ -73,15 +70,10 @@ function Settings(props) {
 					<h5 className="font-size-16 mb-1 text-truncate"> {address} </h5>
 					{
 						(!props.payerAccount && !props.localPayerAccount) ?
-						<Dropdown isOpen={dropdownOpen} toggle={toggle} className="d-inline-block mb-1">
+						<Dropdown toggle={props.toggleLoginButtons} className="d-inline-block mb-1">
 							<DropdownToggle tag="a" className="text-muted pb-1 d-block" >
 								{t('CONNECT')} <i className="mdi mdi-chevron-down"></i>
 							</DropdownToggle>
-							
-							<DropdownMenu>
-								<DropdownItem onClick={async()=>{return await props.connectWallet()}}> <i className="ri-login-circle-line"></i> {t('SOLLET')} </DropdownItem>
-								<SecureWallet importKey={props.importKey} notify={props.notify}/>
-							</DropdownMenu>
 						</Dropdown>
 						:null
 					}

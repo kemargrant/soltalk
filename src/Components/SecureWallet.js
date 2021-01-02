@@ -174,12 +174,14 @@ class SecureWallet extends React.Component{
 	}
 	
 	render(){
-		return(<div>
+		return(<div className="loginButtons">
 		{
 			(!this.state.seedSaved && !this.state.restoringAccount)?
 			<div>
+				<Button color="primary" block onClick={async()=>{return await this.props.connectWallet()}}> <i className="ri-login-circle-line"></i> SOLLET </Button>
 				<Button color="info" block onClick={this.generateMnemonicAndSeed}> New Account </Button>
-				<Button color="danger" variant="outlined" block onClick={()=>{return this.setState({restoringAccount:true})}}> Restore Account </Button>
+				<Button color="primary" variant="outlined" block onClick={()=>{return this.setState({restoringAccount:true})}}> Restore Account </Button>
+				<Button color="danger" variant="outlined" block onClick={this.props.toggleLoginButtons}> Cancel </Button>
 				<div className="secureWalletCard">
 					<Row className="justify-content-center">
 						<Col md={8} lg={6} xl={5} >
@@ -233,7 +235,7 @@ class SecureWallet extends React.Component{
 												{
 													this.state.userPromise ?
 													<div id="secureButtons">
-														<Button id="cancelProtect" color="secondary" onClick={this.cancelPromise}>Cancel</Button>
+														<Button id="cancelProtect" color="danger" onClick={this.cancelPromise}>Cancel</Button>
 														<Button id="protectButton" color="primary" vonClick={this.storeMnemonicAndSeed}>Submit</Button>
 													</div>	
 													: null
@@ -251,6 +253,7 @@ class SecureWallet extends React.Component{
 		{
 			((this.state.seedSaved && !this.state.unlocked) && !this.state.restoringAccount) ?
 			<div>
+				<Button color="primary" block onClick={async()=>{return await this.props.connectWallet()}}> <i className="ri-login-circle-line"></i> SOLLET </Button>
 				<Input
 					id="pwd3"
 					type="password"
@@ -258,63 +261,60 @@ class SecureWallet extends React.Component{
 					onKeyDown={async (evt)=>{if(evt.keyCode === 13){evt.preventDefault(); return await this.unlockAccount();} }}
 				/>
 				<Button color="primary" block className=" waves-effect waves-light" onClick={async()=>{return await this.unlockAccount();}}> LOGIN </Button>
+				<Button color="danger" variant="outlined" block onClick={this.props.toggleLoginButtons}> Cancel </Button>
 			</div>
 			:null
 		}
 		{
 			this.state.restoringAccount ?
 			<div className="restoreWalletCard">
-				<Row className="justify-content-center">
-					<Col md={8} lg={6} xl={5}>
-						<Card>
-							<div>
-								<FormGroup className="mb-4">
-									<InputGroup className="mb-3 bg-soft-light input-group-lg rounded-lg">
-										<Input
-											type="text"
-											id="mnemonic"
-											name="mnemonic"
-											className="form-control bg-soft-light border-light"
-											placeholder="mnemonic"
-										/>																						
-									</InputGroup>						
-									<InputGroup className="mb-3 bg-soft-light input-group-lg rounded-lg">
-										<InputGroupAddon addonType="prepend">
-											<span className="input-group-text border-light text-muted">
-												<i className="ri-lock-2-line"></i>
-											</span>
-										</InputGroupAddon>
-										<Input
-											type="password"
-											id="pwd1"
-											name="password1"
-											className="form-control bg-soft-light border-light"
-											placeholder="New Password"
-										/>																						
-									</InputGroup>
-									<InputGroup className="mb-3 bg-soft-light input-group-lg rounded-lg">
-										<InputGroupAddon addonType="prepend">
-											<span className="input-group-text border-light text-muted">
-												<i className="ri-lock-2-line"></i>
-											</span>
-										</InputGroupAddon>
-										<Input
-											type="password"
-											id="pwd2"
-											name="password2"
-											className="form-control bg-soft-light border-light"
-											placeholder="Confirm Password"
-										/>																						
-									</InputGroup>
-								</FormGroup>
-							</div>
-							<div id="secureButtons">
-								<Button onClick={()=>{return this.setState({restoringAccount:false})}} color="secondary" variant="contained">cancel</Button>
-								<Button id="protectButton" onClick={async()=>{return await this.restoreAccount();}} color="primary" variant="contained">restore account</Button>
-							</div>	
-						</Card>
-					</Col>
-				</Row>
+				<Card>
+					<div>
+						<FormGroup className="mb-4">
+							<InputGroup className="mb-3 bg-soft-light input-group-lg rounded-lg">
+								<Input
+									type="text"
+									id="mnemonic"
+									name="mnemonic"
+									className="form-control bg-soft-light border-light"
+									placeholder="mnemonic"
+								/>																						
+							</InputGroup>						
+							<InputGroup className="mb-3 bg-soft-light input-group-lg rounded-lg">
+								<InputGroupAddon addonType="prepend">
+									<span className="input-group-text border-light text-muted">
+										<i className="ri-lock-2-line"></i>
+									</span>
+								</InputGroupAddon>
+								<Input
+									type="password"
+									id="pwd1"
+									name="password1"
+									className="form-control bg-soft-light border-light"
+									placeholder="New Password"
+								/>																						
+							</InputGroup>
+							<InputGroup className="mb-3 bg-soft-light input-group-lg rounded-lg">
+								<InputGroupAddon addonType="prepend">
+									<span className="input-group-text border-light text-muted">
+										<i className="ri-lock-2-line"></i>
+									</span>
+								</InputGroupAddon>
+								<Input
+									type="password"
+									id="pwd2"
+									name="password2"
+									className="form-control bg-soft-light border-light"
+									placeholder="Confirm Password"
+								/>																						
+							</InputGroup>
+						</FormGroup>
+					</div>
+					<div id="secureButtons">
+						<Button id="cancelRestore" onClick={()=>{return this.setState({restoringAccount:false})}} color="danger">cancel</Button>
+						<Button id="protectButton" onClick={async()=>{return await this.restoreAccount();}} color="primary">restore account</Button>
+					</div>	
+				</Card>
 			</div>
 			:null
 		}

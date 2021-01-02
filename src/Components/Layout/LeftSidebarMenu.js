@@ -104,7 +104,7 @@ function LeftSidebarMenu(props) {
 							:null
 						}
 						{
-							props.activeTab === "games"? 
+							( props.activeTab === "games" || (window.location.pathname === "/sol-survivor" && !prevTab) )? 
 								<NavItem id="gameHelp">
 									<NavLink id="pills-wizard-tab" onClick={props.toggleSurvivorHelpOpen}>
 										<i className="ri-question-line"></i>
@@ -113,7 +113,7 @@ function LeftSidebarMenu(props) {
 							:null
 						}
 						{
-							props.activeTab === "games"? 
+							props.activeTab === "games" ? 
 								<UncontrolledTooltip target="gameHelp" placement="top">
 									How to Play
 								</UncontrolledTooltip>	

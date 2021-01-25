@@ -111,7 +111,7 @@ async function establishConnection(network): Promise<void> {
 	else if(network === "localhost"){
 		urlRoot = "http://localhost:8899";
 	}
-	connection = new Connection(urlRoot, 'recent');
+	connection = new Connection(urlRoot, 'singleGossip');
 	const version = await connection.getVersion();
 	console.log('Connection to cluster established:', urlRoot, version);
 	return;
@@ -1965,11 +1965,12 @@ class App extends React.Component{
 		let txid;
 		try{
 			txid = await sendAndConfirmTransaction(
-				'createAccount',
+				'sendSol',
 				connection,
 				transaction,
 				this.state.localPayerAccount,
 			);
+			saveTransaction(txid,this.state.defaultNetwork,"sendSol").catch(console.warn);
 		}
 		catch(e){
 			this.notify("Error Sending Sol","error");

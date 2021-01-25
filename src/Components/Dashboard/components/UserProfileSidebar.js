@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Button, Card } from "reactstrap";
+import { Button, Card,Input } from "reactstrap";
 
 //Simple bar
 import SimpleBar from "simplebar-react";
@@ -11,15 +11,38 @@ function t(string){return string}
 
 function UserProfileSidebar(props) {
     const [isOpen1, setIsOpen1] = useState(true);
+    const [isOpen2, setIsOpen2] = useState(false);
 
     const toggleCollapse1 = () => {
         setIsOpen1(!isOpen1);
+        setIsOpen2(false);
+
     };
+    
+    const toggleCollapse2 = () => {
+        setIsOpen2(!isOpen2);
+        setIsOpen1(false);
+
+    };    
 
     // closes sidebar
     const closeuserSidebar=()=> {
         props.closeUserSidebar();
     }
+    
+    const proxySendSol = async ()=>{
+		let solAmount = document.getElementById("solAmount");
+		if(solAmount && solAmount.value){
+			if(!window.confirm(`Send ${solAmount.value} SOL to ${props.currentContact.publicKey}?`)){
+				return;
+			};
+			await props.sendSol(props.currentContact.publicKey,solAmount.value);
+			solAmount.value = "";
+		}
+		else{
+			return props.notify("Sol Not Sent","error");
+		}
+	}
 
     return (
         <React.Fragment>
@@ -56,11 +79,23 @@ function UserProfileSidebar(props) {
 									<div>
 										<p className="text-muted mb-1">{t('Address')}</p>
 										<h5 className="font-size-14"> {props.currentContact.publicKey}</h5>
-									</div>                                            <div>
+									</div>                                            
+									<div>
 										<p className="text-muted mb-1">{t('RSA Public Key')}</p>
 										<h5 className="font-size-14"> {props.currentContact.chatPublicKey}</h5>
 									</div>
 								</CustomCollapse>
+								<CustomCollapse
+									title = "Transfer"
+									iconClass = "ri-user-2-line"
+									isOpen={isOpen2}
+									toggleCollapse={toggleCollapse2}
+								>
+									<div>
+										<Input id="solAmount" type="value" placeholder="amount"/>
+										<Button color="primary" block onClick={proxySendSol}><i className="ri-send-plane-fill"></i> SEND SOL</Button>
+									</div>
+								</CustomCollapse>								
 						</Card>
 						{/* End About card */}
 					</div>

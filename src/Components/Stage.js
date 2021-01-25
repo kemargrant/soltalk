@@ -14,6 +14,9 @@ import { Wizard } from './Wizard';
 
 const sdbm = require('sdbm');
 
+//Set Interval to get data contract data
+var smoothData;
+
 var Drift = 0;
 function get64BitTime(byteArray){
 	if(!byteArray){return 0;}
@@ -132,13 +135,19 @@ class Stage extends React.Component{
 				return this.props.notify("Signing Error","error");
 			}
 			_transaction.addSignature(this.props.localPayerAccount.publicKey,signature);		
-			txid = await sendAndConfirmTransaction(
-				'acceptChallenge',
-				this.props._connection,
-				_transaction,
-				this.props.localPayerAccount,
-			);
+			try{
+				txid = await sendAndConfirmTransaction(
+					'acceptChallenge',
+					this.props._connection,
+					_transaction,
+					this.props.localPayerAccount,			
+				);
+			}
+			catch(e){
+				this.props.notify("Confirmation Timeout","error");
+			}
 		}
+		this.getAccountInfo();		
 		iframe_game_channel.postMessage( "idle-idle"); 
 		if(this.state.gameOver){
 			this.stateState({gameOver:false});
@@ -207,13 +216,19 @@ class Stage extends React.Component{
 				return this.props.notify("Signing Error","error");
 			}
 			_transaction.addSignature(this.props.localPayerAccount.publicKey,signature);		
-			txid = await sendAndConfirmTransaction(
-				'acceptChallenge',
-				this.props._connection,
-				_transaction,
-				this.props.localPayerAccount,
-			);
+			try{
+				txid = await sendAndConfirmTransaction(
+					'commit',
+					this.props._connection,
+					_transaction,
+					this.props.localPayerAccount,
+				);
+			}
+			catch(e){
+				this.props.notify("Confirmation Timeout","error");
+			}
 		}
+		this.getAccountInfo();		
 		this.props.setLoading(false);
 		this.props.saveTransaction(txid,this.props.defaultNetwork,"Sol-Survivor").catch(console.warn);
 		return txid;
@@ -221,6 +236,7 @@ class Stage extends React.Component{
 		
 	componentDidMount(){
 		document.title = "survivor(alpha)";
+		//smoothData = setInterval(this.getAccountInfo,10000);
 		this.playMusic().catch(console.warn);
 		react_game_channel.onmessage = (ev)=> { 
 			if(ev && ev.data){
@@ -258,24 +274,26 @@ class Stage extends React.Component{
 				*/	
 		},1000);		
 	}
+	componentWillUnmount(){
+		return clearInterval(smoothData);
+	}
+	
 	
 	countDownTimer(){
-		return requestIdleCallback(()=>{
-			return setTimeout(()=>{
-				let now = new Date().getTime();
-				if(this.state.moveTimer[0]){
-					let timeout = ( this.state.moveTimerExpiration - now )/1000 ;
-					if( timeout > 0){
-						this.setState({moveTimeoutValue:timeout});
-					}
+		return setTimeout(()=>{
+			let now = new Date().getTime();
+			if(this.state.moveTimer[0]){
+				let timeout = ( this.state.moveTimerExpiration - now )/1000 ;
+				if( timeout > 0){
+					this.setState({moveTimeoutValue:timeout});
 				}
-				if(this.state.gameStart){
-					let timeLimit = ((this.state.gameStart+(180*1000)) - now)/1000;
-					this.setState({timeLimit});
-				}
-				return this.countDownTimer();
-			},1000);
-		})
+			}
+			if(this.state.gameStart){
+				let timeLimit = ((this.state.gameStart+(180*1000)) - now)/1000;
+				this.setState({timeLimit});
+			}
+			return this.countDownTimer();
+		},1000);
 	}
 	
 	async createChallenge(){
@@ -326,14 +344,21 @@ class Stage extends React.Component{
 			if(!signature){
 				return this.props.notify("Signing Error","error");
 			}
-			_transaction.addSignature(this.props.localPayerAccount.publicKey,signature);		
-			txid = await sendAndConfirmTransaction(
-				'createChallenge',
-				this.props._connection,
-				_transaction,
-				this.props.localPayerAccount,
-			);
+			_transaction.addSignature(this.props.localPayerAccount.publicKey,signature);	
+			try{	
+				txid = await sendAndConfirmTransaction(
+					'createChallenge',
+					this.props._connection,
+					_transaction,
+					this.props.localPayerAccount,			
+				);
+			}
+			catch(e){
+				this.props.notify("Confirmation Timeout","error");
+				console.warn("Confirmation Timeout");
+			}
 		}
+		this.getAccountInfo();		
 		iframe_game_channel.postMessage( "idle-idle");  
 		if(this.state.gameOver){
 			this.setState({gameOver:false});
@@ -354,7 +379,7 @@ class Stage extends React.Component{
 			"jsonrpc": "2.0",
 			"id": 1,
 			"method": "getAccountInfo",
-			"params": [this.props.GAME_ACCOUNT,{"encoding": "base64"}]
+			"params": [this.props.GAME_ACCOUNT,{"encoding": "base64","commitment":"singleGossip"}]
 		}
 		//Contract Information
 		return window.fetch(Endpoint, {		
@@ -505,7 +530,6 @@ class Stage extends React.Component{
 		});
 		let player1;
 		let player2;
-		console.warn(state[2].join("") )
 		if(state[1][0] > 1){
 			let p1 = dataInfo.fields[1].property;
 			player1 = bs58.encode(this.props.stringToBytes(p1));
@@ -612,13 +636,19 @@ class Stage extends React.Component{
 				return this.props.notify("Signing Error","error");
 			}
 			_transaction.addSignature(this.props.localPayerAccount.publicKey,signature);		
-						txid = await sendAndConfirmTransaction(
-				'acceptChallenge',
-				this.props._connection,
-				_transaction,
-				this.props.localPayerAccount,
-			);
+			try{
+				txid = await sendAndConfirmTransaction(
+					'reveal',
+					this.props._connection,
+					_transaction,
+					this.props.localPayerAccount,
+				);
+			}
+			catch(e){
+				this.props.notify("Confirmation Timeout","error");
+			}
 		}
+		this.getAccountInfo();		
 		this.props.setLoading(false);
 		this.props.saveTransaction(txid,this.props.defaultNetwork,"Sol-Survivor").catch(console.warn);
 		return txid;
@@ -639,13 +669,14 @@ class Stage extends React.Component{
 
 	timeGame(data){
 		return new Promise((resolve,reject)=>{
+			console.log("Drift:",Drift);
 			if(Drift === 0){
 				return resolve( setTimeout(()=>{return this.timeGame(data)},1000) );
 			}
 			let gameStart = data.slice(117,125);	
 			let startDate = get64BitTime(this.props.stringToBytes(gameStart));
 			this.setState({gameStart:startDate.getTime()},resolve);
-			//console.log("game started @ ",startDate);
+			console.log("game started @ ",startDate);
 		})
 	}
 

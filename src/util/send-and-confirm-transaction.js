@@ -26,7 +26,7 @@ export async function sendAndConfirmTransaction(
     signers,
     {
       skipPreflight: true,
-      commitment: 'recent',
+      commitment: 'singleGossip',
       preflightCommitment: null,
     },
   );

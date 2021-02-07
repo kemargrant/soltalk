@@ -526,6 +526,32 @@ body {
 	background-size: cover;
 }
 
+.contractView{
+	background:black !important;
+	display:block;
+	font-size:large;
+	height:50vh;
+	margin:auto;
+	padding:1vw;	
+	width:100%;
+}
+
+#contractViewHolder{
+	left:33vw;
+	position:absolute;
+	width:33%;
+}
+
+.contractView .contractInfo{
+	height:100%;
+	overflow-y:scroll;
+
+}
+
+.contractView progress{
+	width:100%;
+}
+
 #gameTimer{
 	height:2vh;
 	font-size:medium;
@@ -639,13 +665,45 @@ iframe{
 	display:flex;
 }
 
-#title .pressStart .btn{
+.classicButton{
 	animation-name:pulse;
 	animation-direction:alternate;
 	animation-duration:0.8s;
     animation-iteration-count: infinite;	
     animation-delay:0.1s;
     animation-timing-function:linear;
+}
+
+#modeText{
+	font-size:large;
+}
+
+#wagerAmount{
+	display:block;
+	margin:auto;
+	width:5em;
+}
+
+#wagerButton{
+	animation-name:pulse2;
+	animation-direction:alternate;
+	animation-duration:0.8s;
+    animation-iteration-count: infinite;	
+    animation-delay:0.1s;
+    animation-timing-function:linear;
+    width:100vw;
+}
+
+.wagerDiv{
+	border: 1px solid white;
+	display:flex;
+	width:100%;
+}
+
+#wagerStats{
+	position:absolute;
+	right:0px;
+	bottom:10vh;
 }
 
 #title .pressStart{
@@ -657,7 +715,7 @@ iframe{
 /*End Stage*/
 
 ::-webkit-scrollbar {
-    width: 3px!important;
+    width: 5px!important;
     height: 3px!important;
 }
 
@@ -672,6 +730,11 @@ iframe{
 @keyframes pulse {
   from {background: radial-gradient(circle,red 0%, purple 60%, black 100%);}
   to {background: radial-gradient(circle,red 0%, purple 40%, black 100%);}
+}
+
+@keyframes pulse2 {
+  from {background: red;}
+  to {background: black;}
 }
 
 @keyframes pulsex {

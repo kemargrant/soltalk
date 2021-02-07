@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Dropdown,DropdownToggle, Card, Media, Button,Input, Label } from "reactstrap";
+import { ContractView } from '../../../Components/ContractView';
 import { ScanQR } from '../../../Components/ScanQR';
 import SimpleBar from "simplebar-react";
 
@@ -13,6 +14,8 @@ function Settings(props) {
 	const [isOpen2, setIsOpen2] = useState(false);
 	const [isOpen3, setIsOpen3] = useState(false);
 	const [isOpen4, setIsOpen4] = useState(false);
+	const [isOpen5, setIsOpen5] = useState(false);
+	const [ wager_address,setWagerAddress ] = useState("");
 
 	function t(string){return string}
 	
@@ -20,11 +23,17 @@ function Settings(props) {
 	if( props.payerAccount ){address = props.payerAccount.toBase58() }
 	else if(props.localPayerAccount){address = props.localPayerAccount.publicKey.toBase58() ;}
 	
+	const closeContractView =(wa)=>{
+		setWagerAddress("");
+		return;
+	}	
+	
 	const toggleCollapse1 = () => {
 		setIsOpen1(!isOpen1);
 		setIsOpen2(false);
 		setIsOpen3(false);
 		setIsOpen4(false);
+		setIsOpen5(false);		
 	};
 
 	const toggleCollapse2 = () => {
@@ -32,6 +41,7 @@ function Settings(props) {
 		setIsOpen1(false);
 		setIsOpen3(false);
 		setIsOpen4(false);
+		setIsOpen5(false);		
 	};
 
 	const toggleCollapse3 = () => {
@@ -39,20 +49,42 @@ function Settings(props) {
 		setIsOpen1(false);
 		setIsOpen2(false);
 		setIsOpen4(false);
+		setIsOpen5(false);		
 	};
 
 	const toggleCollapse4 = () => {
 		setIsOpen4(!isOpen4);
 		setIsOpen1(false);
-		setIsOpen3(false);
 		setIsOpen2(false);
+		setIsOpen3(false);
+		setIsOpen5(false);		
 	};
+
+	const toggleCollapse5 = () => {
+		setIsOpen5(!isOpen5);
+		setIsOpen1(false);
+		setIsOpen2(false);
+		setIsOpen3(false);
+		setIsOpen4(false);		
+	};
+	
+	const updateWagerAddress =(wa)=>{
+		setWagerAddress(wa);
+		return;
+	}
 
 	const proxyChangeNetwork = (evt)=>{
 		if(evt.currentTarget.checked){ return props.changeNetwork("api.mainnet-beta");}
 		return props.changeNetwork("testnet");
 	}
-		
+	
+	let wagers = window.localStorage.getItem("wagers");
+	if(wagers){
+		wagers = JSON.parse(wagers);
+	}
+	else{
+		wagers = [];
+	}
     return (<React.Fragment>
             <div>
 				<div className="px-4 pt-4">
@@ -335,11 +367,34 @@ function Settings(props) {
 						</Card>
 						{/* end Security card */}
 
+
+						<Card className="shadow-none border mb-2">
+							<CustomCollapse
+								title = "Wagers"
+								isOpen={isOpen4}
+								toggleCollapse={toggleCollapse4}
+							>						
+								<div>
+									{
+										wagers && wagers.length > 0 && wagers.map((k,ind)=>(
+										<Button block key={ind} onClick={()=>{ return updateWagerAddress(k);  }}> 
+										{k}
+										</Button>))
+									}
+								</div>
+								{ 
+									wager_address !== "" ?
+									<ContractView redeemContract={props.redeemContract} close={closeContractView} wager_address={wager_address} getContractInformation={props.getContractInformation} /> 
+									: null
+								}
+							</CustomCollapse>
+						</Card>
+
 						<Card className="shadow-none border mb-2">
 							<CustomCollapse
 								title = "About"
-								isOpen={isOpen4}
-								toggleCollapse={toggleCollapse4}
+								isOpen={isOpen5}
+								toggleCollapse={toggleCollapse5}
 							>
 								<div>
 									<div className="py-3">
@@ -358,7 +413,9 @@ function Settings(props) {
 					{/* end profile-setting-accordion */}
 				</SimpleBar>
 				{/* End User profile description */}
+			
 			</div>
+
         </React.Fragment>);
 }
 

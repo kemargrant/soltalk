@@ -36,7 +36,6 @@ class ContractView extends React.Component{
 	async redeemAndUpdate(){
 		try{
 			await this.props.redeemContract(this.state.bet.contractAccount.toBase58());
-			await this.getInfo();
 		}
 		catch(e){
 			console.log(e);
@@ -58,7 +57,7 @@ class ContractView extends React.Component{
 				</div>
 				<div className="mt-4">
 					<p className="text-muted mb-1"> End Time </p>
-					<h5 className="font-size-14"> { new Date(this.state.bet.endTime).toString().toLocaleString() } </h5>
+					<h5 className="font-size-14"> { new Date(this.state.bet.endTime).toLocaleString() } </h5>
 				</div>
 				<div className="mt-4">
 					<p className="text-muted mb-1"> Mint 1 ({ this.state.bet.positions[0] }) </p>
@@ -102,6 +101,7 @@ class ContractView extends React.Component{
 			<progress min="0" value={ this.state.bet.positions[0] } max={ this.state.bet.positions[0] + this.state.bet.positions[1]  } />
 			<ButtonGroup>
 				<Button color="success" onClick={this.redeemAndUpdate} disabled={this.state.bet.outcome === 0 ? true : false}> <i class="ri-download-line" title="collect"></i> </Button>	
+				<Button color="warning" onClick={this.redeemAndUpdate} > <i class="ri-download-line" title="draw"></i> </Button>					
 				<Button color="info" onClick={async()=>{ await this.getInfo(); }}> <i class="ri-restart-line" title="refresh"></i></Button>	
 				<Button color="danger" onClick={this.props.close}> <i class="ri-close-line" title="hide"></i> </Button>	
 			</ButtonGroup>											

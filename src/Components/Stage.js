@@ -813,7 +813,6 @@ class Stage extends React.Component{
 			await this.props.connection.confirmTransaction(txid);	
 		}
 		catch(e){
-			console.log("Sollet Wallet Sign Failed",e);
 			this.props.notify("Signing Error","error")
 		}
 		return txid
@@ -848,14 +847,13 @@ class Stage extends React.Component{
 	
 	timeGame(data){
 		return new Promise((resolve,reject)=>{
-			console.log("Drift:",Drift);
 			if(Drift === 0){
 				return resolve( setTimeout(()=>{return this.timeGame(data)},1000) );
 			}
 			let gameStart = data.slice(117,125);	
 			let startDate = get64BitTime(this.props.stringToBytes(gameStart));
 			this.setState({gameStart:startDate.getTime()},resolve);
-			console.log("game started @ ",startDate);
+			console.log("game started @ ",startDate,"Drift",Drift);
 		})
 	}
 	
@@ -1039,7 +1037,6 @@ class Stage extends React.Component{
 	}
 	
 	toggleViewBet(){
-		console.log("toggling")
 		return this.setState({viewBet:!this.state.viewBet});
 	}
 	
@@ -1123,16 +1120,13 @@ class Stage extends React.Component{
 						</div>
 					</div>:null
 				}
-				webgl placeholder
-
+				<WebGLView src={"./solsurvivor/index.html"}/>
 				<Wizard open={this.props.survivorHelpOpen} close={this.props.toggleSurvivorHelpOpen}/>
 			</div>
 			<audio id="backgroundMusic" src={this.state.backgroundMusic} />
 		</div>)
 	}
 }
-
-				//~ <WebGLView src={"./solsurvivor/index.html"}/>
 
 function GameOptions(props){
 	function updateWAmount(evt){

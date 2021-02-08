@@ -8,18 +8,23 @@ import TimeAgo from 'javascript-time-ago';
 import en from 'javascript-time-ago/locale/en';
 //Crypto
 import nacl from 'tweetnacl';
+import bs58 from 'bs58';
 
 //Material UI Bootstrap imports
 import LinearProgress from '@material-ui/core/LinearProgress';
 import MuiAlert from '@material-ui/lab/Alert';
 import Snackbar from '@material-ui/core/Snackbar';
 
+//
+import { WagerClient } from './util/wager';
+
+
 //Solana imports
 import {
   Account,
   Connection,
   BpfLoader,
-  BPF_LOADER_DEPRECATED_PROGRAM_ID,
+  BPF_LOADER_PROGRAM_ID,
   LAMPORTS_PER_SOL,
   PublicKey,  
   SystemProgram,
@@ -40,8 +45,14 @@ var Intervals = []
 var defaultProgram;
 var defaultChannel;
 
+//Classic
 var GAME_ID = "";
 var GAME_ACCOUNT = "";  
+//Wager
+var WAGER_GAME_ID = "";
+var WAGER_GAME_ACCOUNT = "";
+var WAGER_TOKEN_MINT = "";
+var BET_PROGRAM_ID = "";
 
 var FILES = {};
 var AccountDataQue = [];
@@ -64,9 +75,26 @@ const Sol_Talk = {
 }
 
 const Sol_Survivor= {
-	"api.mainnet-beta":{id:"CBGDAKpEaCSJWcnfE2kw3XkWKaeUEUpwZt63L7pMfHJ4",account:"9sBJoSrsJhHmLqXcPV8J7haaWQAvJuSHVSdd3CJcJ14M"},
-	"testnet":{id:"D6sPuWypcX7MiQsDesUKtMUvBznknJd3f7bBh6qaqG3p",account:"24zUvBhv981ur8kedCbUimhj8araq73RDMBLU49ENxtH"}
+	"api.mainnet-beta":{id:"Gmf5Lq1chZsjo6jtq48Mueq77HvKxgVFTAZ2wU93VzmA",account:"FXjCAJwEFJgFPKGYEtLFHpZvksLhAqWRakpdSo8KDHNw"},
+	"testnet":{id:"D1f6x6S5m6DUwMhTXW2gpZBZQWVZFvjToPM1taJJocsq",account:"48wRbZWzWLZhSu6FWKTV21sgca466QNEnd4Y4ALaJtBF"}
 }
+
+const Sol_Survivor_Wager= {
+	"api.mainnet-beta":{id:"C9CQodcCDpNAYQiG3mi2A5gyARvbbMeAaN5BvBjacatS",account:"2PisHhrpa81G1tuaeeHZBDUmAvd1nb2PZahw9WF9NTbH"},
+	"testnet":{id:"CJCV1uY8XtszgtV7YJPMfzCgughxXMocUJ1rPePbLzea",account:"FPc9xTvVb18jWW2SUrfVxTuSgGSoH92Zp6fanTJbp6sz"}
+}
+
+const Bet = {
+	"api.mainnet-beta":{programId:"5oRbSeYeKp4WtMMMgQwc8BivkpUJDCFisJKZW1BQzCa5"},
+	"testnet":{programId:"E5969eD29vHjfyJwy9CKnkvwPpEKeR7LyRwHLPbqknrG"}
+}
+
+const Bet_Token_Mint = {
+	"testnet":{address:"H5ad4xUWLcjwh5QFcNckpmipnary8Yvgq3ZDWZk98y2b"},
+	//usdt
+	"api.mainnet-beta":{address:"BQcdHdAQW1hczDbBi9hiegXAR7A98Q9jx3X3iBBBDiq4"}
+}
+
 ///////////////////////////
 
 /**
@@ -267,6 +295,21 @@ async function getRSAKeys(){
 }
 
 /**
+* Convert a 64bit byte array to javacript number
+* @method get64Value
+* @params {Array} Array of bytes
+* @return {Number} Return a number
+*/
+function get64Value(array){
+	let hex = "0x"+array.toString("hex");
+	let big = window.BigInt(hex);
+	big = big.toString();
+	big = Number(big);
+	return big;
+}
+
+
+/**
 * Convert JWK to window.crypto.subtle private key
 * @method importPrivateKey
 * @param {Object} JSON Web Private Key
@@ -379,6 +422,7 @@ class App extends React.Component{
 			autoSaveHistory:window.localStorage.getItem("autoSaveHistory") ? JSON.parse(window.localStorage.getItem("autoSaveHistory")) : "",
 			autoSign:window.localStorage.getItem("autoSign") ? JSON.parse(window.localStorage.getItem("autoSign")) : "",
 			avatarStyle: window.localStorage.getItem("avatarStyle") ? window.localStorage.getItem("avatarStyle") : "",
+			BET_PROGRAM_ID,
 			characterCount:880-264,
 			currentContact:{},
 			contacts:[],
@@ -386,7 +430,7 @@ class App extends React.Component{
 			defaultNetwork:"api.mainnet-beta",
 			enableMusic:window.localStorage.getItem("enableMusic") ? JSON.parse(window.localStorage.getItem("enableMusic")) : false,
 			GAME_ACCOUNT,
-			GAME_ID,			
+			GAME_ID,	
 			loading:false,
 			loadingMessage:"",
 			loadingValue:0,
@@ -413,6 +457,10 @@ class App extends React.Component{
 			syncingHistory:false,
 			survivorHelpOpen:false,
 			transactionSignature:false,
+			usdtBalance:0,
+			WAGER_GAME_ACCOUNT,
+			WAGER_GAME_ID,
+			WAGER_TOKEN_MINT,		
 			wallet:false,
 			ws:null,
 			viewContacts:false,
@@ -453,6 +501,7 @@ class App extends React.Component{
 		this.generateQRCode = this.generateQRCode.bind(this);
 		this.getBalance = this.getBalance.bind(this);
 		this.getContacts = this.getContacts.bind(this);
+		this.getContractInformation = this.getContractInformation.bind(this);
 		this.getHistory = this.getHistory.bind(this);
 		this.getLocalAccount = this.getLocalAccount.bind(this);
 		
@@ -472,6 +521,7 @@ class App extends React.Component{
 		
 		this.messageKeyDown = this.messageKeyDown.bind(this);
 		
+		this.redeemContract = this.redeemContract.bind(this);
 		this.removeContact = this.removeContact.bind(this);
 		this.removeImportedAccount = this.removeImportedAccount.bind(this);		
 		this.removeRSAKeys = this.removeRSAKeys.bind(this);
@@ -706,17 +756,25 @@ class App extends React.Component{
 		connection = null;
 		if(this.state.ws){this.state.ws.close();}
 		//Update sol-survivor addresses
+		BET_PROGRAM_ID = Bet[defaultNetwork].programId;
 		GAME_ACCOUNT = Sol_Survivor[defaultNetwork].account;
 		GAME_ID = Sol_Survivor[defaultNetwork].id;
+		WAGER_GAME_ACCOUNT = Sol_Survivor_Wager[defaultNetwork].account;
+		WAGER_GAME_ID = Sol_Survivor_Wager[defaultNetwork].id;
+		WAGER_TOKEN_MINT = Bet_Token_Mint[defaultNetwork].address;
 		//Update sol-talk addresses
 		defaultProgram = Sol_Talk[defaultNetwork].defaultProgram;
 		defaultChannel = Sol_Talk[defaultNetwork].defaultChannel;
 		this.setState({
+			BET_PROGRAM_ID,
 			defaultNetwork,
 			GAME_ACCOUNT,
 			GAME_ID,
 			soltalkProgram:defaultProgram,
 			soltalkAccount:defaultChannel,
+			WAGER_GAME_ACCOUNT,			
+			WAGER_GAME_ID,
+			WAGER_TOKEN_MINT,
 			ws:false,
 			connection:false,
 			providerUrl:"https://www.sollet.io/#origin="+window.location.origin+"&network="+defaultNetwork.replace("api.mainnet-beta","mainnet")
@@ -777,16 +835,24 @@ class App extends React.Component{
 	* Standard react component
 	*/		
 	async componentDidMount(){	
+		BET_PROGRAM_ID = Bet[this.state.defaultNetwork].programId;
 		GAME_ACCOUNT = Sol_Survivor[this.state.defaultNetwork].account;
 		GAME_ID = Sol_Survivor[this.state.defaultNetwork].id;
+		WAGER_GAME_ACCOUNT = Sol_Survivor_Wager[this.state.defaultNetwork].account;		
+		WAGER_GAME_ID = Sol_Survivor_Wager[this.state.defaultNetwork].id;
+		WAGER_TOKEN_MINT = Bet_Token_Mint[this.state.defaultNetwork].address;
 		defaultProgram = Sol_Talk[this.state.defaultNetwork].defaultProgram;
 		defaultChannel = Sol_Talk[this.state.defaultNetwork].defaultChannel;
 		this.setState({
+			BET_PROGRAM_ID,
 			providerUrl: "https://www.sollet.io/#origin="+window.location.origin+"&network="+this.state.defaultNetwork,
 			GAME_ACCOUNT,
 			GAME_ID,
 			soltalkProgram:defaultProgram,
-			soltalkAccount:defaultChannel
+			soltalkAccount:defaultChannel,
+			WAGER_GAME_ACCOUNT,
+			WAGER_GAME_ID,
+			WAGER_TOKEN_MINT
 		});
 		establishConnection(this.state.defaultNetwork).catch(console.warn);;	
 		let contacts = await this.getContacts(true);
@@ -1345,6 +1411,36 @@ class App extends React.Component{
 			return this.setState({contacts},()=>{return resolve(contacts);});
 		})
 	}
+	
+	
+	/**
+	* Get wager contract information
+	* @method getContactsInformation
+	* @param {String} Base58 PublicKey
+	* @return {Promise} Should resolve WagerClient object
+	*/
+	async getContractInformation(contractAddress){
+		if(!contractAddress){return {};}
+		let config = {
+			contractAccount:new PublicKey(contractAddress),
+			connection:connection,
+			feePayer:this.state.localPayerAccount,
+			programId: new PublicKey(this.state.BET_PROGRAM_ID),
+			potMint: new PublicKey(this.state.WAGER_TOKEN_MINT),
+		}
+		let wc = new WagerClient(config);
+		await wc.recreateContract();
+		let [ payerWagerTokenAccount , exists ] = await wc.getFeePayerWagerTokenAccount(true);
+		if(exists){
+			let info = await connection.getAccountInfo(payerWagerTokenAccount);
+			if(info.data){
+				let usdtBalance = get64Value( info.data.slice(64,72).reverse() ) / 1000000;
+				this.setState({usdtBalance});
+			}
+			console.log(info);
+		}
+		return wc;
+	}
 
 	/**
 	* Get Solana private key from localStorage
@@ -1495,12 +1591,9 @@ class App extends React.Component{
 	*/
 	async loadProgram(type){
 		let program;
-		if( type === 0){
-			program = await fetch("/program.so").then(r=>r.blob());
-		}
-		else{
-			program = await fetch("/sssc.so").then(r=>r.blob());
-		}
+		let programs = ["program","sssc","sssc_wager","wager"];
+		program = await fetch("/" + programs[type]+".so").then(r=>r.blob()); 
+		if(!window.confirm("Deploy:"+ programs[type])){return}
 		let buffer = await program.arrayBuffer();	
 		let programAccount = new Account();
 		let programId = programAccount.publicKey;
@@ -1509,11 +1602,14 @@ class App extends React.Component{
 			this.state.localPayerAccount,
 			programAccount,
 			Buffer.from(buffer),
-			BPF_LOADER_DEPRECATED_PROGRAM_ID,
+			BPF_LOADER_PROGRAM_ID,
 		);
 		let info = {succ:loaded,ProgramID:programId.toBase58()};
 		console.log(info);
-		if(info.succ){this.setState({latestProgram:info.ProgramID})};
+		if(info.succ){
+			this.setState({latestProgram:info.ProgramID});
+			console.log(info.ProgramID);
+		};
 		return info;
 	}
 
@@ -1527,12 +1623,8 @@ class App extends React.Component{
 		let chatRoomAccount = new Account();
 		let chatRoomPubkey = chatRoomAccount.publicKey;
 		let lamports;
-		if(type === 0){
-			 lamports = await connection.getMinimumBalanceForRentExemption(1028);
-		}
-		else{
-			lamports = await connection.getMinimumBalanceForRentExemption(130);
-		}
+		let space = [1028,200,186]
+		lamports = await connection.getMinimumBalanceForRentExemption(space[type]);				
 		console.log("Mininum lamports for rent free account:",lamports / LAMPORTS_PER_SOL);
 		let ppid = window.prompt("Program Address")
 		if(!ppid){return}
@@ -1792,6 +1884,66 @@ class App extends React.Component{
 			potentialContacts.unshift(nc);
 			this.setState({potentialContacts},this.getContacts);
 		}
+		return;
+	}	
+	
+	
+	/**
+	* Withdraw winnings from a wager
+	* @method redeemContract
+	* @param {String} Solana public key
+	* @param {String} RSA public key
+	* @return {Null}
+	*/		
+	async redeemContract(contractAddress){
+		if(!this.state.localPayerAccount){
+			return this.props.notify("Local User Not Found");
+		}
+		this.setLoading(true);
+		if(contractAddress){
+			let wc = await this.getContractInformation(contractAddress);
+			wc.outcome = wc.outcome > 2 ? 2 : wc.outcome; //cap it in case of a draw and user should withdraw the original amount	
+			if(wc.outcome === 0){
+				wc.outcome = 1; //Timeout Scenario when wager not accepted within time limit
+			}	
+			let [ payerWagerTokenAccount, exists, creationIx ] = await wc.getFeePayerWagerTokenAccount(true);	
+			let associatedTokenAccountPublicKey = await wc.findAssociatedTokenAccountPublicKey(this.state.localPayerAccount.publicKey,wc.mintAccounts[wc.outcome-1]);		
+			let info = await connection.getAccountInfo(associatedTokenAccountPublicKey);
+			let amount = get64Value(info.data.slice(64,72).reverse());
+			let redeemIxs = await wc.redeemContract(wc.outcome,amount,true)
+			let _transaction =  new Transaction();
+			for(let i = 0;i < redeemIxs.length ;i++){
+				_transaction.add(redeemIxs[i]);
+			}				
+			let { blockhash } = await connection.getRecentBlockhash();
+			_transaction.recentBlockhash = blockhash;				
+			_transaction.feePayer = this.state.localPayerAccount.publicKey;
+			let signature = await this.localSign(Buffer.from(_transaction.serializeMessage()),this.state.localPayerAccount,_transaction);
+			if(!signature){
+				return this.notify("Signing Error","error");
+			}
+			_transaction.addSignature(this.state.localPayerAccount.publicKey,signature);		
+			try{
+				let txid = await connection.sendTransaction(
+					_transaction,
+					[ this.state.localPayerAccount ] ,
+					{
+						commitment: 'singleGossip',
+						preflightCommitment: 'singleGossip',  
+					},
+				);
+				const status = ( await connection.confirmTransaction(txid) ).value;
+				this.notify("Withdrawl Complete "+ txid);
+				console.log("status:",status,txid);
+				saveTransaction(txid,this.state.defaultNetwork,"Sol-Survivor").catch(console.warn);
+			}
+			catch(e){
+				console.log(e);
+				this.notify("Redemption Error","error");
+			}
+		}
+		this.setLoading(false);
+		this.getContractInformation(contractAddress);		
 		return;
 	}	
 	
@@ -2094,6 +2246,10 @@ class App extends React.Component{
 					//Send data to game screen
 					if( account.params.result.value.owner === this.state.GAME_ID){
 						return bc.postMessage(accountData);
+					}
+					else if(account.params.result.value.owner === this.state.WAGER_GAME_ID){
+						account.type = "wager";
+						return bc.postMessage(accountData)
 					}
 					//Manage Account Data
 					
@@ -2427,15 +2583,20 @@ class App extends React.Component{
 			}
 			<Layout 
 				//Stage
+				BET_PROGRAM_ID={this.state.BET_PROGRAM_ID}
 				_connection={connection}
 				enableMusic={this.state.enableMusic}
 				GAME_ID={this.state.GAME_ID} 
 				GAME_ACCOUNT={this.state.GAME_ACCOUNT}
+				WAGER_GAME_ACCOUNT={this.state.WAGER_GAME_ACCOUNT}				
+				WAGER_GAME_ID={this.state.WAGER_GAME_ID}
+				WAGER_TOKEN_MINT={this.state.WAGER_TOKEN_MINT}
 				setLoading={this.setLoading}
 				stringToBytes={stringToBytes}
 				survivorHelpOpen={this.state.survivorHelpOpen}
 				toggleSurvivorHelpOpen={this.toggleSurvivorHelpOpen}
 				urlRoot={"https://"+this.state.defaultNetwork+".solana.com"}
+				usdtBalance={this.state.usdtBalance}
 				wallet={this.state.wallet}
 				ws={this.state.ws}
 				//Standard
@@ -2450,6 +2611,7 @@ class App extends React.Component{
 				getContacts={this.getContacts}
 				importKey={this.importKey}
 				messageKeyDown={this.messageKeyDown}
+				loading={this.state.loading}
 				localSign={this.localSign}
 				MESSAGE_HISTORY={this.state.MESSAGE_HISTORY}
 				notify={this.notify}
@@ -2474,12 +2636,14 @@ class App extends React.Component{
 				exportContacts={this.exportContacts}
 				exportPrivateKey={this.exportPrivateKey}
 				exportRSAKeys={this.exportRSAKeys}
+				getContractInformation={this.getContractInformation}
 				importRSAKeys_JSON={this.importRSAKeys_JSON}
 				localPayerAccount={this.state.localPayerAccount}
 				localPayerBalance={this.state.localPayerBalance}
 				payerAccount={this.state.payerAccount}
 				payerAccountBalance={this.state.payerAccountBalance}
 				providerUrl={this.state.providerUrl}
+				redeemContract={this.redeemContract}
 				removeImportedAccount={this.removeImportedAccount}
 				removeRSAKeys={this.removeRSAKeys}
 				rsaKeyPair={this.state.rsaKeyPair}
@@ -2495,6 +2659,15 @@ class App extends React.Component{
 				updateEnableMusic={this.updateEnableMusic}
 				updateViewStyle={this.updateViewStyle}
 		/>
+		<div style={{"display":"none"}}> 
+			<button onClick={()=>{ this.loadProgramControlledAccount(0);} }>stalk_account</button>
+			<button onClick={()=>{ this.loadProgramControlledAccount(1);} }>ss_account</button>			
+			<button onClick={()=>{ this.loadProgramControlledAccount(2);} }>ss_wager account</button>
+			<button onClick={()=>this.loadProgram(0)}>0 stalk</button>
+			<button onClick={()=>this.loadProgram(1)}>1 sol-survivor</button>
+			<button onClick={()=>this.loadProgram(2)}>2 sol-survivor-wager</button>
+			<button onClick={()=>this.loadProgram(3)}>3 wager</button>			
+		</div>
 		</div>)
 	}
 }

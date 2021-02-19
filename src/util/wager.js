@@ -102,7 +102,7 @@ function WagerClient(config){
 	this.contractAccount = config.contractAccount;
 	this.contractPotAccount = null;
 	this.endTime = config.endTime;
-	this.fee = config.fee;
+	this.fee = (config.fee && config.fee > 0) ? config.fee : 0;
 	this.feePayer = config.feePayer;
 	this.feeAccount = config.feeAccount;
 	this.oracleAccount = config.oracleAccount;
@@ -198,6 +198,21 @@ WagerClient.prototype.findAssociatedTokenAccountPublicKey = function(pk,mint){
 		return resolve(findAssociatedTokenAccountPublicKey(pk,mint));
 	})
 }
+
+WagerClient.prototype.getBalance = function(publicKey){ 
+	return new Promise(async(resolve,reject)=>{ 
+			let balance = 0;
+			let info;
+			try{
+				info = await this.connection.getAccountInfo(publicKey);
+				balance = get64Value(info.data.slice(64,72).reverse());
+			 }
+			 catch(e){
+				console.log(e);
+			}
+			return resolve ( balance );
+	}); 
+};
 
 WagerClient.prototype.getContractAuth = function(buf,programId){ return new Promise(async(resolve,reject)=>{ return resolve(getContractAuth(buf,programId)); }); };
 
@@ -366,7 +381,9 @@ WagerClient.prototype.recreateContract = function(){
 WagerClient.prototype.redeemContract = function (position,returnIx = false){
 	return new Promise(async(resolve,reject)=>{
 		let contractAccount = this.contractAccount.publicKey ? this.contractAccount.publicKey : this.contractAccount;
-		let mintAccountxPublicKey = this.mintAccounts[position-1].publicKey ? this.mintAccounts[position-1].publicKey : this.mintAccounts[position-1];
+		let mintAccountxPublicKey = this.mintAccounts[position-1].publicKey ? this.mintAccounts[position-1].publicKey : this.mintAccounts[position-1];				
+		let mintAccount1PublicKey = this.mintAccounts[0].publicKey ? this.mintAccounts[0].publicKey : this.mintAccounts[0];
+		let mintAccount2PublicKey = this.mintAccounts[1].publicKey ? this.mintAccounts[1].publicKey : this.mintAccounts[1];		
 		let [ payerWagerTokenAccount ] = await this.getFeePayerWagerTokenAccount();
 		let contractWagerTokenAccount = this.contractPotAccount.publicKey ? this.contractPotAccount.publicKey : this.contractPotAccount;
 		let wagerMint = this.potMint.publicKey ? this.potMint.publicKey : this.potMint;
@@ -405,7 +422,8 @@ WagerClient.prototype.redeemContract = function (position,returnIx = false){
 			keys: [
 				{pubkey: contractAccount, isSigner: false, isWritable:true},
 				{pubkey: systemClock, isSigner:false, isWritable:false},	
-				{pubkey: mintAccountxPublicKey, isSigner:false, isWritable:true},
+				{pubkey: mintAccount1PublicKey, isSigner:false, isWritable:true},
+				{pubkey: mintAccount2PublicKey, isSigner:false, isWritable:true},				
 				{pubkey: contractWagerTokenAccount , isSigner:false, isWritable:true},	
 				{pubkey: payerWagerTokenAccount, isSigner:false, isWritable:true},					
 				{pubkey: contractAuthority, isSigner:false, isWritable:false},

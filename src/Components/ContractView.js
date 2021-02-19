@@ -1,5 +1,8 @@
 import React from 'react';
 import { Button,ButtonGroup,Card,Input } from 'reactstrap';
+import CancelIcon from '@material-ui/icons/Cancel';
+import LoopIcon from '@material-ui/icons/Loop';
+import MonetizationOnIcon from '@material-ui/icons/MonetizationOn';
 
 class ContractView extends React.Component{ 
 	constructor(props){
@@ -45,6 +48,7 @@ class ContractView extends React.Component{
 	
 	render(){
 		if(!this.state.bet.contractAccount){
+			this.getInfo();
 			return (<progress style={{
 				display:"block",margin:"auto"
 			}}/>)
@@ -60,11 +64,11 @@ class ContractView extends React.Component{
 					<h5 className="font-size-14"> { new Date(this.state.bet.endTime).toLocaleString() } </h5>
 				</div>
 				<div className="mt-4">
-					<p className="text-muted mb-1"> Mint 1 ({ this.state.bet.positions[0] }) </p>
+					<p className="text-muted mb-1"> Position 1 ({ this.state.bet.positions[0] / Math.pow(10,6) }) </p>
 					<h5 className="font-size-14"> { this.state.bet.mintAccounts[0].toBase58() } </h5>
 				</div>
 				<div className="mt-4">
-					<p className="text-muted mb-1"> Mint 2 ({ this.state.bet.positions[1] }) </p>
+					<p className="text-muted mb-1"> Position 2 ({ this.state.bet.positions[1]  / Math.pow(10,6) }) </p>
 					<h5 className="font-size-14"> { this.state.bet.mintAccounts[1].toBase58() } </h5>
 				</div>
 				<div className="mt-4">
@@ -85,7 +89,7 @@ class ContractView extends React.Component{
 				</div>
 				<div className="mt-4">
 					<p className="text-muted mb-1"> Minimum Bet </p>
-					<h5 className="font-size-14"> { this.state.bet.minimumBet } </h5>
+					<h5 className="font-size-14"> ${ this.state.bet.minimumBet / Math.pow(10,6) } </h5>
 				</div>			
 				<div className="mt-4">
 					<p className="text-muted mb-1"> Contract Override </p>
@@ -100,10 +104,9 @@ class ContractView extends React.Component{
 			</div>
 			<progress min="0" value={ this.state.bet.positions[0] } max={ this.state.bet.positions[0] + this.state.bet.positions[1]  } />
 			<ButtonGroup>
-				<Button color="success" onClick={this.redeemAndUpdate} disabled={this.state.bet.outcome === 0 ? true : false}> <i class="ri-download-line" title="collect"></i> </Button>	
-				<Button color="warning" onClick={this.redeemAndUpdate} > <i class="ri-download-line" title="draw"></i> </Button>					
-				<Button color="info" onClick={async()=>{ await this.getInfo(); }}> <i class="ri-restart-line" title="refresh"></i></Button>	
-				<Button color="danger" onClick={this.props.close}> <i class="ri-close-line" title="hide"></i> </Button>	
+				<Button color="success" onClick={this.redeemAndUpdate} disabled={this.state.bet.outcome === 0 ? true : false}> <MonetizationOnIcon /> collect </Button>	
+				<Button color="info" onClick={async()=>{ await this.getInfo(); }}> <LoopIcon />refresh </Button>	
+				<Button color="danger" onClick={this.props.close}> <CancelIcon /> close </Button>	
 			</ButtonGroup>											
 		</Card>)
 	}

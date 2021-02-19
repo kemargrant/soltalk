@@ -701,9 +701,20 @@ iframe{
 	width:100%;
 }
 
+#wagerButtons{
+	display:flex;
+	margin:auto;
+	width:25vw;
+}
+
+#wagerCollect{
+	background: linear-gradient(45deg,lightgreen 0%, lightgreen 60%, forestgreen 100%);
+	width:30vw;
+}
+
 #wagerStats{
-	right:0px;
-	bottom:10vh;
+	background: linear-gradient(45deg,white 0%, lightblue 40%, grey 100%);
+	width:30vw;
 }
 
 #title .pressStart{

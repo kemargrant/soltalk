@@ -36,9 +36,10 @@ class ContractView extends React.Component{
 		return;
 	}
 
-	async redeemAndUpdate(){
+	async redeemAndUpdate(position=null){
 		try{
-			await this.props.redeemContract(this.state.bet.contractAccount.toBase58());
+			await this.props.redeemContract(this.state.bet.contractAccount.toBase58(),position);
+			await this.getInfo();
 		}
 		catch(e){
 			console.log(e);
@@ -105,6 +106,8 @@ class ContractView extends React.Component{
 			<progress min="0" value={ this.state.bet.positions[0] } max={ this.state.bet.positions[0] + this.state.bet.positions[1]  } />
 			<ButtonGroup>
 				<Button color="success" onClick={this.redeemAndUpdate} disabled={this.state.bet.outcome === 0 ? true : false}> <MonetizationOnIcon /> collect </Button>	
+				<Button color="warning" onClick={()=>this.redeemAndUpdate(1)}> <MonetizationOnIcon /> draw collect(1) </Button>		
+				<Button color="warning" onClick={()=>this.redeemAndUpdate(2)}> <MonetizationOnIcon /> draw collect(2) </Button>												
 				<Button color="info" onClick={async()=>{ await this.getInfo(); }}> <LoopIcon />refresh </Button>	
 				<Button color="danger" onClick={this.props.close}> <CancelIcon /> close </Button>	
 			</ButtonGroup>											

@@ -154,13 +154,12 @@ WagerClient.prototype.closeContract = function(outcome,returnIx = false){
 
 WagerClient.prototype.createPot = function(returnIx = false){
 	return new Promise(async(resolve,reject)=>{
-		let [ contractAuthority,seed ] = await getContractAuth(false,this.programId);
+		let [ contractAuthority ] = await getContractAuth(false,this.programId);
 		//////////////////////////////////////////////////
 		//Create Pot Token Account Just for the event
 		//
 		let potTokenAccount = await findAssociatedTokenAccountPublicKey(contractAuthority,this.potMint);
 		let info = await this.connection.getAccountInfo(potTokenAccount);
-		let tx;
 		let ix;
 		if(!info){
 			try{
@@ -171,7 +170,7 @@ WagerClient.prototype.createPot = function(returnIx = false){
 				  this.potMint
 				);
 				if(!returnIx){
-					tx = await sendAndConfirmTransaction(
+					await sendAndConfirmTransaction(
 						this.connection,
 						new Transaction().add(ix),
 						[this.feePayer],
@@ -218,21 +217,21 @@ WagerClient.prototype.getContractAuth = function(buf,programId){ return new Prom
 
 WagerClient.prototype.getFeePayerWagerTokenAccount = function(returnIx = false){
 	return new Promise(async(resolve,reject)=>{
-		let associatedAccount = await findAssociatedTokenAccountPublicKey(this.feePayer.publicKey,this.potMint);
+		let associatedAccount = await findAssociatedTokenAccountPublicKey(this.feePayer.publicKey ? this.feePayer.publicKey : this.feePayer,this.potMint);
 		let info = await this.connection.getAccountInfo(associatedAccount);
 		let exists = false;
 		let creationIx = false;
 		if(!info){
 			console.log("Creating Token Account for Fee Payer",associatedAccount.toBase58());
 			let ix = createIx(
-			  this.feePayer.publicKey,
+			  this.feePayer.publicKey ? this.feePayer.publicKey : this.feePayer,
 			  associatedAccount,
-			  this.feePayer.publicKey,
+			  this.feePayer.publicKey ? this.feePayer.publicKey : this.feePayer,
 			  this.potMint
 			);
 			creationIx = ix;
 			if(!returnIx){
-				let tx = await sendAndConfirmTransaction(
+				await sendAndConfirmTransaction(
 					this.connection,
 					new Transaction().add(ix),
 					[this.feePayer],
@@ -260,14 +259,14 @@ WagerClient.prototype.mintPx= function(position,amount,returnIx = false){
 		let wagerMint = this.potMint.publicKey ? this.potMint.publicKey : this.potMint;
 		//Create Mint Account For the User
 		let [contractAuthority,seed] = await getContractAuth(false,this.programId);			
-		let associatedTokenAccountPublicKey = await findAssociatedTokenAccountPublicKey(this.feePayer.publicKey,mintAccountxPublicKey);	
+		let associatedTokenAccountPublicKey = await findAssociatedTokenAccountPublicKey(this.feePayer.publicKey ? this.feePayer.publicKey : this.feePayer ,mintAccountxPublicKey);	
 		let wagerAmount =  amount * Math.pow(10,this.decimals);	
 		let wagerAmountBuffer = new Numberu64( amount * Math.pow(10,this.decimals) ).toBuffer();
 		let mintIx = [];
 		const assocIx = createIx(
-		  this.feePayer.publicKey,
+		  this.feePayer.publicKey ? this.feePayer.publicKey : this.feePayer,
 		  associatedTokenAccountPublicKey,
-		  this.feePayer.publicKey,
+		  this.feePayer.publicKey ? this.feePayer.publicKey : this.feePayer,
 		  mintAccountxPublicKey
 		);
 		mintIx.push(assocIx);
@@ -305,7 +304,7 @@ WagerClient.prototype.mintPx= function(position,amount,returnIx = false){
 				tokenProgram,
 				payerWagerTokenAccount,
 				contractAuthority,
-				this.feePayer.publicKey,
+				this.feePayer.publicKey ? this.feePayer.publicKey : this.feePayer,
 				[],
 				wagerAmount
 			);
@@ -347,8 +346,6 @@ WagerClient.prototype.mintPx= function(position,amount,returnIx = false){
 	});
 }
 
-function stringToBytes(s){return Buffer.from(s)}
-
 WagerClient.prototype.recreateContract = function(){
 	return new Promise(async(resolve,reject)=>{
 		let data = await this.viewContractData();
@@ -386,8 +383,7 @@ WagerClient.prototype.redeemContract = function (position,returnIx = false){
 		let mintAccount2PublicKey = this.mintAccounts[1].publicKey ? this.mintAccounts[1].publicKey : this.mintAccounts[1];		
 		let [ payerWagerTokenAccount ] = await this.getFeePayerWagerTokenAccount();
 		let contractWagerTokenAccount = this.contractPotAccount.publicKey ? this.contractPotAccount.publicKey : this.contractPotAccount;
-		let wagerMint = this.potMint.publicKey ? this.potMint.publicKey : this.potMint;
-		let associatedTokenAccountPublicKey = await findAssociatedTokenAccountPublicKey(this.feePayer.publicKey,mintAccountxPublicKey);		
+		let associatedTokenAccountPublicKey = await findAssociatedTokenAccountPublicKey(this.feePayer.publicKey ? this.feePayer.publicKey : this.feePayer ,mintAccountxPublicKey);		
 		let [contractAuthority,seed] = await getContractAuth(false,this.programId);	
 		let redeemIxs = [];
 		let userMintTokenAccount = await this.connection.getAccountInfo(associatedTokenAccountPublicKey);
@@ -397,7 +393,7 @@ WagerClient.prototype.redeemContract = function (position,returnIx = false){
 			tokenProgram,
 			associatedTokenAccountPublicKey,
 			contractAuthority,
-			this.feePayer.publicKey,
+			this.feePayer.publicKey ? this.feePayer.publicKey : this.feePayer,
 			[],
 			redeemAmount
 		);
@@ -456,27 +452,28 @@ WagerClient.prototype.setupContract = function(returnIx = false){
 		console.log("setting up contract");
 		//setup mints for each position
 		let oracleAccount = this.oracleAccount.publicKey ? this.oracleAccount.publicKey : this.oracleAccount;
-		let decimals = 6;
 		let IxToReturn = [];
 		this.mintAccounts = [ new Account() , new Account() ];
 		let [contractAuthority,seed] = await getContractAuth(false,this.programId);
 		console.log("Mint1:",this.mintAccounts[0].publicKey.toBase58(),"Mint2:",this.mintAccounts[1].publicKey.toBase58());
 		console.log("Contract Authority:",contractAuthority.toBase58());
 		//Create Mints
+		let lamports = await this.connection.getMinimumBalanceForRentExemption(82,"singleGossip");
 		let createMint1 = SystemProgram.createAccount({
-		  fromPubkey: this.feePayer.publicKey,
+		  fromPubkey: this.feePayer.publicKey ? this.feePayer.publicKey : this.feePayer,
 		  newAccountPubkey: this.mintAccounts[0].publicKey,
-		  lamports: await this.connection.getMinimumBalanceForRentExemption(82,"singleGossip"),
-		  space: 82,
+		  lamports,
+		  space:82,
 		  programId: tokenProgram
 		});
 		let createMint2 = SystemProgram.createAccount({
-		  fromPubkey: this.feePayer.publicKey,
+		  fromPubkey: this.feePayer.publicKey ? this.feePayer.publicKey : this.feePayer,
 		  newAccountPubkey: this.mintAccounts[1].publicKey,
-		  lamports: await this.connection.getMinimumBalanceForRentExemption(82,"singleGossip"),
-		  space: 82,
+		  lamports,
+		  space:82,
 		  programId: tokenProgram
-		});		
+		});	
+		console.log(contractAuthority,contractAuthority.publicKey)	
 		let initMintIx1 = Token.createInitMintInstruction(
 			tokenProgram,
 			this.mintAccounts[0].publicKey,
@@ -510,11 +507,12 @@ WagerClient.prototype.setupContract = function(returnIx = false){
 		//Create Contract Account for the Program
 		let contractAccount = new Account();
 		this.contractAccount = contractAccount;
+		let size = 186;
 		let createAccIx3 = SystemProgram.createAccount({
-		  fromPubkey: this.feePayer.publicKey,
+		  fromPubkey: this.feePayer.publicKey? this.feePayer.publicKey : this.feePayer,
 		  newAccountPubkey: contractAccount.publicKey,
-		  lamports: await this.connection.getMinimumBalanceForRentExemption(145,"singleGossip"),
-		  space: 186,
+		  lamports: await this.connection.getMinimumBalanceForRentExemption(size,"singleGossip"),
+		  space:size,
 		  programId:this.programId
 		});	
 		IxToReturn.push(createAccIx3);
@@ -614,11 +612,11 @@ WagerClient.prototype.viewContractData = function(contractAccountPublicKey){
 			dataStructure[field[i]] = d;
 			console.log(field[i]);
 			console.log(Buffer.from(d).toString("hex"));
-			if(d.length == 8 && i === 0){
-				dataStructure[field[i]] = get64BitTime(d.reverse()).getTime();
+			if(d.length === 8 && i === 0){
+				dataStructure[field[i]] = get64BitTime(d).getTime();
 				console.log(new Date(dataStructure[field[i]]));
-				return;
 			}
+			return 0;
 		});
 		resolve(dataStructure);
 	});

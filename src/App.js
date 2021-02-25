@@ -8,7 +8,6 @@ import TimeAgo from 'javascript-time-ago';
 import en from 'javascript-time-ago/locale/en';
 //Crypto
 import nacl from 'tweetnacl';
-import bs58 from 'bs58';
 
 //Material UI Bootstrap imports
 import LinearProgress from '@material-ui/core/LinearProgress';
@@ -75,23 +74,23 @@ const Sol_Talk = {
 }
 
 const Sol_Survivor= {
-	"api.mainnet-beta":{id:"Gmf5Lq1chZsjo6jtq48Mueq77HvKxgVFTAZ2wU93VzmA",account:"FXjCAJwEFJgFPKGYEtLFHpZvksLhAqWRakpdSo8KDHNw"},
-	"testnet":{id:"D1f6x6S5m6DUwMhTXW2gpZBZQWVZFvjToPM1taJJocsq",account:"48wRbZWzWLZhSu6FWKTV21sgca466QNEnd4Y4ALaJtBF"}
+	"api.mainnet-beta":{id:"Aov9EDhFTaxiKqhbmjKWc4AGYaEHaEfR93XkWSFNcWri",account:"H34sGGMnr6whqnpvdFBNYMMQnMF6CRmbTyjF5e3LTYGJ"},
+	"testnet":{id:"3eQkKgmhQUWYBhypgwhRDFCcEMQYP8qRrg23n2KkHKoA",account:"5oRbG8dyJCUbEkWBx7JNqP3cmYZPwM3zACVfaJXp6Xur"}
 }
 
 const Sol_Survivor_Wager= {
-	"api.mainnet-beta":{id:"C9CQodcCDpNAYQiG3mi2A5gyARvbbMeAaN5BvBjacatS",account:"2PisHhrpa81G1tuaeeHZBDUmAvd1nb2PZahw9WF9NTbH"},
-	"testnet":{id:"CJCV1uY8XtszgtV7YJPMfzCgughxXMocUJ1rPePbLzea",account:"FPc9xTvVb18jWW2SUrfVxTuSgGSoH92Zp6fanTJbp6sz"}
+	"api.mainnet-beta":{id:"HEFxA727NVNnKTSjKMRYnCx1vZtLHmD93qzSJVDiNRzV",account:"8uHCnK5NbGKgeohEwKevFFCK5iiTjLy94x3VeR5iDRmF"},
+	"testnet":{id:"D8ve3DB9mVc8iYPt6VaHMUpQGrFWaa5ww6bjySX5GRGg",account:"G2W5SfhUcDBHzLeEA6mKTWETTeM9GdDv2Vd8acGRxkZQ"}
 }
 
 const Bet = {
-	"api.mainnet-beta":{programId:"5oRbSeYeKp4WtMMMgQwc8BivkpUJDCFisJKZW1BQzCa5"},
-	"testnet":{programId:"E5969eD29vHjfyJwy9CKnkvwPpEKeR7LyRwHLPbqknrG"}
+	"api.mainnet-beta":{programId:"2GEqD86NSCeC4wMGyTnJWLpjLLH6kuj4b8djVHouRD49"},
+	"testnet":{programId:"eLfeDqMztQ7oEfaHExQCSY92u27JoaV2F8Qi9gAdz7d"}
 }
 
+//USDT on Mainnet
 const Bet_Token_Mint = {
 	"testnet":{address:"H5ad4xUWLcjwh5QFcNckpmipnary8Yvgq3ZDWZk98y2b"},
-	//usdt
 	"api.mainnet-beta":{address:"BQcdHdAQW1hczDbBi9hiegXAR7A98Q9jx3X3iBBBDiq4"}
 }
 
@@ -293,21 +292,6 @@ async function getRSAKeys(){
 	else{rsaKeyPair = {}}
 	return rsaKeyPair;
 }
-
-/**
-* Convert a 64bit byte array to javacript number
-* @method get64Value
-* @params {Array} Array of bytes
-* @return {Number} Return a number
-*/
-function get64Value(array){
-	let hex = "0x"+array.toString("hex");
-	let big = window.BigInt(hex);
-	big = big.toString();
-	big = Number(big);
-	return big;
-}
-
 
 /**
 * Convert JWK to window.crypto.subtle private key
@@ -521,6 +505,7 @@ class App extends React.Component{
 		
 		this.messageKeyDown = this.messageKeyDown.bind(this);
 		
+		this.recoverFromTimeout = this.recoverFromTimeout.bind(this);		
 		this.redeemContract = this.redeemContract.bind(this);
 		this.removeContact = this.removeContact.bind(this);
 		this.removeImportedAccount = this.removeImportedAccount.bind(this);		
@@ -884,7 +869,7 @@ class App extends React.Component{
 	*/	
 	connectWallet(){
 		return new Promise((resolve,reject)=>{
-			let connection = new Connection(clusterApiUrl(this.state.defaultNetwork.replace("api.mainnet-beta","mainnet-beta")));			
+			let connection = new Connection(clusterApiUrl(this.state.defaultNetwork.replace("api.mainnet-beta","mainnet-beta")),"root");			
 			let wallet = new Wallet(this.state.providerUrl);
 			wallet.on('connect', async (publicKey) => {
 				console.warn('Connected to sollet.io:' + publicKey.toBase58(),"on",this.state.defaultNetwork);
@@ -1424,20 +1409,19 @@ class App extends React.Component{
 		let config = {
 			contractAccount:new PublicKey(contractAddress),
 			connection:connection,
-			feePayer:this.state.localPayerAccount,
+			feePayer: this.state.localPayerAccount ? this.state.localPayerAccount : this.state.payerAccount,
 			programId: new PublicKey(this.state.BET_PROGRAM_ID),
 			potMint: new PublicKey(this.state.WAGER_TOKEN_MINT),
 		}
 		let wc = new WagerClient(config);
 		await wc.recreateContract();
-		let [ payerWagerTokenAccount , exists ] = await wc.getFeePayerWagerTokenAccount(true);
+		let [ payerWagerTokenAccount,exists ] = await wc.getFeePayerWagerTokenAccount(true);
 		if(exists){
-			let info = await connection.getAccountInfo(payerWagerTokenAccount);
-			if(info.data){
-				let usdtBalance = get64Value( info.data.slice(64,72).reverse() ) / 1000000;
+			let usdtBalance = await wc.getBalance(payerWagerTokenAccount);
+			if(usdtBalance){
+				usdtBalance /= Math.pow(10,6);
 				this.setState({usdtBalance});
 			}
-			console.log(info);
 		}
 		return wc;
 	}
@@ -1597,14 +1581,21 @@ class App extends React.Component{
 		let buffer = await program.arrayBuffer();	
 		let programAccount = new Account();
 		let programId = programAccount.publicKey;
-		let loaded = await BpfLoader.load(
-			connection,
-			this.state.localPayerAccount,
-			programAccount,
-			Buffer.from(buffer),
-			BPF_LOADER_PROGRAM_ID,
-		);
+		let loaded;
+		try{
+			loaded = await BpfLoader.load(
+				connection,
+				this.state.localPayerAccount,
+				programAccount,
+				Buffer.from(buffer),
+				BPF_LOADER_PROGRAM_ID,
+			);
+		}
+		catch(e){
+			console.warn(e);
+		}
 		let info = {succ:loaded,ProgramID:programId.toBase58()};
+		console.log("Account Key",programAccount._keypair.secretKey);
 		console.log(info);
 		if(info.succ){
 			this.setState({latestProgram:info.ProgramID});
@@ -1889,61 +1880,132 @@ class App extends React.Component{
 	
 	
 	/**
+	* Wait to see if TX succeeded
+	* @method recoverFromTimeout
+	* @param {Object} Error 
+	* @param {Number} Number of wait attempts
+	* @return {Boolean} Boolean Did the transaction succeed
+	*/
+	async recoverFromTimeout(error,attempts){
+		let possible = false;
+		function sleep(t){
+			let count = 0;
+			let _t = setInterval(()=>{console.log(++count);},1000)
+			return new Promise((resolve,reject)=>{
+				return setTimeout(()=>{ return resolve(clearInterval(_t)); },t);
+			});
+		}
+		if(error.message){
+			try{
+				if(error.message.search("Check signature") > -1){
+					let sig = error.message.split("signature")[1];
+					sig = sig.split("using")[0].toString().trim();
+					console.warn("waiting longer for",sig);
+					await sleep(15);
+					let succ = ( await connection.confirmTransaction(sig) ).value;
+					if(!succ.err){possible = true;}
+					console.warn("TX success?",succ);				
+				}
+			}
+			catch(e){
+				console.warn(attempts,":Failed To Recover From Timeout:",e);
+			}
+		}
+		return possible;
+	}	
+	
+	/**
 	* Withdraw winnings from a wager
 	* @method redeemContract
 	* @param {String} Solana public key
 	* @param {String} RSA public key
 	* @return {Null}
 	*/		
-	async redeemContract(contractAddress){
-		if(!this.state.localPayerAccount){
-			return this.props.notify("Local User Not Found");
+	async redeemContract(contractAddress,position=null){
+		if(!this.state.localPayerAccount && !this.state.payerAccount){
+			return this.notify("User Not Found");
 		}
 		this.setLoading(true);
+		let txid = "";		
 		if(contractAddress){
 			let wc = await this.getContractInformation(contractAddress);
-			wc.outcome = wc.outcome > 2 ? 2 : wc.outcome; //cap it in case of a draw and user should withdraw the original amount	
-			if(wc.outcome === 0){
-				wc.outcome = 1; //Timeout Scenario when wager not accepted within time limit
-			}	
-			let [ payerWagerTokenAccount, exists, creationIx ] = await wc.getFeePayerWagerTokenAccount(true);	
-			let associatedTokenAccountPublicKey = await wc.findAssociatedTokenAccountPublicKey(this.state.localPayerAccount.publicKey,wc.mintAccounts[wc.outcome-1]);		
-			let info = await connection.getAccountInfo(associatedTokenAccountPublicKey);
-			let amount = get64Value(info.data.slice(64,72).reverse());
-			let redeemIxs = await wc.redeemContract(wc.outcome,amount,true)
+			if(!position){
+				wc.outcome = wc.outcome > 2 ? 2 : wc.outcome; //cap it in case of a draw and user should withdraw the original amount	
+				if(wc.outcome === 0){
+					wc.outcome = 1; //Timeout Scenario when wager not accepted within time limit
+				}	
+			}
+			else{
+				wc.outcome = position;
+			}
+			let redeemIxs = await wc.redeemContract(wc.outcome,true)
 			let _transaction =  new Transaction();
 			for(let i = 0;i < redeemIxs.length ;i++){
 				_transaction.add(redeemIxs[i]);
-			}				
-			let { blockhash } = await connection.getRecentBlockhash();
-			_transaction.recentBlockhash = blockhash;				
-			_transaction.feePayer = this.state.localPayerAccount.publicKey;
-			let signature = await this.localSign(Buffer.from(_transaction.serializeMessage()),this.state.localPayerAccount,_transaction);
-			if(!signature){
-				return this.notify("Signing Error","error");
+			}	
+			if(this.state.payerAccount){
+				let { blockhash } = await this.state.connection.getRecentBlockhash();
+				_transaction.recentBlockhash = blockhash;
+				_transaction.setSigners(this.state.payerAccount);
+				let signed = await this.state.wallet.signTransaction(_transaction);
+				try{ 
+					txid = await this.state.connection.sendRawTransaction(signed.serialize()); 
+					const status = ( await this.state.connection.confirmTransaction(txid) ).value;
+					if(!status.err){
+						this.notify("Redemption Complete "+ txid);
+					}
+					else{
+						console.log(status);
+						this.notify("Redemption Error","error");
+					}
+				}
+				catch(e){
+					console.warn(e);
+					let canRecover = await this.recoverFromTimeout(e,0);
+					if(!canRecover){
+						this.notify(e.message,"error");
+						this.setLoading(false);
+						return;
+					}
+				}
 			}
-			_transaction.addSignature(this.state.localPayerAccount.publicKey,signature);		
-			try{
-				let txid = await connection.sendTransaction(
-					_transaction,
-					[ this.state.localPayerAccount ] ,
-					{
-						commitment: 'singleGossip',
-						preflightCommitment: 'singleGossip',  
-					},
-				);
-				const status = ( await connection.confirmTransaction(txid) ).value;
-				this.notify("Withdrawl Complete "+ txid);
-				console.log("status:",status,txid);
-				saveTransaction(txid,this.state.defaultNetwork,"Sol-Survivor").catch(console.warn);
-			}
-			catch(e){
-				console.log(e);
-				this.notify("Redemption Error","error");
+			else{			
+				let { blockhash } = await connection.getRecentBlockhash();
+				_transaction.recentBlockhash = blockhash;				
+				_transaction.feePayer = this.state.localPayerAccount.publicKey;
+				let signature = await this.localSign(Buffer.from(_transaction.serializeMessage()),this.state.localPayerAccount,_transaction);
+				if(!signature){
+					return this.notify("Signing Error","error");
+				}
+				_transaction.addSignature(this.state.localPayerAccount.publicKey,signature);		
+				try{
+					txid = await connection.sendTransaction(
+						_transaction,
+						[ this.state.localPayerAccount ] ,
+						{
+							commitment: 'singleGossip',
+							preflightCommitment: 'singleGossip',  
+						},
+					);
+					const status = ( await connection.confirmTransaction(txid) ).value;
+					if(!status.err){
+						this.notify("Redemption Complete "+ txid);
+					}
+					else{
+						console.log(status);
+						this.notify("Redemption Error","error");
+					}
+				}
+				catch(e){
+					this.notify("Redemption Error","error");
+					this.setLoading(false);
+					return;
+				}
 			}
 		}
 		this.setLoading(false);
 		this.getContractInformation(contractAddress);		
+		saveTransaction(txid,this.state.defaultNetwork,"Sol-Survivor").catch(console.warn);		
 		return;
 	}	
 	
@@ -2591,6 +2653,7 @@ class App extends React.Component{
 				WAGER_GAME_ACCOUNT={this.state.WAGER_GAME_ACCOUNT}				
 				WAGER_GAME_ID={this.state.WAGER_GAME_ID}
 				WAGER_TOKEN_MINT={this.state.WAGER_TOKEN_MINT}
+				recoverFromTimeout={this.recoverFromTimeout}
 				setLoading={this.setLoading}
 				stringToBytes={stringToBytes}
 				survivorHelpOpen={this.state.survivorHelpOpen}

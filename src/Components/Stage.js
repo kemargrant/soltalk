@@ -178,8 +178,13 @@ class Stage extends React.Component{
 				);
 			}
 			catch(e){
-				console.log(e);
-				this.props.notify("Confirmation Timeout","error");
+				console.warn(e);
+				let canRecover = await this.props.recoverFromTimeout(e,0);
+				if(!canRecover){
+					this.props.notify(e.message,"error");
+					this.props.setLoading(false);
+					return;
+				}	
 			}
 		}
 		console.warn("challenge accpeted txid:",txid);

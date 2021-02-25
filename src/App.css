@@ -699,6 +699,11 @@ iframe{
 	width:30vw;
 }
 
+#wagerTrash{
+	background: linear-gradient(45deg,brown 0%, sandybrown 60%, rosybrown 100%);
+	width:30vw;
+}
+
 .wagerDisclaimer{
 	background:black;
 	border:0.1em solid red;

@@ -465,7 +465,8 @@ class App extends React.Component{
 		this.cancelContactForm = this.cancelContactForm.bind(this);
 		this.changeNetwork = this.changeNetwork.bind(this);
 		this.checkBroadcast = this.checkBroadcast.bind(this);
-		this.closeNotification = this.closeNotification.bind(this);		
+		this.closeNotification = this.closeNotification.bind(this);
+		this.closeWagerAccounts = this.closeWagerAccounts.bind(this);				
 		this.connectWallet = this.connectWallet.bind(this);		
 		this.constructAndSendTransaction = this.constructAndSendTransaction.bind(this);
 		this.copySolanaAddress = this.copySolanaAddress.bind(this);
@@ -805,6 +806,90 @@ class App extends React.Component{
 		}
 		return isBroadcast;
 	}
+	
+	/**
+	* Close wager accounts associated with a contract
+	* @method closeWagerAccounts
+	* @param {String} Solana public key
+	* @param {String} RSA public key
+	* @return {Null}
+	*/		
+	async closeWagerAccounts(contractAddress){
+		if(!this.state.localPayerAccount && !this.state.payerAccount){
+			return this.notify("User Not Found");
+		}
+		this.setLoading(true);
+		let txid = "";		
+		if(contractAddress){
+			let wc = await this.getContractInformation(contractAddress);
+			let closeIxs = await wc.closeAccounts(true)
+			let _transaction =  new Transaction();
+			for(let i = 0;i < closeIxs.length ;i++){ _transaction.add(closeIxs[i]); }	
+			if(this.state.payerAccount){
+				let { blockhash } = await this.state.connection.getRecentBlockhash();
+				_transaction.recentBlockhash = blockhash;
+				_transaction.setSigners(this.state.payerAccount);
+				let signed = await this.state.wallet.signTransaction(_transaction);
+				try{ 
+					txid = await this.state.connection.sendRawTransaction(signed.serialize()); 
+					const status = ( await this.state.connection.confirmTransaction(txid) ).value;
+					if(!status.err){
+						this.notify("Account Closure Complete "+ txid);
+					}
+					else{
+						console.log(status);
+						this.notify("Account Closer Error","error");
+					}
+				}
+				catch(e){
+					console.warn(e);
+					let canRecover = await this.recoverFromTimeout(e,0);
+					if(!canRecover){
+						this.notify(e.message,"error");
+						this.setLoading(false);
+						return;
+					}
+				}
+			}
+			else{			
+				let { blockhash } = await connection.getRecentBlockhash();
+				_transaction.recentBlockhash = blockhash;				
+				_transaction.feePayer = this.state.localPayerAccount.publicKey;
+				let signature = await this.localSign(Buffer.from(_transaction.serializeMessage()),this.state.localPayerAccount,_transaction);
+				if(!signature){
+					return this.notify("Signing Error","error");
+				}
+				_transaction.addSignature(this.state.localPayerAccount.publicKey,signature);		
+				try{
+					txid = await connection.sendTransaction(
+						_transaction,
+						[ this.state.localPayerAccount ] ,
+						{
+							commitment: 'singleGossip',
+							preflightCommitment: 'singleGossip',  
+						},
+					);
+					const status = ( await connection.confirmTransaction(txid) ).value;
+					if(!status.err){
+						this.notify("Account Closure Complete "+ txid);
+					}
+					else{
+						console.log(status);
+						this.notify("Account Closure Error","error");
+					}
+				}
+				catch(e){
+					this.notify("Account Closure Error","error");
+					this.setLoading(false);
+					return;
+				}
+			}
+		}
+		this.setLoading(false);
+		this.getContractInformation(contractAddress);		
+		saveTransaction(txid,this.state.defaultNetwork,"Sol-Survivor").catch(console.warn);		
+		return;
+	}	
 	
 	/**
 	* Close the notification 
@@ -2648,6 +2733,7 @@ class App extends React.Component{
 				BET_PROGRAM_ID={this.state.BET_PROGRAM_ID}
 				_connection={connection}
 				enableMusic={this.state.enableMusic}
+				closeWagerAccounts={this.closeWagerAccounts}
 				GAME_ID={this.state.GAME_ID} 
 				GAME_ACCOUNT={this.state.GAME_ACCOUNT}
 				WAGER_GAME_ACCOUNT={this.state.WAGER_GAME_ACCOUNT}				

@@ -13,11 +13,13 @@ import * as BufferLayout from 'buffer-layout';
 import { WagerClient } from '../util/wager';
 import { Wizard } from './Wizard';
 import { ContractView } from './ContractView';
+import DeleteIcon from '@material-ui/icons/Delete';
 import LineStyleIcon from '@material-ui/icons/LineStyle';
 import MonetizationOnIcon from '@material-ui/icons/MonetizationOn';
 
 const sdbm = require('sdbm');
 
+var justMounted = 0;
 var Drift = 0;
 function get64BitTime(byteArray){
 	if(!byteArray){return 0;}
@@ -557,6 +559,7 @@ class Stage extends React.Component{
 					//Time has started
 					state[13][1] > 0
 				){
+					if(justMounted === 0){return ++justMounted;}
 					let actions = ["counter","taunt","attack","","idle"];
 					let gameMessage = "";
 					if(state[14][0] === 0 && state[16][0] > 0 ){ 
@@ -823,9 +826,9 @@ class Stage extends React.Component{
 	}
 	
 	updateWagerOption(){
+		justMounted = 0;
 		return this.setState({wager:!this.state.wager},()=>{
 			this.subscribeToGame();
-			console.log("get acc info");
 			this.getAccountInfo();
 		});
 	}
@@ -945,6 +948,7 @@ class Stage extends React.Component{
 			<WagerSwitch
 				bet={this.state.bet}
 				close={this.toggleViewBet}
+				closeWagerAccounts={this.props.closeWagerAccounts}
 				getContractInformation={this.props.getContractInformation}
 				redeemContract={this.props.redeemContract}
 				wager={this.state.wager} 
@@ -1022,7 +1026,7 @@ class Stage extends React.Component{
 						</div>
 					</div>:null
 				}
-				<WebGLView src={"./solsurvivor/index.html"}/>
+				<WebGLView src={"./solsurvivor/index.html"}/>				
 				<Wizard open={this.props.survivorHelpOpen} close={this.props.toggleSurvivorHelpOpen}/>
 			</div>
 			<audio id="backgroundMusic" src={this.state.backgroundMusic} />
@@ -1078,12 +1082,17 @@ function WagerSwitch(props){
 				: null
 			}
 			<ButtonGroup id="wagerButtons">
-			{ props.wager ? <Button id="wagerStats" title="wager information" onClick={props.close}> <LineStyleIcon/> DETAILS </Button> : null }
+			{ props.wager ? <Button id="wagerStats" title="WAGER DETAILS" onClick={props.close}> <LineStyleIcon/> DETAILS </Button> : null }
 			{ 
 				props.wager && props.bet && props.bet.outcome > 0 ?
-				<Button id="wagerCollect" onClick={async()=>{ await props.redeemContract(props.wagerContractAddress); }} title="collect"> <MonetizationOnIcon /> COLLECT </Button>
+				<Button id="wagerCollect" onClick={async()=>{ await props.redeemContract(props.wagerContractAddress); }} title="COLLECT WAGER"> <MonetizationOnIcon /> COLLECT </Button>
 				:null
 			}
+			{ 
+				props.wager && props.bet && props.bet.outcome > 0 ?
+				<Button id="wagerTrash" onClick={async()=>{ await props.closeWagerAccounts(props.wagerContractAddress); }} title="CLOSE TOKEN ACCOUNTS"> <DeleteIcon /> ACCOUNTS </Button>
+				:null
+			}			
 			</ButtonGroup>
 			{
 				props.viewBet ?

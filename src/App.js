@@ -822,7 +822,12 @@ class App extends React.Component{
 		let txid = "";		
 		if(contractAddress){
 			let wc = await this.getContractInformation(contractAddress);
-			let closeIxs = await wc.closeAccounts(true)
+			let closeIxs = await wc.closeAccounts(true);
+			if(closeIxs.length < 1 ){
+				this.setLoading(false);
+				this.notify("No Accounts To Close");
+				return;
+			}
 			let _transaction =  new Transaction();
 			for(let i = 0;i < closeIxs.length ;i++){ _transaction.add(closeIxs[i]); }	
 			if(this.state.payerAccount){

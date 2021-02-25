@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button,ButtonGroup,Card,Input,Label,Media } from 'reactstrap';
+import { Button,ButtonGroup,Input,Label } from 'reactstrap';
 import { ProgressBar } from 'react-bootstrap';
 import {
   PublicKey,  
@@ -13,6 +13,8 @@ import * as BufferLayout from 'buffer-layout';
 import { WagerClient } from '../util/wager';
 import { Wizard } from './Wizard';
 import { ContractView } from './ContractView';
+import LineStyleIcon from '@material-ui/icons/LineStyle';
+import MonetizationOnIcon from '@material-ui/icons/MonetizationOn';
 
 const sdbm = require('sdbm');
 
@@ -30,14 +32,6 @@ function get64BitTime(byteArray){
 	return time;
 }
 
-function get64Value(array){
-	let hex = "0x"+array.toString("hex");
-	let big = window.BigInt(hex);
-	big = big.toString();
-	big = Number(big);
-	return big;
-}
-
 const react_game_channel = new BroadcastChannel('game_channel'); 
 const iframe_game_channel = new BroadcastChannel('game_commands');   
     
@@ -51,10 +45,6 @@ function WebGLView(props){
 		style={{frameBorder:0}}
 	/>);
 }     
-
-const bet_contract = {
-		
-}
      
 class Stage extends React.Component{ 
 	constructor(props){
@@ -71,7 +61,7 @@ class Stage extends React.Component{
 			loadingAccountData:true,
 			moveTimer:-1,
 			moveTimerExpiration:-1,
-			moveTimeoutValue:10,
+			moveTimeoutValue:30,
 			muted:false,
 			myCommit:"",
 			player1:false,
@@ -96,7 +86,8 @@ class Stage extends React.Component{
 			viewBet:false,	
 		}
 		this.acceptChallenge = this.acceptChallenge.bind(this);
-		this.acceptWagerKeys = this.acceptWagerKeys.bind(this);
+		this.acceptWagerKeysIx = this.acceptWagerKeysIx.bind(this);
+		this.addMintSigs = this.addMintSigs.bind(this);
 		this.commit = this.commit.bind(this);
 		this.countDownTimer = this.countDownTimer.bind(this);
 		this.createChallenge = this.createChallenge.bind(this);
@@ -127,7 +118,7 @@ class Stage extends React.Component{
 		let txid;
 		//sollet adapter
 		if(this.props.payerAccount){	
-			let instruction = new TransactionInstruction({
+			let instructions = new TransactionInstruction({
 				keys: [
 					{pubkey: gameAccount, isSigner: false, isWritable: true},
 					{pubkey: this.props.payerAccount, isSigner: true, isWritable: false},
@@ -135,18 +126,19 @@ class Stage extends React.Component{
 				programId,
 				data: Buffer.from([1])
 			});
+			let wagerIx;
 			if(this.state.wager){
-				let nextStep = await this.acceptWagerKeys(instruction);
-				if(!nextStep){
-					this.props.setLoading(true);
+				wagerIx = await this.acceptWagerKeysIx(instructions);
+				if(!wagerIx){
+					this.props.setLoading(false);
 					return;
 				}			
 			}
-			txid = await this.solletSign([instruction]);	
+			txid = await this.solletSign([instructions],wagerIx);	
 		}
 		else{
 			//localaccount
-			let instruction = new TransactionInstruction({
+			let instructions = new TransactionInstruction({
 				keys: [
 					{pubkey:gameAccount, isSigner: false, isWritable: true},
 					{pubkey:this.props.localPayerAccount.publicKey, isSigner: true, isWritable: false},
@@ -154,14 +146,21 @@ class Stage extends React.Component{
 				programId,
 				data: Buffer.from([1])
 			});
+			let wagerIx;
 			if(this.state.wager){
-				let nextStep = await this.acceptWagerKeys(instruction);
-				if(!nextStep){
-					this.props.setLoading(true);
+				wagerIx= await this.acceptWagerKeysIx(instructions);
+				if(!wagerIx){
+					this.props.setLoading(false);
 					return;
 				}			
 			}
-			let _transaction =  new Transaction().add(instruction);	
+			let _transaction = new Transaction();
+			if(wagerIx){
+				for(let i = 0;i < wagerIx.length;i++){
+					_transaction.add(wagerIx[i]);
+				}
+			}
+			_transaction.add(instructions);	
 			let { blockhash } = await this.props._connection.getRecentBlockhash();
 			_transaction.recentBlockhash = blockhash;		
 			_transaction.feePayer = this.props.localPayerAccount.publicKey;
@@ -171,7 +170,6 @@ class Stage extends React.Component{
 			}
 			_transaction.addSignature(this.props.localPayerAccount.publicKey,signature);		
 			try{
-				console.log("sending transaction",instruction)
 				txid = await sendAndConfirmTransaction(
 					'acceptChallenge',
 					this.props._connection,
@@ -194,95 +192,35 @@ class Stage extends React.Component{
 		return txid;
 	}
 	
-	async acceptWagerKeys(obj){
+	async acceptWagerKeysIx(obj){
 		let wc = await this.getWagerInfo();
-		let [ payerWagerTokenAccount, exists, creationIx ] = await wc.getFeePayerWagerTokenAccount(true);
-		if(!exists){
-			this.props.notify("Creating Token Account");
-			let _transaction =  new Transaction().add(creationIx);	
-			let { blockhash } = await this.props._connection.getRecentBlockhash();
-			_transaction.recentBlockhash = blockhash;				
-			_transaction.feePayer = this.props.localPayerAccount.publicKey;
-			let signature = await this.props.localSign(Buffer.from(_transaction.serializeMessage()),this.props.localPayerAccount,_transaction);
-			if(!signature){
-				this.props.notify("Signing Error","error");
-				return false;
-			}
-			_transaction.addSignature(this.props.localPayerAccount.publicKey,signature);		
-			try{
-				console.log("creating wager on chain");
-				let txid = await this.props._connection.sendTransaction(
-					_transaction,
-					[ this.props.localPayerAccount ],
-					{
-						commitment: 'singleGossip',
-						preflightCommitment: 'singleGossip',  
-					},
-				  );
-				const status = ( await this.props._connection.confirmTransaction(txid) ).value;
-				console.log("Payer Wager Token Account created txid:",txid,status);
-				wc.viewContractData();
-			}
-			catch(e){
-				this.props.notify("Confirmation Token Account Creation Timeout","error");
-			}
-		}
+		let info = await wc.getFeePayerWagerTokenAccount(true);
+		let exists = info[1];
+		let creationIx = info[2];
+		let wagerIx = [];
+		if(!exists){ wagerIx.push(creationIx); }
 		let amountToMint = wc.minimumBet / Math.pow(10,6);	
 		let [ mintPositionIx,associateMintTokenAccountPublicKey ] = await wc.mintPx(2,amountToMint,true);
-		try{
-			let mintGood = false;
-			for(let attempt = 0; attempt < 7;attempt++){
-				let _transaction2 =  new Transaction();
-				for(let i = 0;i < mintPositionIx.length ;i++){
-					_transaction2.add(mintPositionIx[i]);
-				}				
-				let { blockhash } = await this.props._connection.getRecentBlockhash();
-				_transaction2.recentBlockhash = blockhash;				
-				_transaction2.feePayer = this.props.localPayerAccount.publicKey;
-				let signature2 = await this.props.localSign(Buffer.from(_transaction2.serializeMessage()),this.props.localPayerAccount,_transaction2);
-				if(!signature2){
-					return this.props.notify("Signing Error","error");
-				}
-				_transaction2.addSignature(this.props.localPayerAccount.publicKey,signature2);		
-				let txid2 = await this.props._connection.sendTransaction(
-					_transaction2,
-					[ this.props.localPayerAccount ] ,
-					{
-					  skipPreflight:true,
-					  commitment: 'max',
-					  //preflightCommitment: 'max',  
-					},
-				  );
-				let status2 = ( await this.props._connection.confirmTransaction(txid2) ).value;
-				if(status2.err){
-					console.log(status2.err,txid2);
-					await wc.sleep(attempt);
-				}
-				else{
-					console.log("mint position complete",txid2,status2);
-					mintGood = true;
-					break;
-				}
-			}
-			if(!mintGood){
-				this.props.notify("Joining Wager Error","error");
-				this.props.setLoading(false);
-				return false;
-			}
-		}
-		catch(e){
-			console.error(e);
-			this.props.notify("Joining Wager Error","error");
-			this.props.setLoading(false);
-			return false;
-		}	
+		for(let i = 0;i < mintPositionIx.length ;i++){ wagerIx.push(mintPositionIx[i]); }
 		if(obj && obj.keys){			
 			obj.keys.push( {pubkey: wc.contractAccount, isSigner: false, isWritable: true} );
 			obj.keys.push( {pubkey: wc.mintAccounts[1], isSigner: false, isWritable: true} );
 			obj.keys.push( {pubkey: associateMintTokenAccountPublicKey, isSigner: false, isWritable: true} );
 		}
-		console.log("Ready to join game");
-		return true;
+		return wagerIx;
+	}
+
+	addMintSigs(wc,_transaction){
+		let message = Buffer.from(_transaction.serializeMessage());
+		let privateKeyMint1 = new Uint8Array(wc.mintAccounts[0].secretKey);
+		let privateKeyMint2 = new Uint8Array(wc.mintAccounts[1].secretKey);
+		let privateKeyContractAccount = new Uint8Array(wc.contractAccount.secretKey);		
+		let signatureMint1 = nacl.sign.detached(message,privateKeyMint1);
+		let signatureMint2 = nacl.sign.detached(message,privateKeyMint2);
+		let signatureContractAccount = nacl.sign.detached(message,privateKeyContractAccount);		
+		_transaction.addSignature(wc.mintAccounts[0].publicKey,signatureMint1);
+		_transaction.addSignature(wc.mintAccounts[1].publicKey,signatureMint2);	
+		_transaction.addSignature(wc.contractAccount.publicKey,signatureContractAccount);	
 	}
 
 	async commit(action){
@@ -293,12 +231,7 @@ class Stage extends React.Component{
 		//Craft action
 		let random = Math.random().toString().slice(0,10);
 		let r = ""
-		let act = {
-			"attack":"0",
-			"gaurd":"1",
-			"counter":"2",
-			"taunt":"3",
-		}
+		let act = { "rock":"0","paper":"1","scissors":"2" }
 		for(let i = 0;i < random.length;i++){
 			if(i === 5){r += act[action];}
 			else{r += random[i]}
@@ -396,9 +329,7 @@ class Stage extends React.Component{
 				*/	
 		},1000);		
 	}
-	componentWillUnmount(){
-
-	}
+	componentWillUnmount(){}
 	
 	countDownTimer(){
 		return setTimeout(()=>{
@@ -440,9 +371,7 @@ class Stage extends React.Component{
 				programId,
 				data: Buffer.from([0])
 			});
-			if(this.state.wager){
-				instruction.keys.push( {pubkey: wgpk, isSigner: false, isWritable: false} )
-			}
+			if(this.state.wager){ instruction.keys.push( {pubkey: wgpk, isSigner: false, isWritable: false} )}
 			txid = await this.solletSign([instruction]);
 		}
 		else{
@@ -483,8 +412,12 @@ class Stage extends React.Component{
 			}
 			catch(e){
 				console.warn(e);
-				this.props.notify("Confirmation Timeout","error");
-				console.warn("Confirmation Timeout?");
+				let canRecover = await this.props.recoverFromTimeout(e,0);
+				if(!canRecover){
+					this.props.notify(e.message,"error");
+					this.props.setLoading(false);
+					return;
+				}				
 			}
 		}
 		iframe_game_channel.postMessage( "idle-idle");  
@@ -525,7 +458,7 @@ class Stage extends React.Component{
 	}
 	
 	async getWagerInfo(address){
-		if(!address){address = this.state.wagerContractAddress;}
+		if(!address && this.state.wagerContractAddress){address = this.state.wagerContractAddress;}
 		let wc = await this.props.getContractInformation(address);
 		this.setState({bet:wc});
 		return wc;
@@ -613,7 +546,7 @@ class Stage extends React.Component{
 					//Time has started
 					state[13][1] > 0
 				){
-					let actions = ["attack","gaurd","counter","taunt","idle"];
+					let actions = ["counter","taunt","attack","","idle"];
 					let gameMessage = "";
 					if(state[14][0] === 0 && state[16][0] > 0 ){ 
 						gameMessage = `dead-${actions[state[19][0]]}`;
@@ -631,9 +564,11 @@ class Stage extends React.Component{
 						gameMessage = actions[state[18][0]] + "-" + actions[state[19][0]];
 						iframe_game_channel.postMessage( gameMessage );
 					}
+					//temp fix till new engine in place
+					let realActions = ["Reversal","Punch","Strike","","idle"];
 					this.setState({
-						p1Action:actions[state[18][0]],
-						p2Action:actions[state[19][0]]
+						p1Action:realActions[state[18][0]],
+						p2Action:realActions[state[19][0]]
 					});
 
 				}
@@ -678,15 +613,12 @@ class Stage extends React.Component{
 			if(state[13][0] > 0 && this.state.moveTimer !== -1){
 				this.setState({moveTimer:state[13]});
 				if(this.state.moveTimerExpiration < 0){
-					let expire = (new Date().getTime()+10000);	
-					if(this.state.wager){
-						expire = (new Date().getTime()+20000);	
-					}	
+					let expire = (new Date().getTime()+30000);	
 					this.setState({moveTimerExpiration:expire});
 				}
 			}
 			else{
-				this.setState({moveTimer:-1,moveTimerExpiration:-1,moveTimeoutValue: this.state.wager ? 20 : 10 });
+				this.setState({moveTimer:-1,moveTimerExpiration:-1,moveTimeoutValue: 30 });
 			}
 			//Game Time
 			this.timeGame(data).catch(console.warn);
@@ -724,7 +656,7 @@ class Stage extends React.Component{
 		////Add Wager Accounts to allow wager hook to be called//////
 		if(this.state.wager){
 			let wc = await this.getWagerInfo();
-			let [ ca_signer, seed ] = await wc.getContractAuth(false, new PublicKey(this.props.WAGER_GAME_ID) );
+			let [ ca_signer ] = await wc.getContractAuth(false, new PublicKey(this.props.WAGER_GAME_ID) );
 			wagerHooks = [
 				{pubkey: wc.contractAccount, isSigner: false, isWritable: true},
 				{pubkey:ca_signer, isSigner: false, isWritable: false},
@@ -789,7 +721,10 @@ class Stage extends React.Component{
 			}
 			catch(e){
 				console.log(e);
-				this.props.notify("Confirmation Timeout","error");
+				let canRecover = await this.props.recoverFromTimeout(e,0);
+				if(!canRecover){
+					this.props.notify(e.message,"error");
+				}
 			}
 		}
 		this.props.setLoading(false);
@@ -797,10 +732,14 @@ class Stage extends React.Component{
 		return txid;
 	}
 	
-	
-	async solletSign(instructionList){
+	async solletSign(instructionList,wagerIx=false){
 		let transaction =  new Transaction();
 		let txid = false;
+		if(wagerIx){
+			for(let i = 0;i < wagerIx.length;i++){
+				transaction.add(wagerIx[i]);
+			}
+		}
 		for(let i = 0;i < instructionList.length;i++){
 			transaction.add(instructionList[i]);
 		}	
@@ -813,7 +752,12 @@ class Stage extends React.Component{
 			await this.props.connection.confirmTransaction(txid);	
 		}
 		catch(e){
-			this.props.notify("Signing Error","error")
+			let canRecover = await this.props.recoverFromTimeout(e,0);
+			if(!canRecover){
+				this.props.notify(e.message,"error");
+				this.props.setLoading(false);
+				return;
+			}
 		}
 		return txid
 	}
@@ -880,160 +824,102 @@ class Stage extends React.Component{
 			this.props.notify("Please Input A Valid Wager","error");
 			return;
 		}
+		let allIx = [];
 		this.props.setLoading(true);
 		let three_minutes = (60 * 5);
+		let feePayer = this.props.localPayerAccount ? this.props.localPayerAccount : this.props.payerAccount;
 		let config = {
 			connection:this.props._connection,
 			endTime: three_minutes,
 			fee:0,
-			//A Dummy Account Because No Fees Are Charged
-			feeAccount:new PublicKey("HaPZ2Tudnxn1Fo4kGq7DL8JnT8vUbqu93i3ytuoperUV"),
-			feePayer:this.props.localPayerAccount ? this.props.localPayerAccount : this.payerAccount,
+			feeAccount:new PublicKey(),//A Dummy Account Because No Fees Are Charged
+			feePayer,
 			minimumBet: Number( wagerAmount.value ),
-			//public key of the program/account to close the contract. if override > 0 this will automatically be converted to a PDA
-			oracleAccount: new PublicKey(this.props.WAGER_GAME_ID),
+			oracleAccount: new PublicKey(this.props.WAGER_GAME_ID),//public key of the program/account to close the contract. if override > 0 this will automatically be converted to a PDA
 			override:1,
 			programId: new PublicKey(this.props.BET_PROGRAM_ID),
 			potMint: new PublicKey(this.props.WAGER_TOKEN_MINT)
 		}
-
 		let wc = new WagerClient(config);
-		let [ contractAccount,mint1,mint2,contractPotAccount,potMint,ixList ] = await wc.setupContract(true);
-		///////////////////////////////////
+		let setupInfo = await wc.setupContract(true);
+		let ixSetup = setupInfo[5];
+		for(let i = 0;i < ixSetup.length ;i++){
+			if(!ixSetup[i]){continue;}
+			allIx.push(ixSetup[i]);
+		}	
+		////Mint Position ///////
+		let info = await wc.getFeePayerWagerTokenAccount(true);
+		let exists = info[1];
+		let creationIx = info[2];
+		if(!exists){allIx.push(creationIx);}
+		let [ mintPositionIx ] = await wc.mintPx(1,wagerAmount.value,true);	
+		console.log(allIx);
+		allIx = allIx.concat(mintPositionIx);
 		let _transaction =  new Transaction();
 		let txid = "";
-		//console.log(contractAccount,ixList);
-		for(let i = 0;i < ixList.length ;i++){
-			if(!ixList[i]){continue;}
-			_transaction.add(ixList[i]);
-		}	
-		let { blockhash } = await this.props._connection.getRecentBlockhash();
-		_transaction.recentBlockhash = blockhash;				
-		_transaction.feePayer = this.props.localPayerAccount.publicKey;
-		let signature = await this.props.localSign(Buffer.from(_transaction.serializeMessage()),this.props.localPayerAccount,_transaction);
-		if(!signature){
-			this.props.setLoading(false);
-			return this.props.notify("Signing Error","error");
-		}
-		_transaction.addSignature(this.props.localPayerAccount.publicKey,signature);	
-		//sign for mint accounts
-		let message = Buffer.from(_transaction.serializeMessage());
-		let privateKeyMint1 = new Uint8Array(wc.mintAccounts[0].secretKey);
-		let privateKeyMint2 = new Uint8Array(wc.mintAccounts[1].secretKey);
-		let privateKeyContractAccount = new Uint8Array(contractAccount.secretKey);		
-		let signatureMint1 = nacl.sign.detached(message,privateKeyMint1);
-		let signatureMint2 = nacl.sign.detached(message,privateKeyMint2);
-		let signatureContractAccount = nacl.sign.detached(message,privateKeyContractAccount);		
-		_transaction.addSignature(wc.mintAccounts[0].publicKey,signatureMint1);
-		_transaction.addSignature(wc.mintAccounts[1].publicKey,signatureMint2);	
-		_transaction.addSignature(contractAccount.publicKey,signatureContractAccount);	
-		//
-		try{
-			console.log("creating wager on chain");
-			let txid = await this.props._connection.sendTransaction(
-				_transaction,
-				[ this.props.localPayerAccount,wc.mintAccounts[0],wc.mintAccounts[1],contractAccount ],
-				{
-					  commitment: 'singleGossip',
-					  preflightCommitment: 'singleGossip',  
-				},
-			  );
+		for(let i = 0;i < allIx.length ;i++){
+			_transaction.add(allIx[i]);
+		}				
 
-			const status = ( await this.props._connection.confirmTransaction(txid) ).value;
-			console.log("Wager created txid:",txid,status);
-		}
-		catch(e){
-			console.log(e);
-			this.props.notify("Wager Confirmation Timeout","error");
-			this.props.setLoading(false);
-			return;
-		}
-		////Mint Position ///////
-		let [ payerWagerTokenAccount , exists, creationIx ] = await wc.getFeePayerWagerTokenAccount(true);
-		if(!exists){
-			this.props.notify("Creating Token Account");
-			let _transaction2 =  new Transaction().add(creationIx);	
-			let { blockhash } = await this.props._connection.getRecentBlockhash();
-			_transaction2.recentBlockhash = blockhash;				
-			_transaction2.feePayer = this.props.localPayerAccount.publicKey;
-			let signature2 = await this.props.localSign(Buffer.from(_transaction2.serializeMessage()),this.props.localPayerAccount,_transaction2);
-			if(!signature2){
-				return this.props.notify("Signing Error","error");
-			}
-			_transaction2.addSignature(this.props.localPayerAccount.publicKey,signature2);		
-			try{
-				console.log("creating wager on chain");
-				let txid2 = await this.props._connection.sendTransaction(
-					_transaction2,
-					[ this.props.localPayerAccount ],
-					{
-					  commitment: 'singleGossip',
-					  preflightCommitment: 'singleGossip',  
-					},
-				  );
-				const status2 = ( await this.props._connection.confirmTransaction(txid2) ).value;
-				console.log("Payer Wager Toke Account created txid:",txid,status2);
-				await wc.sleep(5);
-				wc.viewContractData();
-			}
+		if(this.props.payerAccount){	
+			let { blockhash } = await this.props.connection.getRecentBlockhash();
+			_transaction.recentBlockhash = blockhash;
+			_transaction.setSigners(this.props.payerAccount);
+			let signed = await this.props.wallet.signTransaction(_transaction);
+			this.addMintSigs(wc,_transaction);
+			try{ txid = await this.props.connection.sendRawTransaction(signed.serialize()); }
 			catch(e){
-				this.props.notify("Confirmation Token Account Creation Timeout","error");
-			}
-			
-		}
-		let [ mintPositionIx,associateMintTokenAccountPublicKey ] = await wc.mintPx(1,wagerAmount.value,true);	
-		try{
-			let mintGood = false;
-			//Try 5 times to mint
-			for(let attempt=0; attempt < 5;attempt++){
-				let _transaction3 =  new Transaction();
-				for(let i = 0;i < mintPositionIx.length ;i++){
-					_transaction3.add(mintPositionIx[i]);
-				}				
-				let { blockhash } = await this.props._connection.getRecentBlockhash();
-				_transaction3.recentBlockhash = blockhash;				
-				_transaction3.feePayer = this.props.localPayerAccount.publicKey;
-				let signature3 = await this.props.localSign(Buffer.from(_transaction3.serializeMessage()),this.props.localPayerAccount,_transaction3);
-				if(!signature3){
-					return this.props.notify("Signing Error","error");
+				console.warn(e);
+				let canRecover = await this.props.recoverFromTimeout(e,0);
+				if(!canRecover){
+					this.props.notify(e.message,"error");
+					this.props.setLoading(false);
+					return;
 				}
-				_transaction3.addSignature(this.props.localPayerAccount.publicKey,signature3);		
-				let txid3 = await this.props._connection.sendTransaction(
-					_transaction3,
-					[ this.props.localPayerAccount ] ,
+			}
+		}
+		else{
+			let { blockhash } = await this.props._connection.getRecentBlockhash();
+			_transaction.recentBlockhash = blockhash;		
+			_transaction.feePayer = this.props.localPayerAccount.publicKey;
+			let signature = await this.props.localSign(Buffer.from(_transaction.serializeMessage()),this.props.localPayerAccount,_transaction);
+			if(!signature){return this.props.notify("Signing Error","error");}
+			_transaction.addSignature(this.props.localPayerAccount.publicKey,signature);	
+			//sign for mint accounts
+			this.addMintSigs(wc,_transaction);
+			let signers = [ this.props.localPayerAccount,wc.mintAccounts[0],wc.mintAccounts[1],wc.contractAccount ];
+			//	
+			try{
+				txid = await this.props._connection.sendTransaction(
+					_transaction,
+					signers,
 					{
 						skipPreflight:true,
-					  commitment: 'max',
+					  commitment: 'root',
 					  //preflightCommitment: 'max',  
 					},
 				  );
-				let status3 = ( await this.props._connection.confirmTransaction(txid3) ).value;
-				if(status3.err){
-					console.log("Mint error",status3.err,txid3);
-					await wc.sleep(5);
-				}
-				else{
-					mintGood = true;
-					console.log("mint position complete",txid3,status3);
-					break;
+				let status = ( await this.props._connection.confirmTransaction(txid) ).value;
+				if(status.err){
+					console.log("Mint error",status.err,txid);
+					this.props.notify("Wager Creation Error","error");
+					this.props.setLoading(false);
+					return;
 				}
 			}
-			if(!mintGood){
-				this.props.notify("Wager Mint Position Error","error");
-				this.props.setLoading(false);
-				return;
+			catch(e){
+				console.warn(e);
+				let canRecover = await this.props.recoverFromTimeout(e,0);
+				if(!canRecover){
+					this.props.notify(e.message,"error");
+					this.props.setLoading(false);
+					return;
+				}
 			}
 		}
-		catch(e){
-			console.log(e);
-			this.props.notify("Creating Wager Error","error");
-			this.props.setLoading(false);
-			return;
-		}
+		this.props.saveTransaction(txid,this.props.defaultNetwork,"Sol-Survivor").catch(console.warn);		
 		this.props.setLoading(false);
-		this.setState({wager:true},()=>{
-			this.createChallenge(wc.contractAccount.publicKey);
-		});
+		this.setState({wager:true},()=>{ return this.createChallenge(wc.contractAccount.publicKey);});
 	}
 	
 	toggleViewBet(){
@@ -1079,9 +965,11 @@ class Stage extends React.Component{
 				</div>
 			</h3>
 			<div><ProgressBar id="gameTimer" variant={this.state.timeLimit > 40 ? "primary" : "danger"} striped min={0} max={180} now={this.state.timeLimit} label={"TIME: "+Math.floor(this.state.timeLimit)+"s"} /></div>
+			<br/>
 			<div id="moveTimeout">
-				<ProgressBar variant="warning" 
-					 striped min={0} max={this.state.wager ? 20 : 10} 
+				<ProgressBar variant="info"
+					style={{fontSize:"large",height:"2vh"}}
+					 striped min={0} max={30} 
 					now={this.state.moveTimeoutValue} 
 					label={Math.floor(this.state.moveTimeoutValue)}
 				/>
@@ -1089,21 +977,23 @@ class Stage extends React.Component{
 			<div>
 				<div id="player1Stats">
 					<div className="comrev">
-						<p>{(this.state.player1HonestReveal > 0 && this.state.player1HonestReveal === 8) ? " HONEST" : null }{this.state.player1DidCommit === 1 ? " COMMIT" : null }</p>
+						<b> Player 1 </b>
+						<br/>Address<br/> <b>{this.state.player1 ? this.state.player1.slice(0,15) : null}</b>
+						<br/>Status<br/> <b>{(this.state.player1HonestReveal > 0 && this.state.player1HonestReveal === 8) ? " HONEST" : null }{this.state.player1DidCommit === 1 ? " COMMIT" : null }</b>
+						<br/>Action<br/> <b>{this.state.p1Action? this.state.p1Action.toUpperCase() : ""}</b>
+						<br/>Health 
+						<ProgressBar id="player1HealthBar" variant={this.state.player1Health > 1 ? "success" : "danger"} min={0} max={100} now={this.state.player1Health}/>
 					</div>
-					<b>{this.state.player1 ? this.state.player1.slice(0,15) : null}</b> 
-					<br/><meter min={0} max={100} value={this.state.player1Super}/>
-					<br/><ProgressBar variant={this.state.player1Health > 40 ? "success" : "danger"}  min={0} max={100} now={this.state.player1Health} />
-					<br/><marquee direction="right">{this.state.p1Action.toUpperCase()}</marquee >
 				</div>
 				<div id="player2Stats">
-						<div className="comrev">
-						<p>{(this.state.player2HonestReveal > 0 && this.state.player2HonestReveal === 8) ? " HONEST" : null } {this.state.player2DidCommit === 1 ? " COMMIT" : null } </p>
+						<div className="comrev" id="comrev2">
+							<b> Player 2 </b>
+							<br/>Address<br/> <b>{this.state.player2 ? this.state.player2.slice(0,15) : null}</b>
+							<br/>Status<br/> <b>{(this.state.player2HonestReveal > 0 && this.state.player2HonestReveal === 8) ? " HONEST" : null } {this.state.player2DidCommit === 1 ? " COMMIT" : null } </b>
+							<br/>Action<br/> <b>{this.state.p2Action? this.state.p2Action.toUpperCase() : ""}</b>
+							<br/>Health
+							<ProgressBar id="player1HealthBar" variant={this.state.player2Health > 1 ? "success" : "danger"} min={0} max={100} now={this.state.player2Health}/>
 						</div>
-						<b>{this.state.player2 ? this.state.player2.slice(0,15) : null}</b> 
-						<br/><meter min={0} max={100} value={this.state.player2Super}/>
-						<br/><ProgressBar id="player2HealthBar" variant={this.state.player2Health > 40 ? "success" : "danger"} min={0} max={100} now={this.state.player2Health}/>
-						<br/><marquee loop={0} direction="left">{this.state.p2Action.toUpperCase()}</marquee>
 				</div>
 				<br/>
 				{(this.state.isPlayer1 || this.state.isPlayer2) ?
@@ -1111,10 +1001,9 @@ class Stage extends React.Component{
 						<div>
 							<ButtonGroup>
 								{ this.state.isPlayer1 && this.state.player1DidCommit === 1 ? <Button block color="danger" onClick={()=>{this.reveal("attack")}}>UNLEASH </Button>  : null }
-								<Button color="success" onClick={()=>{this.commit("attack")}} >ATTACK</Button>
-								<Button color="default" onClick={()=>{this.commit("gaurd")}} >BLOCK</Button>
-								<Button color="warning" onClick={()=>{this.commit("counter")}} >COUNTER</Button>
-								<Button color="info" onClick={()=>{this.commit("taunt")}} >TAUNT</Button>
+								<Button color="success" onClick={()=>{this.commit("rock")}}> Reversal </Button>
+								<Button color="default" onClick={()=>{this.commit("paper")}}> Punch </Button>
+								<Button color="warning" onClick={()=>{this.commit("scissors")}}> Strike </Button>
 								{ this.state.isPlayer2 && this.state.player2DidCommit === 1 ? <Button block color="danger" onClick={()=>{this.reveal("attack")}}>UNLEASH </Button>  : null }
 							</ButtonGroup>
 						</div>
@@ -1140,14 +1029,23 @@ function GameOptions(props){
 				<Button color="danger" block className="classicButton waves-effect waves-light" onClick={props.classic}> PLAYER 1 PRESS START </Button> 
 			:
 			<div className="wagerDiv"> 
-				<Input type="number" defaultValue="1" id="wagerAmount" onChange={updateWAmount}/>			 
-				<Button color="success" block disabled={props.enabled ? true : false} id="wagerButton" onClick={props.wagerStart}> WAGER $<b id="currentWagerAmount">1</b> / <b>{props.usdtBalance.toFixed(2)}</b> (USDT) </Button>
+				<Input type="number" defaultValue="0.05" id="wagerAmount" onChange={updateWAmount}/>			 
+				<Button color="success" block disabled={props.enabled ? true : false} id="wagerButton" onClick={props.wagerStart}> WAGER $<b id="currentWagerAmount">0.05</b> / <b>{props.usdtBalance.toFixed(2)}</b> (USDT) </Button>
 			</div>
 		}		
 	</div>)
 }
 
 function WagerSwitch(props){
+	let showDisc = true;
+	function removeDisc(){
+		try{
+			let wd = document.getElementsByClassName("wagerDisclaimer")[0];
+			wd.parentElement.removeChild(wd);
+		}
+		catch(e){console.error(e)}
+	}	
+
 	return(<div className="custom-control custom-switch">
 			<Input type="checkbox" 
 				className="custom-control-input" 
@@ -1156,19 +1054,31 @@ function WagerSwitch(props){
 				onClick={props.updateWagerOption}
 			/>
 			<Label className="custom-control-label" htmlFor="modeSwitch"> <p id="modeText">{ props.wager ? "wager" : "classic" }</p> </Label>
-			{ props.wager ? <Button color="info" id="wagerStats" title="wager information" onClick={props.close}> <i className="ri-article-line"></i> </Button> : null }
+			{	props.wager && showDisc?
+					<p className="wagerDisclaimer">
+					Disclaimer: Wagers are not available in the U.S.A, E.U. or other prohibited jurisdictions. 
+					If you are located in, incorporated or otherwise established in, or a resident of the United States of America
+					or any nation part of the European Union, you are not permitted to wager on sol-talk.com. By using this 
+					service you acknowledge Sol-Talk bears no responsibility for any loss of funds.
+					<br/><button color="danger" onClick={removeDisc}>acknowledge</button>
+					</p>
+				: null
+			}
+			<ButtonGroup id="wagerButtons">
+			{ props.wager ? <Button id="wagerStats" title="wager information" onClick={props.close}> <LineStyleIcon/> DETAILS </Button> : null }
 			{ 
-				props.bet && props.bet.outcome > 0 ?
-				<Button color="success" onClick={async()=>{ await props.redeemContract(props.wagerContractAddress); }} title="collect"><i class="ri-hand-coin-line"></i></Button>
+				props.wager && props.bet && props.bet.outcome > 0 ?
+				<Button id="wagerCollect" onClick={async()=>{ await props.redeemContract(props.wagerContractAddress); }} title="collect"> <MonetizationOnIcon /> COLLECT </Button>
 				:null
 			}
+			</ButtonGroup>
 			{
 				props.viewBet ?
 				<div id="contractViewHolder">
 					<ContractView bet={props.bet ? props.bet : {} } getContractInformation={props.getContractInformation} redeemContract={props.redeemContract} close={props.close}/>
 				</div>
 				:null
-			}
+			}			
 	</div>)
 }
 

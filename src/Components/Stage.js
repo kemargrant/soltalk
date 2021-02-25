@@ -286,7 +286,13 @@ class Stage extends React.Component{
 				);
 			}
 			catch(e){
-				this.props.notify("Confirmation Timeout","error");
+				console.warn(e);
+				let canRecover = await this.props.recoverFromTimeout(e,0);
+				if(!canRecover){
+					this.props.notify(e.message,"error");
+					this.props.setLoading(false);
+					return;
+				}	
 			}
 		}
 
@@ -725,11 +731,13 @@ class Stage extends React.Component{
 				console.log("reveal txid",txid);
 			}
 			catch(e){
-				console.log(e);
+				console.warn(e);
 				let canRecover = await this.props.recoverFromTimeout(e,0);
 				if(!canRecover){
 					this.props.notify(e.message,"error");
-				}
+					this.props.setLoading(false);
+					return;
+				}	
 			}
 		}
 		this.props.setLoading(false);

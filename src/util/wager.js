@@ -116,6 +116,120 @@ function WagerClient(config){
 	return this;
 }
 
+WagerClient.prototype.closeAccounts = function(returnIx= false){
+	return new Promise(async(resolve,reject)=>{	
+		let associatedTokenAccountPublicKey1 = await findAssociatedTokenAccountPublicKey(this.feePayer.publicKey ? this.feePayer.publicKey : this.feePayer,this.mintAccounts[0]);	
+		let associatedTokenAccountPublicKey2 = await findAssociatedTokenAccountPublicKey(this.feePayer.publicKey ? this.feePayer.publicKey : this.feePayer,this.mintAccounts[1]);			
+		let accountsToClose = [false,false];
+		let closeIx = [];		
+		if(await this.connection.getAccountInfo(associatedTokenAccountPublicKey1) ){
+			accountsToClose[0] = associatedTokenAccountPublicKey1;
+		}
+		if(await this.connection.getAccountInfo(associatedTokenAccountPublicKey2) ){
+			accountsToClose[1] = associatedTokenAccountPublicKey2;
+		};		
+		let token;
+		let balance = 0;
+		let burn;
+		let closeTI;
+		if( accountsToClose[0] ){
+			token = new Token(
+				this.connection,
+				this.mintAccounts[0],
+				tokenProgram,
+				this.feePayer
+			);
+			balance = await this.getBalance(accountsToClose[0]);
+			if(!returnIx){
+				if(balance > 0){
+					await token.burn(
+					  accountsToClose[0],
+					  this.feePayer,
+					  [],
+					  balance
+					);
+				}
+				await token.closeAccount(
+					accountsToClose[0],
+					this.feePayer.publicKey ? this.feePayer.publicKey : this.feePayer,
+					this.feePayer.publicKey ? this.feePayer.publicKey : this.feePayer,
+					[],
+				);
+				console.log("Token Account 1 Closed");
+			}
+			else{
+				if(balance > 0 ){
+					burn = Token.createBurnInstruction(
+					  tokenProgram,
+					  this.mintAccounts[0],
+					  accountsToClose[0],
+					  this.feePayer,
+					  [],
+					  balance
+					);
+					closeIx.push(burn);
+				}
+				closeTI = Token.createCloseAccountInstruction(
+					tokenProgram,
+					accountsToClose[0],
+					this.feePayer.publicKey ? this.feePayer.publicKey : this.feePayer,
+					this.feePayer.publicKey ? this.feePayer.publicKey : this.feePayer,
+					[],
+				);
+				closeIx.push(closeTI);
+			}
+		}
+		if(accountsToClose[1] ){
+			token = new Token(
+				this.connection,
+				this.mintAccounts[1],
+				tokenProgram,
+				this.feePayer
+			);
+			balance = await this.getBalance(accountsToClose[1]);
+			if(!returnIx){
+				if(balance > 0){
+					await token.burn(
+					  accountsToClose[1],
+					  this.feePayer,
+					  [],
+					  balance
+					);
+				}
+				await token.closeAccount(
+					accountsToClose[1],
+					this.feePayer.publicKey ? this.feePayer.publicKey : this.feePayer,
+					this.feePayer.publicKey ? this.feePayer.publicKey : this.feePayer,
+					[],
+				);
+				console.log("Token Account 2 Closed");
+			}
+			else{
+				if(balance > 0 ){
+					burn = Token.createBurnInstruction(
+					  tokenProgram,
+					  this.mintAccounts[1],
+					  accountsToClose[1],
+					  this.feePayer,
+					  [],
+					  balance
+					);
+					closeIx.push(burn);
+				}
+				closeTI = Token.createCloseAccountInstruction(
+					tokenProgram,
+					accountsToClose[1],
+					this.feePayer.publicKey ? this.feePayer.publicKey : this.feePayer,
+					this.feePayer.publicKey ? this.feePayer.publicKey : this.feePayer,
+					[],
+				);
+				closeIx.push(closeTI);
+			}
+		}
+		resolve( closeIx );
+	});
+}
+
 WagerClient.prototype.closeContract = function(outcome,returnIx = false){
 	return new Promise(async(resolve,reject)=>{
 		let contractAccountPublicKey = this.contractAccount.publicKey ? this.contractAccount.publicKey : this.contractAccount;		

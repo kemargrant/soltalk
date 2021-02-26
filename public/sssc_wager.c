@@ -31,7 +31,14 @@ typedef struct {
     uint8_t player2Move; //115 
     uint8_t matchOutcome; //116 - 0:timeout/undecided 1:player1 2:player2 3:draw     
     uint64_t startTime; //117 unix timestamp in seconds;
+	SolPubkey wagerContractAddress; //125 player2 public key;
 } GameState;
+
+typedef struct {
+    SolPubkey mint;
+    SolPubkey owner;
+    uint64_t amount;
+} TokenAccount;
 
 uint64_t LEbytesto64(uint8_t *arr) {
 	uint64_t number64 = (uint64_t)(
@@ -82,6 +89,43 @@ uint64_t getMoveStamp(SolParameters *params,int option){
 	uint64_t time = LEbytesto64(&Account->data[ offset ]);
     return time;
 }
+
+//seed used to sign account
+bool wagerHook(SolParameters *params){
+	SolAccountInfo *Account = &params->ka[0];
+	SolAccountInfo *SystemClock = &params->ka[2];	
+	SolAccountInfo *WagerContractAccount = &params->ka[3];	
+	SolAccountInfo *Authority = &params->ka[4];	
+	SolAccountInfo *WagerProgram = &params->ka[5];	
+	uint8_t outcome = Account->data[116];
+	uint8_t seed = WagerContractAccount->data[184];
+	bool valid = false;
+	//Seed Value based on Wager Contract overRideTime Value
+	uint8_t seed1[] = { seed };
+	const SolSignerSeed seeds1[] = { {seed1, SOL_ARRAY_SIZE(seed1)} };	
+	const SolSignerSeeds signer_seeds[] = { {seeds1, SOL_ARRAY_SIZE(seeds1)} };
+	SolAccountMeta callArguments[] = {
+          {WagerContractAccount->key, true, false},
+          {SystemClock->key,false,false},
+          {Authority->key, false, true},
+    };
+    uint8_t setOutcomeData[2] = { 2,outcome};
+	const SolAccountInfo outComeAccounts[3] = { params->ka[3], params->ka[2], params->ka[4] } ;
+	const SolInstruction callIx = {
+		WagerProgram->key,
+		callArguments, SOL_ARRAY_SIZE(callArguments),
+		setOutcomeData,SOL_ARRAY_SIZE(setOutcomeData)
+    };
+	if( SUCCESS == sol_invoke_signed(&callIx, outComeAccounts,3,signer_seeds,1) ){ 
+		sol_log("wager closed");                
+		valid = true;
+	}	
+	else{
+		sol_log("Unable to set outcome");
+	}
+	return valid;
+}
+
 
 //Make sure user is an active player
 bool isPlayer(SolParameters *params,int player){
@@ -181,8 +225,8 @@ void gameLogic(SolParameters *params,uint8_t p1Move,uint8_t p2Move){
 }
 
 uint64_t step(SolParameters *params){
-	if (params->ka_num < 2) {
-		sol_log("2 Accounts needed to step");
+	if (params->ka_num < 6) {
+		sol_log("6 Accounts needed to step");
 		return ERROR_NOT_ENOUGH_ACCOUNT_KEYS;
 	}	
 	SolAccountInfo *Account = &params->ka[0];
@@ -210,7 +254,7 @@ uint64_t step(SolParameters *params){
 	uint8_t p1Health = Account->data[110];
 	uint8_t p2Health = Account->data[112];
 	Account->data[114] = p1Move; 
-	Account->data[115] = p2Move;	
+	Account->data[115] = p2Move;
 	//Check if the game is over
 	//Wrap up the game, no exta innings
 	if(p1Health == 0 || p2Health == 0){
@@ -226,18 +270,55 @@ uint64_t step(SolParameters *params){
 			sol_log("Draw");
 			Account->data[116] = 3;	
 		}
+		wagerHook(params);
 	}	
 	//clear commits,reveals,and part of the timer
 	for(int i = 65;i < 103;i++){Account->data[i] = 0;} 				
 	return SUCCESS;
 }
 
+//Accounts [ContractAccount,TokenMint2,UserMintTokenAccount]
+//We just verify a 2nd position has been taken in the contract
+//We do not verify the minimum amount. That should be done within the wager program itself
+bool verifyMint(SolParameters *params){
+	SolAccountInfo *Account = &params->ka[0];
+	SolAccountInfo *ContractAccount = &params->ka[2];
+	SolAccountInfo *Mint2 = &params->ka[3];
+	SolAccountInfo *UserMintTokenAccount = &params->ka[4];
+	TokenAccount *ta = (TokenAccount *)UserMintTokenAccount->data;	
+	bool minted = true;
+	//same contract
+	for(int i = 0;i < 32;i++){
+		if( ContractAccount->key->x[i] != Account->data[125+i] ){
+			sol_log("Not a valid wager contract");
+			minted = false;
+			break;
+		}
+	}
+	sol_log("compare mints");
+	//mint2 is from contract
+	for(int i = 0;i < 32;i++){
+		if( ContractAccount->data[40+i] != Mint2->key->x[i]  ){
+			sol_log("Invalid mint");
+			minted = false;
+			break;
+		}
+	}
+	//usermintsupply is not 0
+	if( ta->amount < 1 ){
+		sol_log("Invalid Mint Supply");
+		minted = false;
+	}
+	return minted;
+}
+
+
 //Accept A Game
 //NEED to check this is the signed of the transaction
 uint64_t acceptChallenge(SolParameters *params){
 	//Accounts arguments needed
-	if (params->ka_num < 2) {
-		sol_log("2 Accounts needed to accept a challenge");
+	if (params->ka_num < 4) {
+		sol_log("4 Accounts needed to accept a challenge");
 		return ERROR_NOT_ENOUGH_ACCOUNT_KEYS;
 	}
 	SolAccountInfo *Account = &params->ka[0];
@@ -250,6 +331,8 @@ uint64_t acceptChallenge(SolParameters *params){
 	}
 	//Anyone can accept the the challege
 	if(gameState->gameStatus == 1){
+		//mint position 2
+		if(!verifyMint(params)){ return ERROR_INVALID_ARGUMENT; }
 		gameState->player2 = *XAccount->key;
 		gameState->gameStatus = 2;
 		sol_log("Challenge Accepted");
@@ -307,8 +390,8 @@ uint64_t commit(SolParameters *params){
 //Reveal 
 uint64_t reveal(SolParameters *params){
 	//Account arguments needed
-	if (params->ka_num < 3) {
-		sol_log("3 Accounts needed to reveal");
+	if (params->ka_num < 6) {
+		sol_log("6 Accounts needed to reveal(wagerhook)");
 		return ERROR_NOT_ENOUGH_ACCOUNT_KEYS;
 	}		
 	SolAccountInfo *Account = &params->ka[0];
@@ -371,9 +454,9 @@ uint64_t reveal(SolParameters *params){
 //SETUP A NEW GAME
 //Expects Accounts [program account,user,clock}]
 //Need to make sure the signer is really the challenger
-uint64_t setupGame(SolParameters *params){
-	if (params->ka_num < 3) {
-		sol_log("3 Accounts Needed for Game Setup");
+uint64_t setupWagerGame(SolParameters *params){
+	if (params->ka_num < 4) {
+		sol_log("4 Accounts Needed for Wager Game Setup");
 		return ERROR_NOT_ENOUGH_ACCOUNT_KEYS;
 	}
 	if(!validAccount(params)){ return ERROR_INCORRECT_PROGRAM_ID; }	
@@ -381,6 +464,7 @@ uint64_t setupGame(SolParameters *params){
 	SolAccountInfo *Account = &params->ka[0];
 	SolAccountInfo *Challenger = &params->ka[1];
 	SolAccountInfo *Clock = &params->ka[2];
+	SolAccountInfo *WagerContract = &params->ka[3];
 	GameState *gameState = (GameState *)Account->data;	
 	//Make sure the challenger has signed the message
 	if (!Challenger->is_signer) {
@@ -416,20 +500,23 @@ uint64_t setupGame(SolParameters *params){
 		Account->data[112] = 100;
 		//Set Game StartTime
 		for(int i = 0;i < 8;i++){Account->data[ 117 + i] = Clock->data[i+32];}	
+		//Set Wager Address
+		sol_memcpy(&Account->data[125],WagerContract->key->x,32);
 		sol_log("Game SETUP complete");
 	}
 	return SUCCESS;
 }
+////
+
 extern uint64_t entrypoint(const uint8_t *input) {
-	SolAccountInfo accounts[3];
+	SolAccountInfo accounts[6];
 	SolParameters params = (SolParameters){.ka = accounts};
 	if (!sol_deserialize(input, &params, SOL_ARRAY_SIZE(accounts))) {
 		return ERROR_INVALID_ARGUMENT;
 	}; 
-  
 	//0 setup a game
 	if(params.data[0] == 0){
-		return setupGame(&params);
+		return setupWagerGame(&params);
 	}
 	//1 acceptChallenge
 	else if(params.data[0] == 1){

@@ -35,20 +35,19 @@ function get64BitTime(byteArray){
 }
 
 const react_game_channel = new BroadcastChannel('game_channel'); 
-var channel = new MessageChannel();
-var port1 = channel.port1;
-var portsConnect = false;
+var channel;
+var port1;
+var connectPort = false;
 
+function addChannel(){
+	if(connectPort === true){return}
+	let ifr = document.getElementsByTagName("iframe")[0];
+	if(!ifr || !ifr.contentWindow){ return setTimeout(()=>{addChannel()},1000); }
+	ifr.contentWindow.postMessage('init', '*', [channel.port2]);
+	connectPort = true;
+}
 
 function WebGLView(props){
-	function addChannel(){
-		if(portsConnect === true){return}
-		let ifr = document.getElementsByTagName("iframe")[0];
-		if(!ifr || !ifr.contentWindow){ return setTimeout(()=>{addChannel()},1000); }
-		ifr.contentWindow.postMessage('init', '*', [channel.port2]);
-		portsConnect = true;
-	}
-	addChannel();
 	return (<iframe
 		id="gameIframe"
 		title="gameIframe" 
@@ -101,6 +100,7 @@ class Stage extends React.Component{
 		this.acceptChallenge = this.acceptChallenge.bind(this);
 		this.acceptWagerKeysIx = this.acceptWagerKeysIx.bind(this);
 		this.addMintSigs = this.addMintSigs.bind(this);
+		this.bindChannel = this.bindChannel.bind(this);
 		this.commit = this.commit.bind(this);
 		this.countDownTimer = this.countDownTimer.bind(this);
 		this.createChallenge = this.createChallenge.bind(this);
@@ -239,6 +239,15 @@ class Stage extends React.Component{
 		_transaction.addSignature(wc.mintAccounts[1].publicKey,signatureMint2);	
 		_transaction.addSignature(wc.contractAccount.publicKey,signatureContractAccount);	
 	}
+	
+	bindChannel(){
+		//Connect to the iframe
+		channel = new MessageChannel();
+		port1 = channel.port1;
+		connectPort = false;
+		addChannel();
+		//
+	}
 
 	async commit(action){
 		this.props.setLoading(true);
@@ -314,6 +323,7 @@ class Stage extends React.Component{
 	}
 		
 	componentDidMount(){
+		this.bindChannel();
 		document.title = "survivor(alpha)";
 		this.playMusic().catch(console.warn);
 		react_game_channel.onmessage = (ev)=> { 
@@ -589,6 +599,7 @@ class Stage extends React.Component{
 						port1.postMessage("p1p"); 
 						port1.postMessage("p2p"); 								  
 					}
+					console.log(gameMessage);
 					this.setState({
 						p1Action:actions[state[18][0]],
 						p2Action:actions[state[19][0]]
@@ -1005,6 +1016,7 @@ class Stage extends React.Component{
 						<br/>Address<br/> <b>{this.state.player1 ? this.state.player1.slice(0,15) : null}</b>
 						<br/>Status<br/> <b>{(this.state.player1HonestReveal > 0 && this.state.player1HonestReveal === 8) ? " HONEST" : null }{this.state.player1DidCommit === 1 ? " COMMIT" : null }</b>
 						<br/>Action<br/> <b>{this.state.p1Action? this.state.p1Action.toUpperCase() : ""}</b>
+						<progress min={0} max={100} value={this.state.player1Health} />
 					</div>
 				</div>
 				<div id="player2Stats">
@@ -1013,6 +1025,7 @@ class Stage extends React.Component{
 							<br/>Address<br/> <b>{this.state.player2 ? this.state.player2.slice(0,15) : null}</b>
 							<br/>Status<br/> <b>{(this.state.player2HonestReveal > 0 && this.state.player2HonestReveal === 8) ? " HONEST" : null } {this.state.player2DidCommit === 1 ? " COMMIT" : null } </b>
 							<br/>Action<br/> <b>{this.state.p2Action? this.state.p2Action.toUpperCase() : ""}</b>
+							<progress min={0} max={100} value={this.state.player2Health} />
 						</div>
 				</div>
 				<br/>

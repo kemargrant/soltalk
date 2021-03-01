@@ -210,6 +210,7 @@ body {
 	border:0.1em solid #f0d8d894;
 	font-family:system-ui;
 	font-size:large;
+	overflow:hidden;
 }
 
 #comrev2{

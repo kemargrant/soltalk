@@ -35,15 +35,26 @@ function get64BitTime(byteArray){
 }
 
 const react_game_channel = new BroadcastChannel('game_channel'); 
-const iframe_game_channel = new BroadcastChannel('game_commands');   
-    
+var channel = new MessageChannel();
+var port1 = channel.port1;
+var portsConnect = false;
+
+
 function WebGLView(props){
+	function addChannel(){
+		if(portsConnect === true){return}
+		let ifr = document.getElementsByTagName("iframe")[0];
+		if(!ifr || !ifr.contentWindow){ return setTimeout(()=>{addChannel()},1000); }
+		ifr.contentWindow.postMessage('init', '*', [channel.port2]);
+		portsConnect = true;
+	}
+	addChannel();
 	return (<iframe
 		id="gameIframe"
 		title="gameIframe" 
 		src={props.src} 
 		width={document.body.clientWidth} 
-		height={document.body.clientHeight*0.8} 
+		height={document.body.clientHeight*0.85} 
 		style={{frameBorder:0}}
 	/>);
 }     
@@ -190,7 +201,6 @@ class Stage extends React.Component{
 			}
 		}
 		console.warn("challenge accpeted txid:",txid);
-		iframe_game_channel.postMessage( "idle-idle"); 
 		if(this.state.gameOver){
 			this.stateState({gameOver:false});
 		}
@@ -433,7 +443,6 @@ class Stage extends React.Component{
 				}				
 			}
 		}
-		iframe_game_channel.postMessage( "idle-idle");  
 		if(this.state.gameOver){
 			this.setState({gameOver:false});
 		}
@@ -560,29 +569,29 @@ class Stage extends React.Component{
 					state[13][1] > 0
 				){
 					if(justMounted === 0){return ++justMounted;}
-					let actions = ["counter","taunt","attack","","idle"];
+					let actions = ["Reversal","Punch","Strike","","idle"];
 					let gameMessage = "";
 					if(state[14][0] === 0 && state[16][0] > 0 ){ 
-						gameMessage = `dead-${actions[state[19][0]]}`;
-						iframe_game_channel.postMessage( gameMessage );   
+						gameMessage = "p2"+ actions[state[19][0]].toLowerCase()[0];
+						port1.postMessage(gameMessage); 
 					}
 					else if(state[14][0] > 0 && state[16][0] === 0 ){ 
-						gameMessage = `${actions[state[18][0]]}-dead`;
-						iframe_game_channel.postMessage( gameMessage );   
+						gameMessage = "p1"+ actions[state[18][0]].toLowerCase()[0];
+						port1.postMessage(gameMessage); 						
 					}
 					else if(state[14][0] === 0 && state[16][0] === 0 ){ 
-						gameMessage = "dead-dead";
-						iframe_game_channel.postMessage( gameMessage );   
+						/*gameMessage = "p1"+ actions[state[18][0]].toLowerCase()[0];
+						port1.postMessage(gameMessage); 											  
+						gameMessage = "p2"+ actions[state[19][0]].toLowerCase()[0];
+						port1.postMessage(gameMessage); 		
+						*/
+						//This ensures a double ko
+						port1.postMessage("p1p"); 
+						port1.postMessage("p2p"); 								  
 					}
-					else{
-						gameMessage = actions[state[18][0]] + "-" + actions[state[19][0]];
-						iframe_game_channel.postMessage( gameMessage );
-					}
-					//temp fix till new engine in place
-					let realActions = ["Reversal","Punch","Strike","","idle"];
 					this.setState({
-						p1Action:realActions[state[18][0]],
-						p2Action:realActions[state[19][0]]
+						p1Action:actions[state[18][0]],
+						p2Action:actions[state[19][0]]
 					});
 
 				}
@@ -598,9 +607,6 @@ class Stage extends React.Component{
 				let p2 = dataInfo.fields[2].property;
 				player2 = bs58.encode(this.props.stringToBytes(p2));
 				this.setState({player2});
-			}
-			else if(state[2].join() === "0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0"){
-				iframe_game_channel.postMessage( "reset" );   
 			}
 			if(!this.state.isPlayer1){
 				if(player1){
@@ -981,15 +987,16 @@ class Stage extends React.Component{
 				}
 				</div>
 			</h3>
-			<div><ProgressBar id="gameTimer" variant={this.state.timeLimit > 40 ? "primary" : "danger"} striped min={0} max={180} now={this.state.timeLimit} label={"TIME: "+Math.floor(this.state.timeLimit)+"s"} /></div>
-			<br/>
-			<div id="moveTimeout">
-				<ProgressBar variant="info"
-					style={{fontSize:"large",height:"2vh"}}
-					 striped min={0} max={30} 
-					now={this.state.moveTimeoutValue} 
-					label={Math.floor(this.state.moveTimeoutValue)}
-				/>
+			<div className="gameTimers">
+				<ProgressBar id="gameTimer" variant={this.state.timeLimit > 40 ? "primary" : "danger"} striped min={0} max={180} now={this.state.timeLimit < 0 ? 1 : this.state.timeLimit} label={"TIME: "+Math.floor(this.state.timeLimit)+"s"} />
+				<div id="moveTimeout">
+					<ProgressBar variant="info"
+						style={{fontSize:"large",height:"2vh"}}
+						 striped min={0} max={30} 
+						now={this.state.moveTimeoutValue} 
+						label={Math.floor(this.state.moveTimeoutValue)}
+					/>
+				</div>
 			</div>
 			<div>
 				<div id="player1Stats">
@@ -998,8 +1005,6 @@ class Stage extends React.Component{
 						<br/>Address<br/> <b>{this.state.player1 ? this.state.player1.slice(0,15) : null}</b>
 						<br/>Status<br/> <b>{(this.state.player1HonestReveal > 0 && this.state.player1HonestReveal === 8) ? " HONEST" : null }{this.state.player1DidCommit === 1 ? " COMMIT" : null }</b>
 						<br/>Action<br/> <b>{this.state.p1Action? this.state.p1Action.toUpperCase() : ""}</b>
-						<br/>Health 
-						<ProgressBar id="player1HealthBar" variant={this.state.player1Health > 1 ? "success" : "danger"} min={0} max={100} now={this.state.player1Health}/>
 					</div>
 				</div>
 				<div id="player2Stats">
@@ -1008,8 +1013,6 @@ class Stage extends React.Component{
 							<br/>Address<br/> <b>{this.state.player2 ? this.state.player2.slice(0,15) : null}</b>
 							<br/>Status<br/> <b>{(this.state.player2HonestReveal > 0 && this.state.player2HonestReveal === 8) ? " HONEST" : null } {this.state.player2DidCommit === 1 ? " COMMIT" : null } </b>
 							<br/>Action<br/> <b>{this.state.p2Action? this.state.p2Action.toUpperCase() : ""}</b>
-							<br/>Health
-							<ProgressBar id="player1HealthBar" variant={this.state.player2Health > 1 ? "success" : "danger"} min={0} max={100} now={this.state.player2Health}/>
 						</div>
 				</div>
 				<br/>
@@ -1026,7 +1029,7 @@ class Stage extends React.Component{
 						</div>
 					</div>:null
 				}
-				<WebGLView src={"./solsurvivor/index.html"}/>				
+				<WebGLView src={"https://solsurvivor.s3.amazonaws.com/index.html"}/>				
 				<Wizard open={this.props.survivorHelpOpen} close={this.props.toggleSurvivorHelpOpen}/>
 			</div>
 			<audio id="backgroundMusic" src={this.state.backgroundMusic} />

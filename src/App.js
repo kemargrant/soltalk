@@ -526,7 +526,6 @@ class App extends React.Component{
 		this.toggleContactsView = this.toggleContactsView.bind(this);
 		this.toggleChatView = this.toggleChatView.bind(this);
 		this.toggleLoginButtons = this.toggleLoginButtons.bind(this);		
-		this.togglePlayGame = this.togglePlayGame.bind(this);
 		this.toggleSettingsView = this.toggleSettingsView.bind(this);
 		this.toggleShowSolanaQR = this.toggleShowSolanaQR.bind(this);
 		this.toggleSurvivorHelpOpen = this.toggleSurvivorHelpOpen.bind(this);
@@ -2451,7 +2450,7 @@ class App extends React.Component{
 	*/			
 	toggleChatView(){
 		if(!this.state.viewChat){
-			this.setState({viewChat:true,viewContacts:false,viewSettings:false,viewTransactions:false,playGame:false});
+			this.setState({viewChat:true,viewContacts:false,viewSettings:false,viewTransactions:false});
 			return;
 		}
 		this.setState({viewChat:!this.state.viewChat});
@@ -2487,7 +2486,7 @@ class App extends React.Component{
 	*/			
 	toggleContactsView(){
 		if(!this.state.viewContacts){
-			this.setState({viewChat:false,viewContacts:true,viewSettings:false,viewTransactions:false,playGame:false});
+			this.setState({viewChat:false,viewContacts:true,viewSettings:false,viewTransactions:false});
 			return;
 		}
 		this.setState({viewContacts:!this.state.viewContacts});
@@ -2501,7 +2500,7 @@ class App extends React.Component{
 	*/			
 	toggleSettingsView(){
 		if(!this.state.viewSettings){
-			this.setState({viewChat:false,viewContacts:false,viewSettings:true,viewTransactions:false,playGame:false});
+			this.setState({viewChat:false,viewContacts:false,viewSettings:true,viewTransactions:false});
 			return;
 		}
 		this.setState({viewSettings:!this.state.viewSettings});
@@ -2526,24 +2525,10 @@ class App extends React.Component{
 	*/			
 	toggleTransactionView(){
 		if(!this.state.viewTransactions){
-			this.setState({viewChat:false,viewContacts:false,viewSettings:false,viewTransactions:true,playGame:false});
+			this.setState({viewChat:false,viewContacts:false,viewSettings:false,viewTransactions:true});
 			return;
 		}
 		this.setState({viewTransactions:!this.state.viewTransactions});
-		return;
-	}
-
-	/**
-	* Toggle view of games
-	* @method togglePlayGame
-	* @return {Null}
-	*/		
-	togglePlayGame(){
-		if(!this.state.playGame){
-			this.setState({viewChat:false,viewContacts:false,viewSettings:false,viewTransactions:false,playGame:true});
-			return;
-		}
-		this.setState({playGame:!this.state.playGame});
 		return;
 	}
 	
@@ -2775,7 +2760,6 @@ class App extends React.Component{
 				saveTransaction={saveTransaction}
 				sendMessage={this.sendMessage}
 				setCurrentContact={this.setCurrentContact}
-				togglePlayGame={this.togglePlayGame}
 				timeAgo={timeAgo}
 				uploadAudioFile={this.uploadAudioFile}
 				//Settings

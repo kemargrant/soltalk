@@ -213,6 +213,7 @@ body {
 }
 
 #comrev2{
+	overflow:hidden;
 	text-align:right;
 }
 
@@ -563,6 +564,11 @@ body {
 	font-size:medium;
 }
 
+.gameTimers{
+	height:1.2vh;
+    width: 100%;
+}
+
 /*
 #gameIframe{
     background-image: url("/images/grid1.jpg");
@@ -615,7 +621,7 @@ iframe{
 	overflow:hidden;
 	padding:0.2em;
 	position:fixed;
-	width:15%;
+	width:13%;
 }
 
 #player2Stats{
@@ -624,7 +630,7 @@ iframe{
 	right:0px;
 	text-align:center;
 	overflow:hidden;
-	width:15%;
+	width:13%;
 }
 
 #player2Stats b{
@@ -641,9 +647,7 @@ iframe{
 }
 
 .stageHolder{
-    background-image: url("/images/grid1.jpg");
-    background-size: auto;
-    background-position: bottom;
+	background:black;
     height:100vh;
 	width:100%;
 	overflow:hidden;

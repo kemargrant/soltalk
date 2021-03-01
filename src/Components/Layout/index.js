@@ -13,10 +13,11 @@ class Index extends Component {
         this.setTab = this.setTab.bind(this);
     }
     
+    //active tabs
+    //chat,contacts,games,settings,transactionHistory
     componentDidMount(){
 		if(window.location.pathname === "/sol-survivor"){
-			this.setTab({activeTab:"games"});
-			this.props.togglePlayGame();
+			this.setState({activeTab:"games"});
 			this.props.toggleLoginButtons();
 		}
     }
@@ -41,7 +42,8 @@ class Index extends Component {
                 <div className="layout-wrapper d-lg-flex">
                     {/* left sidebar menu */}
                     <LeftSidebarMenu setActiveTab={this.setTab} activeTab={this.state.activeTab} avatar1={avatar1}  {...this.props} />
-                    { this.props.playGame ? <Stage {...this.props} /> : <Dashboard activeTab={this.state.activeTab} avatar1={avatar1} {...this.props} /> }
+                    { this.state.activeTab === "games" ? <Stage {...this.props} /> : null }
+                    { ["chat","contacts","settings","transactionHistory"].indexOf( this.state.activeTab ) > -1 ?  <Dashboard activeTab={this.state.activeTab} avatar1={avatar1} {...this.props} />  : null }
                 </div>
             </React.Fragment>
         );

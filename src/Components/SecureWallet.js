@@ -236,7 +236,7 @@ class SecureWallet extends React.Component{
 													this.state.userPromise ?
 													<div id="secureButtons">
 														<Button id="cancelProtect" color="danger" onClick={this.cancelPromise}>Cancel</Button>
-														<Button id="protectButton" color="primary" vonClick={this.storeMnemonicAndSeed}>Submit</Button>
+														<Button id="protectButton" color="primary" onClick={this.storeMnemonicAndSeed}>Submit</Button>
 													</div>	
 													: null
 												}

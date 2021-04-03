@@ -533,6 +533,56 @@ body {
 	background-size: cover;
 }
 
+.characterSelect{
+	background-image: url(/images/characterSelect.png);
+    background-size: auto;
+    background-repeat: no-repeat;
+    background-position: center;
+    height: 90vh;
+}
+
+.characterSelectRow{
+	display:flex;
+	left:25vw;
+    margin-left: 4.5em;
+    margin-right: 1em;
+    position: relative;
+    top: 17vh;
+    width: 38vw;
+	overflow-x:scroll;
+}
+
+.characterSelectRow div img{
+	border:1px solid black;
+	height:8vh;
+	width:7vh;
+}
+
+.characterSelectRow div img:hover{
+	border:2px solid #1d74a7;
+	cursor:pointer;
+	height:8.5vh;
+	width:7vh;
+}
+
+.characterBoutCard{
+	display:table;
+	height:100vh;
+	margin-left: 29vw;
+    margin-top: 13vh;
+}
+
+#player1Portrait{
+	height:38vh;
+	width:17vw;
+}
+
+#player2Portrait{
+	height:38vh;
+	width:17vw;
+	transform:rotateY(180deg);
+}
+
 .contractView{
 	background:black !important;
 	display:block;
@@ -578,11 +628,21 @@ body {
 }
 */
 
+#homeButton{position:sticky}
+
 iframe{
 	border:0em solid black;
 	border-width:none;
 	display:block;
 	margin:auto;
+}
+
+.mainMenu{
+	background-image: url(/images/background.gif);
+    background-size: auto;
+    background-repeat: no-repeat;
+    background-position: center;
+    height: 90vh;
 }
 
 #moveTimeout{
@@ -648,7 +708,8 @@ iframe{
 }
 
 .stageHolder{
-	background:black;
+	background-image: url(/images/grid1.jpg);
+	background-size:cover;
     height:100vh;
 	width:100%;
 	overflow:hidden;
@@ -658,23 +719,60 @@ iframe{
 	display:flex;
 }
 
-.classicButton{
-	animation-name:pulse;
-	animation-direction:alternate;
-	animation-duration:0.8s;
-    animation-iteration-count: infinite;	
-    animation-delay:0.1s;
-    animation-timing-function:linear;
+.classicButton1{
+  background: radial-gradient(circle,#dd71f5 50%, #dd71f5 100%);
+  border:3px solid black !important;
+  left:32vw;
+  position:relative;
+  top:22vh;
 }
+
+.classicButton2{
+  background: radial-gradient(circle,#271f98 10%, #7269ef 100%);
+  border:3px solid black !important;
+  left:32vw;
+  position:relative;
+  top:22vh;
+}
+
+.classicButton3{
+  background: radial-gradient(circle,#dd71f5 10%,#dd71f5 100%);
+  border:0px solid black !important;
+  font-size:2.2vh !important;
+}
+
+.classicButton4{
+  left:32vw;
+  position:relative;
+  top:22vh;
+}
+
+.classicButton5{
+  background: radial-gradient(circle,#dd71f5 50%, #dd71f5 100%);
+}
+
+.classicDiv1{
+  left:32vw;
+  position:relative;
+  top:22vh;
+  width:30vw !important;
+}
+
+.classicDiv1 #wagerInputButton:hover{
+  cursor:default;
+  border:0px solid black !important;
+}
+
 
 #modeText{
 	font-size:large;
 }
 
 #wagerAmount{
-	display:block;
-	margin:auto;
-	width:5em;
+	display: inline-block;
+    margin: auto;
+    height:3vh;
+    width:6vw;
 }
 
 #wagerButton{
@@ -726,11 +824,20 @@ iframe{
 	width:30vw;
 }
 
-#title .pressStart{
-	width:47vw;
+.pressStart{
+	width:30vw;
 	margin:0.5vw;
 }
 
+.pressStart button:hover{
+  border:3px solid blue !important;
+}
+
+#vs{
+	margin:3vw;
+	margin-left: 1vw;
+	width:3vw;
+}
 
 /*End Stage*/
 
@@ -749,7 +856,7 @@ iframe{
 
 @keyframes pulse {
   from {background: radial-gradient(circle,red 0%, purple 60%, black 100%);}
-  to {background: radial-gradient(circle,red 0%, purple 40%, black 100%);}
+  to {background: radial-gradient(circle,#746d80 0%, purple 40%, black 100%);}
 }
 
 @keyframes pulse2 {

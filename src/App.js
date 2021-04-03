@@ -39,7 +39,6 @@ import { TransactionInfo } from './Components/TransactionInfo';
 
 import Layout from './Components/Layout/index.js';
 
-
 var Intervals = []
 var defaultProgram;
 var defaultChannel;
@@ -74,13 +73,13 @@ const Sol_Talk = {
 }
 
 const Sol_Survivor= {
-	"api.mainnet-beta":{id:"Aov9EDhFTaxiKqhbmjKWc4AGYaEHaEfR93XkWSFNcWri",account:"H34sGGMnr6whqnpvdFBNYMMQnMF6CRmbTyjF5e3LTYGJ"},
-	"testnet":{id:"3eQkKgmhQUWYBhypgwhRDFCcEMQYP8qRrg23n2KkHKoA",account:"5oRbG8dyJCUbEkWBx7JNqP3cmYZPwM3zACVfaJXp6Xur"}
+	"api.mainnet-beta":{id:"6FGsGdMg2V3XSEDsKFVLXpyE3CHxMZvpFwJGD5QnaFMB",account:"5ZArURxW2ze2kG5HEHXZEaeVKeNBaDo4tRtth4QnMDie"},
+	"testnet":{id:"H6ayLvwFXb9tB8vVY24Dd2FvjEoacDAxos3bE8B7JoMM",account:"8kDk8rQ4MuhkZrLA64NQBufhBhzSWM47FYNbSVJCQDE1"}
 }
 
 const Sol_Survivor_Wager= {
-	"api.mainnet-beta":{id:"HEFxA727NVNnKTSjKMRYnCx1vZtLHmD93qzSJVDiNRzV",account:"8uHCnK5NbGKgeohEwKevFFCK5iiTjLy94x3VeR5iDRmF"},
-	"testnet":{id:"D8ve3DB9mVc8iYPt6VaHMUpQGrFWaa5ww6bjySX5GRGg",account:"G2W5SfhUcDBHzLeEA6mKTWETTeM9GdDv2Vd8acGRxkZQ"}
+	"api.mainnet-beta":{id:"C6Mdyy5H9qsyF2GA5ekaTqTMh9FpGUr7MzytYm6p9J6i",account:"Co8HSYhX9TKbjXax8yr1quYLaz6GsujAWHxQNYN8Ztx8"},
+	"testnet":{id:"GkinWyvMM2nJ3QmZkuipre9XSzqswwffvhou8txSmvkX",account:"9MteT6rDcsdqQPy41gbo1aqtt6iDGAjduDxFNUoMkejr"}
 }
 
 const Bet = {
@@ -1504,12 +1503,14 @@ class App extends React.Component{
 		}
 		let wc = new WagerClient(config);
 		await wc.recreateContract();
-		let [ payerWagerTokenAccount,exists ] = await wc.getFeePayerWagerTokenAccount(true);
-		if(exists){
-			let usdtBalance = await wc.getBalance(payerWagerTokenAccount);
-			if(usdtBalance){
-				usdtBalance /= Math.pow(10,6);
-				this.setState({usdtBalance});
+		if(this.state.localPayerAccount || this.state.payerAccount){
+			let [ payerWagerTokenAccount,exists ] = await wc.getFeePayerWagerTokenAccount(true);
+			if(exists){
+				let usdtBalance = await wc.getBalance(payerWagerTokenAccount);
+				if(usdtBalance){
+					usdtBalance /= Math.pow(10,6);
+					this.setState({usdtBalance});
+				}
 			}
 		}
 		return wc;
@@ -1703,7 +1704,7 @@ class App extends React.Component{
 		let chatRoomAccount = new Account();
 		let chatRoomPubkey = chatRoomAccount.publicKey;
 		let lamports;
-		let space = [1028,200,186]
+		let space = [1028,160,186]
 		lamports = await connection.getMinimumBalanceForRentExemption(space[type]);				
 		console.log("Mininum lamports for rent free account:",lamports / LAMPORTS_PER_SOL);
 		let ppid = window.prompt("Program Address")

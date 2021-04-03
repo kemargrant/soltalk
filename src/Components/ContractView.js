@@ -25,11 +25,11 @@ class ContractView extends React.Component{
 	}
 
 	async getInfo(){
-		let bet;
+		let bet = {};
 		if(this.props.wager_address){ 
 			bet = await this.props.getContractInformation(this.props.wager_address); 
 		}
-		else if(this.state.bet.contractAccount){
+		else if(this.state.bet && this.state.bet.contractAccount){
 			  bet = await this.props.getContractInformation(this.state.bet.contractAccount.toBase58()); 
 		}  
 		this.setState({bet});
@@ -45,10 +45,9 @@ class ContractView extends React.Component{
 			console.log(e);
 		}
 	}
-
 	
 	render(){
-		if(!this.state.bet.contractAccount){
+		if(!this.state.bet || !this.state.bet.contractAccount){
 			this.getInfo();
 			return (<progress style={{
 				display:"block",margin:"auto"
@@ -102,15 +101,16 @@ class ContractView extends React.Component{
 						{ {0:"PENDING",1:"Player1 - Win",2:"Player2 - Win",3:"DRAW"}[this.state.bet.outcome] } 
 					</h5>
 				</div>
+				<progress min="0" value={ this.state.bet.positions[0] } max={ this.state.bet.positions[0] + this.state.bet.positions[1]  } />
+				<ButtonGroup>
+					<Button color="success" onClick={this.redeemAndUpdate} disabled={this.state.bet.outcome === 0 ? true : false}> <MonetizationOnIcon /> collect </Button>	
+					<Button color="warning" onClick={()=>this.redeemAndUpdate(1)}> <MonetizationOnIcon /> draw collect(1) </Button>		
+					<Button color="warning" onClick={()=>this.redeemAndUpdate(2)}> <MonetizationOnIcon /> draw collect(2) </Button>												
+					<Button color="info" onClick={async()=>{ await this.getInfo(); }}> <LoopIcon />refresh </Button>	
+					<Button color="danger" onClick={this.props.close}> <CancelIcon /> close </Button>	
+				</ButtonGroup>
 			</div>
-			<progress min="0" value={ this.state.bet.positions[0] } max={ this.state.bet.positions[0] + this.state.bet.positions[1]  } />
-			<ButtonGroup>
-				<Button color="success" onClick={this.redeemAndUpdate} disabled={this.state.bet.outcome === 0 ? true : false}> <MonetizationOnIcon /> collect </Button>	
-				<Button color="warning" onClick={()=>this.redeemAndUpdate(1)}> <MonetizationOnIcon /> draw collect(1) </Button>		
-				<Button color="warning" onClick={()=>this.redeemAndUpdate(2)}> <MonetizationOnIcon /> draw collect(2) </Button>												
-				<Button color="info" onClick={async()=>{ await this.getInfo(); }}> <LoopIcon />refresh </Button>	
-				<Button color="danger" onClick={this.props.close}> <CancelIcon /> close </Button>	
-			</ButtonGroup>											
+														
 		</Card>)
 	}
 }	

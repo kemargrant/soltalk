@@ -15,10 +15,10 @@ typedef struct {
 	uint8_t player2Commited; //71 player2 commited
 	uint8_t player2Revealed; //72 player2 revealed
 	uint32_t player2Commit; //73 player2 commitment	
-	uint8_t skip1; //77 blank
+	uint8_t player1Character; //77 player1Character
 	uint8_t player1HonestReveal; //78 player1 honestReveal?	
 	uint8_t player1Reveal[10]; //79 player1 reveal
-	uint8_t skip2; //89 blank	
+	uint8_t player2Character; //89 player2Character
 	uint8_t player2HonestReveal ; //90 player2 honestReveal?	
 	uint8_t player2Reveal[10]; //91 player2 reveal 
 	uint8_t skip3; //101 blank
@@ -252,6 +252,8 @@ uint64_t acceptChallenge(SolParameters *params){
 	if(gameState->gameStatus == 1){
 		gameState->player2 = *XAccount->key;
 		gameState->gameStatus = 2;
+		//Set character
+		Account->data[89] = params->data[1];
 		sol_log("Challenge Accepted");
 		return SUCCESS;
 	}
@@ -365,7 +367,7 @@ uint64_t reveal(SolParameters *params){
 	else{
 		sol_log("BAD GAME STATE");
 	}
-	return ERROR_INVALID_ARGUMENT;
+	return SUCCESS;
 }
 
 //SETUP A NEW GAME
@@ -381,6 +383,7 @@ uint64_t setupGame(SolParameters *params){
 	SolAccountInfo *Account = &params->ka[0];
 	SolAccountInfo *Challenger = &params->ka[1];
 	SolAccountInfo *Clock = &params->ka[2];
+	SolAccountInfo *Allowed = &params->ka[3];
 	GameState *gameState = (GameState *)Account->data;	
 	//Make sure the challenger has signed the message
 	if (!Challenger->is_signer) {
@@ -416,12 +419,19 @@ uint64_t setupGame(SolParameters *params){
 		Account->data[112] = 100;
 		//Set Game StartTime
 		for(int i = 0;i < 8;i++){Account->data[ 117 + i] = Clock->data[i+32];}	
+		//Set character
+		Account->data[77] = params->data[1];
+		//Set allowed participants
+		if(params->data[2] == 1){
+			gameState->player2 = *Allowed->key;
+			gameState->gameStatus = 2;
+		}
 		sol_log("Game SETUP complete");
 	}
 	return SUCCESS;
 }
 extern uint64_t entrypoint(const uint8_t *input) {
-	SolAccountInfo accounts[3];
+	SolAccountInfo accounts[4];
 	SolParameters params = (SolParameters){.ka = accounts};
 	if (!sol_deserialize(input, &params, SOL_ARRAY_SIZE(accounts))) {
 		return ERROR_INVALID_ARGUMENT;
@@ -433,7 +443,7 @@ extern uint64_t entrypoint(const uint8_t *input) {
 	}
 	//1 acceptChallenge
 	else if(params.data[0] == 1){
-		acceptChallenge(&params);
+		return acceptChallenge(&params);
 	}	
 	//2 commit
 	else if(params.data[0] == 2){

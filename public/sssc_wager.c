@@ -15,10 +15,10 @@ typedef struct {
 	uint8_t player2Commited; //71 player2 commited
 	uint8_t player2Revealed; //72 player2 revealed
 	uint32_t player2Commit; //73 player2 commitment	
-	uint8_t skip1; //77 blank
+	uint8_t skip1; //77 player1 Character
 	uint8_t player1HonestReveal; //78 player1 honestReveal?	
 	uint8_t player1Reveal[10]; //79 player1 reveal
-	uint8_t skip2; //89 blank	
+	uint8_t skip2; //89 player2 Character	
 	uint8_t player2HonestReveal ; //90 player2 honestReveal?	
 	uint8_t player2Reveal[10]; //91 player2 reveal 
 	uint8_t skip3; //101 blank
@@ -335,6 +335,8 @@ uint64_t acceptChallenge(SolParameters *params){
 		if(!verifyMint(params)){ return ERROR_INVALID_ARGUMENT; }
 		gameState->player2 = *XAccount->key;
 		gameState->gameStatus = 2;
+		//Set character
+		Account->data[89] = params->data[1];
 		sol_log("Challenge Accepted");
 		return SUCCESS;
 	}
@@ -465,6 +467,7 @@ uint64_t setupWagerGame(SolParameters *params){
 	SolAccountInfo *Challenger = &params->ka[1];
 	SolAccountInfo *Clock = &params->ka[2];
 	SolAccountInfo *WagerContract = &params->ka[3];
+	SolAccountInfo *Allowed = &params->ka[4];
 	GameState *gameState = (GameState *)Account->data;	
 	//Make sure the challenger has signed the message
 	if (!Challenger->is_signer) {
@@ -500,6 +503,13 @@ uint64_t setupWagerGame(SolParameters *params){
 		Account->data[112] = 100;
 		//Set Game StartTime
 		for(int i = 0;i < 8;i++){Account->data[ 117 + i] = Clock->data[i+32];}	
+		//Set character
+		Account->data[77] = params->data[1];
+		//Restrict Players
+		if(params->data[2] == 1){
+			gameState->player2 = *Allowed->key;
+			gameState->gameStatus = 2;
+		}
 		//Set Wager Address
 		sol_memcpy(&Account->data[125],WagerContract->key->x,32);
 		sol_log("Game SETUP complete");

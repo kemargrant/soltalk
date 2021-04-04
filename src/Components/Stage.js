@@ -1213,7 +1213,7 @@ class Game extends React.Component {
 	}
 	
 	componentDidMount(){
-		return setTimeout(this.bindChannel,5500);
+		return setTimeout(this.bindChannel,6000);
 	}
 	
 	render(){

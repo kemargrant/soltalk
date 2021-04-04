@@ -1139,6 +1139,7 @@ class CharacterSelect extends React.Component{
 	select(char){
 		this.props.chooseCharacter(char.Index);
 		document.getElementById("char"+char.Index).setAttribute("style","border:0.2em solid red");
+		this.updatePortrait = function(){}
 		return;
 	}
 	

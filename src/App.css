@@ -610,6 +610,11 @@ body {
 	width:100%;
 }
 
+#gameHolder{
+	opacity:0;
+	transition:opacity 1s;
+}
+
 #gameTimer{
 	height:2vh;
 	font-size:medium;

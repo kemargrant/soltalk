@@ -41,7 +41,7 @@ var connectPort = false;
 var unityReady = false;
 
 function addChannel(){
-	if(connectPort === true){return}
+	if(connectPort === true){return;}
 	let ifr = document.getElementsByTagName("iframe")[0];
 	if(!ifr || !ifr.contentWindow){ return setTimeout(()=>{addChannel()},1000); }
 	ifr.contentWindow.postMessage('init', '*', [channel.port2]);
@@ -56,6 +56,7 @@ function WebGLView(props){
 		width={document.body.clientWidth} 
 		height={document.body.clientHeight*0.85} 
 		style={{frameBorder:0}}
+		onLoad={props.onLoad}
 	/>);
 }     
      
@@ -1204,20 +1205,17 @@ class Game extends React.Component {
 		//
 		port1.onmessage = (evt)=>{
 			if(evt.data === "characterSelectReady"){
+				//console.warn("Unity Ready");
 				unityReady = true;
 			}
 			else if(evt.data === "stageReady"){
-				console.warn("stageReady");
+				//console.warn("stageReady");
 			}
 		}
 	}
 	
-	componentDidMount(){
-		return setTimeout(this.bindChannel,6000);
-	}
-	
 	render(){
-		return(<div style={{"display":this.props.steps === 2 ? "block" : "none"}}>
+		return(<div id="gameHolder" style={{"opacity":this.props.steps === 2 ? "1" : "0"}}>
 			<div className="gameTimers">
 				<ProgressBar id="gameTimer" variant={this.props.timeLimit > 40 ? "primary" : "danger"} striped min={0} max={180} now={this.props.timeLimit < 0 ? 1 : this.props.timeLimit} label={"TIME: "+Math.floor(this.props.timeLimit)+"s"} />
 				<div id="moveTimeout">
@@ -1262,7 +1260,7 @@ class Game extends React.Component {
 						</div>
 					</div>:null
 				}
-			    <WebGLView src={"https://solsurvivor.s3.amazonaws.com/index.html"}/>	
+			    <WebGLView src={"https://solsurvivor.s3.amazonaws.com/index.html"} onLoad={this.bindChannel}/>	
 				<Wizard open={this.props.survivorHelpOpen} close={this.props.toggleSurvivorHelpOpen}/>
 			</div>
 	</div>)}

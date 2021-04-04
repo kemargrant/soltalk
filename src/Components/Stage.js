@@ -14,12 +14,12 @@ import { WagerClient } from '../util/wager';
 import { Wizard } from './Wizard';
 import { ContractView } from './ContractView';
 import DeleteIcon from '@material-ui/icons/Delete';
+import LinearProgress from '@material-ui/core/LinearProgress';
 import LineStyleIcon from '@material-ui/icons/LineStyle';
 import MonetizationOnIcon from '@material-ui/icons/MonetizationOn';
 
 const sdbm = require('sdbm');
 
-var justMounted = 0;
 var Drift = 0;
 function get64BitTime(byteArray){
 	if(!byteArray){return 0;}
@@ -38,6 +38,7 @@ const react_game_channel = new BroadcastChannel('game_channel');
 var channel;
 var port1;
 var connectPort = false;
+var unityReady = false;
 
 function addChannel(){
 	if(connectPort === true){return}
@@ -64,7 +65,7 @@ class Stage extends React.Component{
 		this.state = {
 			backroundMusic:"",
 			bet:{},
-			gameOver:false,
+			chosenCharacter:0,
 			gameStart:false,
 			gameStatus:0,
 			isPlayer1:false,
@@ -79,19 +80,23 @@ class Stage extends React.Component{
 			player1:false,
 			player2:false,
 			p1Action:"idle",
+			player1Character:0,
 			player1Commit:0,
 			player1DidCommit:0,
 			player1DidReveal:0,
-			player1Health:100,
+			player1Health:-1,
 			player1Super:0,
 			p2Action:"idle",
+			player2Character:0,
 			player2Commit:0,
 			player2DidCommit:0,
 			player2DidReveal:0,
-			player2Health:100,	
+			player2Health:-1,	
 			player2Super:0,
-			timeLimit:180,
+			timeLimit:-1,
+			steps:0,
 			wager:false,
+			wagerAmount:0.05,
 			wagerContractAddress:"",
 			wagerTokenBalance:0,
 			wagers:window.localStorage.getItem("wagers") ? JSON.parse(window.localStorage.getItem("wagers")) : [],			
@@ -100,20 +105,25 @@ class Stage extends React.Component{
 		this.acceptChallenge = this.acceptChallenge.bind(this);
 		this.acceptWagerKeysIx = this.acceptWagerKeysIx.bind(this);
 		this.addMintSigs = this.addMintSigs.bind(this);
-		this.bindChannel = this.bindChannel.bind(this);
+		this.chooseCharacter = this.chooseCharacter.bind(this);
 		this.commit = this.commit.bind(this);
 		this.countDownTimer = this.countDownTimer.bind(this);
 		this.createChallenge = this.createChallenge.bind(this);
+		this.gameSetup = this.gameSetup.bind(this);
 		this.getAccountInfo = this.getAccountInfo.bind(this);
 		this.getWagerInfo = this.getWagerInfo.bind(this);
 		this.muteMusic = this.muteMusic.bind(this);
 		this.parseState = this.parseState.bind(this);
 		this.playMusic = this.playMusic.bind(this);
 		this.reveal = this.reveal.bind(this);
+		this.returnToMenu = this.returnToMenu.bind(this);
+		this.sendCharactersToUnity = this.sendCharactersToUnity.bind(this);
 		this.solletSign = this.solletSign.bind(this);
 		this.subscribeToGame = this.subscribeToGame.bind(this);
 		this.timeGame = this.timeGame.bind(this);
 		this.toggleViewBet = this.toggleViewBet.bind(this);
+		this.updateSteps = this.updateSteps.bind(this);
+		this.updateWagerAmount = this.updateWagerAmount.bind(this);
 		this.updateWagerList = this.updateWagerList.bind(this);
 		this.updateWagerOption = this.updateWagerOption.bind(this);
 		this.wagerStart = this.wagerStart.bind(this);
@@ -137,7 +147,7 @@ class Stage extends React.Component{
 					{pubkey: this.props.payerAccount, isSigner: true, isWritable: false},
 				],
 				programId,
-				data: Buffer.from([1])
+				data: Buffer.concat ([ Buffer.from([1]),Buffer.from([this.state.chosenCharacter]) ])
 			});
 			let wagerIx;
 			if(this.state.wager){
@@ -157,7 +167,7 @@ class Stage extends React.Component{
 					{pubkey:this.props.localPayerAccount.publicKey, isSigner: true, isWritable: false},
 				],
 				programId,
-				data: Buffer.from([1])
+				data: Buffer.concat ([ Buffer.from([1]),Buffer.from([this.state.chosenCharacter]) ])
 			});
 			let wagerIx;
 			if(this.state.wager){
@@ -201,11 +211,11 @@ class Stage extends React.Component{
 			}
 		}
 		console.warn("challenge accpeted txid:",txid);
-		if(this.state.gameOver){
-			this.stateState({gameOver:false});
-		}
 		this.props.setLoading(false);
 		this.props.saveTransaction(txid,this.props.defaultNetwork,"Sol-Survivor").catch(console.warn);
+		//Start Unity Game
+		this.setState({steps:2},()=>{ return this.sendCharactersToUnity(this.state.player1Character,this.state.chosenCharacter) });
+		//
 		return txid;
 	}
 	
@@ -239,14 +249,18 @@ class Stage extends React.Component{
 		_transaction.addSignature(wc.mintAccounts[1].publicKey,signatureMint2);	
 		_transaction.addSignature(wc.contractAccount.publicKey,signatureContractAccount);	
 	}
-	
-	bindChannel(){
-		//Connect to the iframe
-		channel = new MessageChannel();
-		port1 = channel.port1;
-		connectPort = false;
-		addChannel();
-		//
+
+	chooseCharacter(x){
+		return this.setState({chosenCharacter:x},()=>{
+			if(this.state.steps === 1.1){
+				if(this.state.wager === true){this.wagerStart();}
+				else{this.createChallenge();}
+			}
+			else if(this.state.steps === 1.2){
+				return this.setState({player2Character:x},this.acceptChallenge);
+			}
+			return;
+		});
 	}
 
 	async commit(action){
@@ -323,47 +337,11 @@ class Stage extends React.Component{
 	}
 		
 	componentDidMount(){
-		this.bindChannel();
 		document.title = "survivor(alpha)";
 		this.playMusic().catch(console.warn);
-		react_game_channel.onmessage = (ev)=> { 
-			if(ev && ev.data){
-				return this.parseState(ev.data[0]).catch(console.warn);
-			}
-			else{
-				//Network Change
-				console.warn("network changed");
-				this.setState({gameStart:false},()=>{
-					this.getAccountInfo()
-					.then(this.subscribeToGame)
-					.catch(console.warn);
-				});
-			}
-		}
-		//Enable timer
-		this.countDownTimer();
-		//airdrop
-		setTimeout(()=>{
-			this.getAccountInfo()
-			.then(this.subscribeToGame);
-				/*window.fetch("http://localhost:8899", {
-					"headers": {"content-type": "application/json"},
-					"body":JSON.stringify( {
-						"jsonrpc": "2.0",
-						"id": 1,
-						"method": "requestAirdrop",
-						"params": [
-							this.props.localPayerAccount.publicKey.toBase58(),50000000
-						]
-					}),
-					"method": "POST",
-				})
-				.catch(console.warn);	
-				*/	
-		},1000);		
+		this.gameSetup();
 	}
-	componentWillUnmount(){}
-	
+
 	countDownTimer(){
 		return setTimeout(()=>{
 			let now = new Date().getTime();
@@ -398,13 +376,15 @@ class Stage extends React.Component{
 				keys: [
 					{pubkey: gameAccount, isSigner: false, isWritable: true},
 					{pubkey: this.props.payerAccount, isSigner: true, isWritable: false},
-					{pubkey: clock, isSigner: false, isWritable: false},
-					
+					{pubkey: clock, isSigner: false, isWritable: false},					
 				],
 				programId,
-				data: Buffer.from([0])
+				data: Buffer.concat ([ Buffer.from([0]),Buffer.from([this.state.chosenCharacter]) ])
 			});
-			if(this.state.wager){ instruction.keys.push( {pubkey: wgpk, isSigner: false, isWritable: false} )}
+			if(this.state.wager){ instruction.keys.push( {pubkey: wgpk, isSigner: false, isWritable: false} ); }
+			//Dummy Account (We allow anyone to join)
+			instruction.keys.push( {pubkey: clock, isSigner: false, isWritable: false} );
+			//
 			txid = await this.solletSign([instruction]);
 		}
 		else{
@@ -416,11 +396,12 @@ class Stage extends React.Component{
 					{pubkey: clock, isSigner: false, isWritable: false},
 				],
 				programId,
-				data: Buffer.from([0])
+				data: Buffer.concat ([ Buffer.from([0]),Buffer.from([this.state.chosenCharacter]),Buffer.from([0]) ])
 			});
-			if(this.state.wager){
-				instruction.keys.push( {pubkey: wgpk, isSigner: false, isWritable: false} );
-			}
+			if(this.state.wager){ instruction.keys.push( {pubkey: wgpk, isSigner: false, isWritable: false} ); }
+			//Dummy Account (We allow anyone to join)
+			instruction.keys.push( {pubkey: clock, isSigner: false, isWritable: false} );
+			//
 			let _transaction =  new Transaction().add(instruction);	
 			let { blockhash } = await this.props._connection.getRecentBlockhash();
 			_transaction.recentBlockhash = blockhash;	
@@ -453,12 +434,31 @@ class Stage extends React.Component{
 				}				
 			}
 		}
-		if(this.state.gameOver){
-			this.setState({gameOver:false});
-		}
 		this.props.setLoading(false);
+		this.setState({steps:1.3})
 		this.props.saveTransaction(txid,this.props.defaultNetwork,"Sol-Survivor").catch(console.warn);		
 		return txid;
+	}
+	
+	gameSetup(){
+		react_game_channel.onmessage = (ev)=> { 
+			if(ev && ev.data){
+				return this.parseState(ev.data[0]).catch(console.warn);
+			}
+			else{
+				//Network Change
+				console.warn("network changed");
+				this.setState({gameStart:false},()=>{
+					this.getAccountInfo()
+					.then(this.subscribeToGame)
+					.catch(console.warn);
+				});
+			}
+		}
+		//Enable timer
+		this.countDownTimer();
+		//airdrop
+		return this.getAccountInfo().then(this.subscribeToGame).catch(console.warn);		
 	}
 	
 	getAccountInfo(){
@@ -468,7 +468,6 @@ class Stage extends React.Component{
 		.then((resp)=>{
 			if(!resp.data){return}
 			let data = new Buffer(resp.data).toString("base64");
-			console.log("initial game state:",data);
 			return this.parseState(data);
 		})
 		.then(()=>{
@@ -523,8 +522,10 @@ class Stage extends React.Component{
 				BufferLayout.u8(data.slice(71,72)), //player 2 commit bool
 				BufferLayout.u8(data.slice(72,73)), //player 2 reveal bool
 				BufferLayout.u32(data.slice(73,77)), //player 2 commit	
+				BufferLayout.u8(data.slice(77,78)), //player 1 character	
 				BufferLayout.u8(data.slice(78,79)), //player 1 reveal is honest bool
 				BufferLayout.cstr(data.slice(79,89)), //player 1 reveal
+				BufferLayout.u8(data.slice(89,90)), //player 2 character
 				BufferLayout.u8(data.slice(90,91)), //player 2 reveal is honest bool
 				BufferLayout.cstr(data.slice(91,101)), //player 2 reveal	 
 				BufferLayout.nu64(data.slice(102,110)), //Timer 
@@ -552,20 +553,22 @@ class Stage extends React.Component{
 				player2DidCommit:state[6][0],
 				player2DidReveal:state[7][0],
 				player2Commit:state[8],
-				player1HonestReveal:state[9][0],
-				player1Reveal:state[10],
-				player2HonestReveal:state[11][0],
-				player2Reveal:state[12],	
-				moveTimer:state[13],				
-				player1Health:state[14][0],
-				player1Super:state[15][0],
-				player2Health:state[16][0],
-				player2Super:state[17][0],
-				player1LastMove:state[18][0],
-				player2LastMove:state[19][0],
-				winner:state[20][0],
-				gameStart:state[21],
-				wagerGame:state[22]
+				player1Character:state[9][0],
+				player1HonestReveal:state[10][0],
+				player1Reveal:state[11],
+				player2Character:state[12][0],
+				player2HonestReveal:state[13][0],
+				player2Reveal:state[14],	
+				moveTimer:state[15],				
+				player1Health:state[16][0],
+				player1Super:state[17][0],
+				player2Health:state[18][0],
+				player2Super:state[19][0],
+				player1LastMove:state[20][0],
+				player2LastMove:state[21][0],
+				winner:state[22][0],
+				gameStart:state[23],
+				wagerGame:state[24]
 			},()=>{
 				if(
 					//Game Setup
@@ -576,56 +579,74 @@ class Stage extends React.Component{
 					//Reveals
 					state[9][0] === 0  && state[11][0] === 0 &&
 					//Time has started
-					state[13][1] > 0
+					state[15][1] > 0
 				){
-					if(justMounted === 0){return ++justMounted;}
-					let actions = ["Reversal","Punch","Strike","","idle"];
-					let gameMessage = "";
-					if(state[14][0] === 0 && state[16][0] > 0 ){ 
-						gameMessage = "p2"+ actions[state[19][0]].toLowerCase()[0];
-						port1.postMessage(gameMessage); 
+					if(this.state.steps === 2){
+						let actions = ["Reversal","Punch","Strike","","idle"];
+						let gameMessage = "";
+						if(state[16][0] === 0 && state[18][0] > 0 ){ 
+							gameMessage = "p2"+ actions[state[21][0]].toLowerCase()[0];
+							port1.postMessage(gameMessage); 
+							this.returnToMenu();
+						}
+						else if(state[16][0] > 0 && state[18][0] === 0 ){ 
+							gameMessage = "p1"+ actions[state[20][0]].toLowerCase()[0];
+							port1.postMessage(gameMessage); 
+							this.returnToMenu();
+						}
+						else if(state[16][0] === 0 && state[18][0] === 0 ){ 
+							//This ensures a double ko
+							port1.postMessage("dko"); 
+							this.returnToMenu();
+						}
+						else if (state[22][0] === 1){
+							//p2 dishonest commit
+							gameMessage = "p1"+ actions[state[20][0]].toLowerCase()[0];
+							port1.postMessage(gameMessage); 
+							this.returnToMenu();
+						}
+						else if (state[22][0] === 2){
+							//p1 dishonest commit
+							gameMessage = "p2"+ actions[state[21][0]].toLowerCase()[0];
+							port1.postMessage(gameMessage); 
+							this.returnToMenu();
+						}
+						else if (state[22][0] === 3){
+							//draw
+							port1.postMessage("dko"); 
+							this.returnToMenu();
+						}					
+						this.setState({
+							p1Action:actions[state[20][0]],
+							p2Action:actions[state[21][0]]
+						});
 					}
-					else if(state[14][0] > 0 && state[16][0] === 0 ){ 
-						gameMessage = "p1"+ actions[state[18][0]].toLowerCase()[0];
-						port1.postMessage(gameMessage); 						
-					}
-					else if(state[14][0] === 0 && state[16][0] === 0 ){ 
-						/*gameMessage = "p1"+ actions[state[18][0]].toLowerCase()[0];
-						port1.postMessage(gameMessage); 											  
-						gameMessage = "p2"+ actions[state[19][0]].toLowerCase()[0];
-						port1.postMessage(gameMessage); 		
-						*/
-						//This ensures a double ko
-						port1.postMessage("p1p"); 
-						port1.postMessage("p2p"); 								  
-					}
-					console.log(gameMessage);
-					this.setState({
-						p1Action:actions[state[18][0]],
-						p2Action:actions[state[19][0]]
-					});
-
 				}
 			});
 			let player1;
 			let player2;
+			let newState = {};
 			if(state[1][0] > 1){
 				let p1 = dataInfo.fields[1].property;
 				player1 = bs58.encode(this.props.stringToBytes(p1));
-				this.setState({player1}); 
+				newState.player1 = player1;
 			}
 			if(state[2][0] > 1){
 				let p2 = dataInfo.fields[2].property;
 				player2 = bs58.encode(this.props.stringToBytes(p2));
-				this.setState({player2});
+				//Move to step2 for player1
+				if(this.state.steps === 1.3 && player2.toString("hex") !== "0000000000000000000000000000000000000000000000000000000000000000"){
+					newState.steps = 2;
+				}
+				newState.player2 = player2;
 			}
 			if(!this.state.isPlayer1){
 				if(player1){
 					let p1 = 0;
 					if(this.props.localPayerAccount && this.props.localPayerAccount.publicKey.toBase58() === player1){ p1++; }
 					if(this.props.payerAccount && this.props.payerAccount.toBase58() === player1){ p1++; }
-					if(p1){ 
-						this.setState({isPlayer1:true});
+					if(p1){
+						newState.isPlayer1 = true; 
 					}
 				}
 			}
@@ -635,32 +656,47 @@ class Stage extends React.Component{
 					if(this.props.localPayerAccount && this.props.localPayerAccount.publicKey.toBase58() === player2){ p2++; }
 					if(this.props.payerAccount && this.props.payerAccount.toBase58() === player2){ p2++ }
 					if(p2){ 
-						this.setState({isPlayer2:true});
+						newState.isPlayer2 = true; 
 					}
 				}
 			}
-			console.log(this.state.player1,"vs",this.state.player2);
+			try{ console.warn(newState.player1.toString(),this.state.player1Character,"vs",newState.player2.toString("hex"),this.state.player2Character); }
+			catch(e){}
 			//Move Time
-			if(state[13][0] > 0 && this.state.moveTimer !== -1){
-				this.setState({moveTimer:state[13]});
+			if(state[15][0] > 0 && this.state.moveTimer !== -1){
+				newState.moveTimer = state[15];
 				if(this.state.moveTimerExpiration < 0){
 					let expire = (new Date().getTime()+30000);	
-					this.setState({moveTimerExpiration:expire});
+					newState.moveTimerExpiration = expire;
 				}
 			}
 			else{
-				this.setState({moveTimer:-1,moveTimerExpiration:-1,moveTimeoutValue: 30 });
+				newState.moveTimer = -1;
+				newState.moveTimerExpiration = -1;
+				newState.moveTimeoutValue = 30;
 			}
 			//Game Time
 			this.timeGame(data).catch(console.warn);
-			this.setState({loadingAccountData:false},resolve);
+			if(this.state.loadingAccountData === true){ newState.loadingAccountData = false; }
 			//Wager
-			if( state[22] && state[22][0] > 1){
-				let wagerContractAddress = dataInfo.fields[22].property;
+			if( state[24] && state[24][0] > 1){
+				let wagerContractAddress = dataInfo.fields[24].property;
 				wagerContractAddress = bs58.encode(this.props.stringToBytes(wagerContractAddress));
 				this.updateWagerList(wagerContractAddress)
-				this.setState({wager:true,wagerContractAddress},()=>{ return this.getWagerInfo(wagerContractAddress); }); 
+				newState.wager = true;
+				newState.wagerContractAddress = wagerContractAddress;
 			}
+			//Update State
+			if(newState.wager === true){
+				this.setState(newState,()=>{ 
+					resolve();
+					return this.getWagerInfo(newState.wagerContractAddress); 				
+				})
+			}
+			else{
+				this.setState(newState,resolve);
+			}
+			
 		});
 	}
 	
@@ -765,6 +801,28 @@ class Stage extends React.Component{
 		return txid;
 	}
 	
+	returnToMenu(){
+		return setTimeout(()=>{
+			return this.setState({steps:0});
+		},6000);
+	}
+	
+	sendCharactersToUnity(p1,p2){
+		return setTimeout(()=>{
+			if(unityReady){
+				console.warn("...selecting characters...",p1,p2);
+				port1.postMessage("select"+p1);
+				setTimeout(()=>port1.postMessage("select"+p2),500);
+			}
+			else{
+				console.warn("...wait to select characters...",unityReady);
+				setTimeout(()=>{ return this.sendCharactersToUnity(p1,p2); },1000);
+			}
+			return;
+		},1000);
+		
+	}
+	
 	async solletSign(instructionList,wagerIx=false){
 		let transaction =  new Transaction();
 		let txid = false;
@@ -830,8 +888,16 @@ class Stage extends React.Component{
 			let gameStart = data.slice(117,125);	
 			let startDate = get64BitTime(this.props.stringToBytes(gameStart));
 			this.setState({gameStart:startDate.getTime()},resolve);
-			console.log("game started @ ",startDate,"Drift",Drift);
+			console.warn("game started @ ",startDate,"Drift",Drift);
 		})
+	}
+	
+	updateSteps(steps){
+		return this.setState({steps});
+	}
+	
+	updateWagerAmount(evt){
+		return this.setState({wagerAmount:evt.currentTarget.value});
 	}
 	
 	updateWagerList(x){
@@ -843,7 +909,6 @@ class Stage extends React.Component{
 	}
 	
 	updateWagerOption(){
-		justMounted = 0;
 		return this.setState({wager:!this.state.wager},()=>{
 			this.subscribeToGame();
 			this.getAccountInfo();
@@ -852,8 +917,8 @@ class Stage extends React.Component{
 	
 	async wagerStart(){
 		this.setState({bet:false,wagerContractAddress:""});
-		let wagerAmount = document.getElementById("wagerAmount");
-		if(!wagerAmount.value || wagerAmount.value === 0 ){
+		let wagerAmount = this.state.wagerAmount;
+		if(!Number(wagerAmount)){
 			this.props.notify("Please Input A Valid Wager","error");
 			return;
 		}
@@ -867,7 +932,7 @@ class Stage extends React.Component{
 			fee:0,
 			feeAccount:new PublicKey(),//A Dummy Account Because No Fees Are Charged
 			feePayer,
-			minimumBet: Number( wagerAmount.value ),
+			minimumBet: Number( wagerAmount ),
 			oracleAccount: new PublicKey(this.props.WAGER_GAME_ID),//public key of the program/account to close the contract. if override > 0 this will automatically be converted to a PDA
 			override:1,
 			programId: new PublicKey(this.props.BET_PROGRAM_ID),
@@ -885,8 +950,7 @@ class Stage extends React.Component{
 		let exists = info[1];
 		let creationIx = info[2];
 		if(!exists){allIx.push(creationIx);}
-		let [ mintPositionIx ] = await wc.mintPx(1,wagerAmount.value,true);	
-		console.log(allIx);
+		let [ mintPositionIx ] = await wc.mintPx(1,wagerAmount,true);	
 		allIx = allIx.concat(mintPositionIx);
 		let _transaction =  new Transaction();
 		let txid = "";
@@ -960,7 +1024,6 @@ class Stage extends React.Component{
 	}
 	
 	render(){
-		if(this.state.loadingAccountData){return null;}
 		return(<div className="stageHolder">
 			<WagerSwitch
 				bet={this.state.bet}
@@ -970,42 +1033,198 @@ class Stage extends React.Component{
 				redeemContract={this.props.redeemContract}
 				wager={this.state.wager} 
 				wagerContractAddress={this.state.wagerContractAddress}
-				updateWagerOption={this.updateWagerOption} 
+				updateWagerOption={this.updateWagerOption}
+				updateSteps={this.updateSteps} 
 				viewBet={this.state.viewBet}
 			/>
-			<h3 id="title">		
-				<div className="pressStart">	
-				{
-					( this.state.timeLimit < 0 || this.state.gameStatus === 0  ) || this.state.winner > 0 ?
-					<div> 
-						<GameOptions 
-							classic={this.createChallenge} 
-							wager={this.state.wager} 
-							wagerStart={this.wagerStart} 
-							enabled={this.props.loading} 
-							usdtBalance={this.props.usdtBalance}
-							/> 
-					</div> : null
-				}
+			{
+				this.state.steps === 0 ?
+				<div className="mainMenu"> 
+					{
+						(this.state.timeLimit < 1 || (this.state.player2Health < 1 || this.state.player1Health < 1 ) ) ?
+						 <div className="pressStart"> 
+							{ 
+								this.state.wager ?
+								<ButtonGroup className="classicDiv1">
+									<Button color="info" className="classicButton5" onClick={()=>{this.setState({steps:1.1});}}> Player1 </Button>	
+									<Button color="default" id="wagerInputButton">
+										<b> Wager $</b><Input min={0} type="number" value={this.state.wagerAmount} id="wagerAmount" onChange={this.updateWagerAmount}/> / {this.props.usdtBalance.toFixed(2)} USDT
+									</Button>
+																		
+								</ButtonGroup>	
+								:<Button color="info" block className="classicButton1" onClick={()=>{this.setState({steps:1.1});}}> Player1 Press Start </Button>
+							}
+						 </div> : null
+					}
+					
+					{
+						(this.state.timeLimit > 0 &&  this.state.player1.toString("hex") !== "0000000000000000000000000000000000000000000000000000000000000000" && this.state.player2.toString("hex") === "0000000000000000000000000000000000000000000000000000000000000000" ) ?
+						<div className="pressStart"> 
+						<Button color="info" block className="classicButton1" onClick={()=>{this.setState({steps:1.2});}}> 
+							Player2 
+							{ (this.state.wager && this.state.bet && this.state.bet.minimumBet) ? <b> Wager ${(this.state.bet.minimumBet / Math.pow(10,6))} USDT</b> : "Press Start "}
+						</Button>  
+						</div> 
+						: null
+					}
+					
+					{
+						(this.state.timeLimit > 0 && (this.state.player2Health > 0 && this.state.player1Health > 0) && this.state.player2.toString("hex") !== "0000000000000000000000000000000000000000000000000000000000000000" )?
+						<div className="pressStart"> 
+							<Button color="danger" block className="classicButton4" onClick={()=>{this.setState({steps:1.2});}}>
+								MATCH IN PROGRESS 
+								Time Remaining: {this.state.timeLimit.toFixed(0)}s
+							</Button>   
+						 </div>					
+						: null
+					}
 				</div>
-				<div className="pressStart">
+				:null
+			}
+			{ (this.state.steps > 1 && this.state.steps < 2) ? 
+				<CharacterSelect 
+				chooseCharacter={this.chooseCharacter} 
+				player1Character={this.state.player1Character}
+				updateSteps={this.updateSteps} 
+				steps={this.state.steps}/> 
+				:null 
+			}
+			<Game
+				commit={this.commit}
+				isPlayer1={this.state.isPlayer1}
+				isPlayer2={this.state.isPlayer2}
+				moveTimeoutValue={this.state.moveTimeoutValue}
+				player1={this.state.player1}
+				player1DidCommit={this.state.player1DidCommit}
+				player1Health={this.state.player1Health}
+				player1HonestReveal={this.state.player1HonestReveal}
+				p1Action={this.state.p1Action}
+				player2={this.state.player2}
+				player2DidCommit={this.state.player2DidCommit}
+				player2Health={this.state.player2Health}
+				player2HonestReveal={this.state.player2HonestReveal}
+				p2Action={this.state.p2Action}
+				reveal={this.reveal}
+				steps={this.state.steps}
+				survivorHelpOpen={this.props.survivorHelpOpen}
+				toggleSurvivorHelpOpen={this.props.toggleSurvivorHelpOpen}
+				timeLimit={this.state.timeLimit}
+			 /> 
+			<audio id="backgroundMusic" src={this.state.backgroundMusic} />
+		</div>)
+	}
+}
+
+class CharacterSelect extends React.Component{ 
+	constructor(props){
+		super(props);
+		this.state = {
+			characters:[]
+		}
+		this.select = this.select.bind(this);
+		this.updatePortrait = this.updatePortrait.bind(this);
+	}
+	
+	componentDidMount(){
+		let characters = [
+			{Name:"Master Chef",Headshot:"./images/player_images/masterchef_small.png",Portrait:"./images/player_images/masterchef_portrait.png", Mint:"",Index:0},
+			{Name:"Assassin",Headshot:"./images/player_images/assassin_small.png",Portrait:"./images/player_images/assassin_portrait.png",Mint:"",Index:1},
+		]
+		for(let i = 0;i < 16;i++){
+			characters.push({Name:"?",Headshot:"./images/player_images/unknown.png",Mint:"",Index:0})
+		}
+		return this.setState({characters});
+	}
+	
+	select(char){
+		this.props.chooseCharacter(char.Index);
+		document.getElementById("char"+char.Index).setAttribute("style","border:0.2em solid red");
+		return;
+	}
+	
+	updatePortrait(char){
+		if(!char || !char.Portrait){return}
+		let player = this.props.steps.toString()[2]
+		try{
+			document.getElementById(`player${player}Portrait`).src = char.Portrait;
+			document.getElementById("cssEffect").play().catch(console.warn);
+		}
+		catch(e){console.log(e);}
+	}
+	
+	render(){
+		return (<div className="characterSelect">
+			<Button color="danger" block id="homeButton" onClick={()=>{return this.props.updateSteps(0);}}> MAIN MENU </Button> 
+			<div className="characterSelectRow">
 				{ 
-					(this.state.gameStatus === 1) ?
-					<Button color="danger" block className=" waves-effect waves-light" onClick={this.acceptChallenge}> 
-						PLAYER 2 PRESS START 
-						{this.state.bet && this.state.bet.minimumBet ? <b> ${(this.state.bet.minimumBet / Math.pow(10,6))} USDT</b> : null}
-					</Button> : null	
+					this.state.characters.map((char,ind)=>(
+						<div key={ind} onMouseOver={()=>{this.updatePortrait(char)}} onClick={()=>{this.select(char)}}> 
+							<img id={"char"+ind} src={char.Headshot} alt="player headshot" title={char.Name}/> 
+						</div>
+					))
 				}
+			</div>
+			{
+				this.state.characters.length > 0 ?
+				<div className="characterBoutCard">
+					<div>
+						{
+							this.props.steps !== 1.2 ?
+							<img id="player1Portrait" src={this.state.characters[0].Portrait} alt="player1Portrait" /> 
+							:<img id="player1Portrait" src={this.state.characters[this.props.player1Character].Portrait} alt="player1Portrait" /> 
+						}
+						<img id="vs" src="./images/player_images/vs.png" alt="vs"/> 
+						{
+							this.props.steps !== 1.2? 
+							<Button color="info" className="classicButton3"> WAITING FOR PLAYER2 <br/> <LinearProgress/> </Button>
+							:<img id="player2Portrait" src={this.state.characters[1].Portrait}  alt="player2Portrait"/>
+						}
+					</div>
 				</div>
-			</h3>
+				: null
+			}
+			<audio id="cssEffect" src="./Sounds/button-16.ogg" crossOrigin="anonymous"/>
+		</div>);
+	}
+}		
+		
+class Game extends React.Component {
+	constructor(props){
+		super(props);
+		this.bindChannel = this.bindChannel.bind(this);
+	}	
+	
+	bindChannel(){
+		//Connect to the iframe
+		channel = new MessageChannel();
+		port1 = channel.port1;
+		connectPort = false;
+		addChannel();
+		//
+		port1.onmessage = (evt)=>{
+			if(evt.data === "characterSelectReady"){
+				unityReady = true;
+			}
+			else if(evt.data === "stageReady"){
+				console.warn("stageReady");
+			}
+		}
+	}
+	
+	componentDidMount(){
+		return setTimeout(this.bindChannel,5500);
+	}
+	
+	render(){
+		return(<div style={{"display":this.props.steps === 2 ? "block" : "none"}}>
 			<div className="gameTimers">
-				<ProgressBar id="gameTimer" variant={this.state.timeLimit > 40 ? "primary" : "danger"} striped min={0} max={180} now={this.state.timeLimit < 0 ? 1 : this.state.timeLimit} label={"TIME: "+Math.floor(this.state.timeLimit)+"s"} />
+				<ProgressBar id="gameTimer" variant={this.props.timeLimit > 40 ? "primary" : "danger"} striped min={0} max={180} now={this.props.timeLimit < 0 ? 1 : this.props.timeLimit} label={"TIME: "+Math.floor(this.props.timeLimit)+"s"} />
 				<div id="moveTimeout">
 					<ProgressBar variant="info"
 						style={{fontSize:"large",height:"2vh"}}
 						 striped min={0} max={30} 
-						now={this.state.moveTimeoutValue} 
-						label={Math.floor(this.state.moveTimeoutValue)}
+						now={this.props.moveTimeoutValue} 
+						label={Math.floor(this.props.moveTimeoutValue)}
 					/>
 				</div>
 			</div>
@@ -1013,68 +1232,47 @@ class Stage extends React.Component{
 				<div id="player1Stats">
 					<div className="comrev">
 						<b> Player 1 </b>
-						<br/>Address<br/> <b>{this.state.player1 ? this.state.player1.slice(0,15) : null}</b>
-						<br/>Status<br/> <b>{(this.state.player1HonestReveal > 0 && this.state.player1HonestReveal === 8) ? " HONEST" : null }{this.state.player1DidCommit === 1 ? " COMMIT" : null }</b>
-						<br/>Action<br/> <b>{this.state.p1Action? this.state.p1Action.toUpperCase() : ""}</b>
-						<progress min={0} max={100} value={this.state.player1Health} />
+						<br/>Address<br/> <b>{this.props.player1 ? this.props.player1.slice(0,15) : null}</b>
+						<br/>Status<br/> <b>{(this.props.player1HonestReveal > 0 && this.props.player1HonestReveal === 8) ? " HONEST" : null }{this.props.player1DidCommit === 1 ? " COMMIT" : null }</b>
+						<br/>Action<br/> <b>{this.props.p1Action? this.props.p1Action.toUpperCase() : ""}</b>
+						<progress min={0} max={100} value={this.props.player1Health} />
 					</div>
 				</div>
 				<div id="player2Stats">
-						<div className="comrev" id="comrev2">
-							<b> Player 2 </b>
-							<br/>Address<br/> <b>{this.state.player2 ? this.state.player2.slice(0,15) : null}</b>
-							<br/>Status<br/> <b>{(this.state.player2HonestReveal > 0 && this.state.player2HonestReveal === 8) ? " HONEST" : null } {this.state.player2DidCommit === 1 ? " COMMIT" : null } </b>
-							<br/>Action<br/> <b>{this.state.p2Action? this.state.p2Action.toUpperCase() : ""}</b>
-							<progress min={0} max={100} value={this.state.player2Health} />
-						</div>
+					<div className="comrev" id="comrev2">
+						<b> Player 2 </b>
+						<br/>Address<br/> <b>{this.props.player2 ? this.props.player2.slice(0,15) : null}</b>
+						<br/>Status<br/> <b>{(this.props.player2HonestReveal > 0 && this.props.player2HonestReveal === 8) ? " HONEST" : null } {this.props.player2DidCommit === 1 ? " COMMIT" : null } </b>
+						<br/>Action<br/> <b>{this.props.p2Action? this.props.p2Action.toUpperCase() : ""}</b>
+						<progress min={0} max={100} value={this.props.player2Health} />
+					</div>
 				</div>
 				<br/>
-				{(this.state.isPlayer1 || this.state.isPlayer2) ?
+				{(this.props.isPlayer1 || this.props.isPlayer2) ?
 					<div id="playerOptions">
 						<div>
 							<ButtonGroup>
-								{ this.state.isPlayer1 && this.state.player1DidCommit === 1 ? <Button block color="danger" onClick={()=>{this.reveal("attack")}}>UNLEASH </Button>  : null }
-								<Button color="success" onClick={()=>{this.commit("rock")}}> Reversal </Button>
-								<Button color="default" onClick={()=>{this.commit("paper")}}> Punch </Button>
-								<Button color="warning" onClick={()=>{this.commit("scissors")}}> Strike </Button>
-								{ this.state.isPlayer2 && this.state.player2DidCommit === 1 ? <Button block color="danger" onClick={()=>{this.reveal("attack")}}>UNLEASH </Button>  : null }
+								{ this.props.isPlayer1 && this.props.player1DidCommit === 1 ? <Button block color="danger" onClick={()=>{this.props.reveal("attack")}}>UNLEASH </Button>  : null }
+								<Button color="success" onClick={()=>{this.props.commit("rock")}}> Reversal </Button>
+								<Button color="default" onClick={()=>{this.props.commit("paper")}}> Punch </Button>
+								<Button color="warning" onClick={()=>{this.props.commit("scissors")}}> Strike </Button>
+								{ this.props.isPlayer2 && this.props.player2DidCommit === 1 ? <Button block color="danger" onClick={()=>{this.props.reveal("attack")}}>UNLEASH </Button>  : null }
 							</ButtonGroup>
 						</div>
 					</div>:null
 				}
-				<WebGLView src={"https://solsurvivor.s3.amazonaws.com/index.html"}/>				
+			    <WebGLView src={"https://solsurvivor.s3.amazonaws.com/index.html"}/>	
 				<Wizard open={this.props.survivorHelpOpen} close={this.props.toggleSurvivorHelpOpen}/>
 			</div>
-			<audio id="backgroundMusic" src={this.state.backgroundMusic} />
-		</div>)
-	}
-}
-
-function GameOptions(props){
-	function updateWAmount(evt){
-		let currentWagerAmount = document.getElementById("currentWagerAmount");
-		currentWagerAmount.innerHTML = evt.currentTarget.value;
-		return;
-	}
-	return(<div>
-		{
-			props.wager === false ?
-				<Button color="danger" block className="classicButton waves-effect waves-light" onClick={props.classic}> PLAYER 1 PRESS START </Button> 
-			:
-			<div className="wagerDiv"> 
-				<Input type="number" defaultValue="0.05" id="wagerAmount" onChange={updateWAmount}/>			 
-				<Button color="success" block disabled={props.enabled ? true : false} id="wagerButton" onClick={props.wagerStart}> WAGER $<b id="currentWagerAmount">0.05</b> / <b>{props.usdtBalance.toFixed(2)}</b> (USDT) </Button>
-			</div>
-		}		
-	</div>)
+	</div>)}
 }
 
 function WagerSwitch(props){
-	let showDisc = true;
-	function removeDisc(){
+	let showDisclaimer = true;
+	function removeDisclaimer(){
 		try{
 			let wd = document.getElementsByClassName("wagerDisclaimer")[0];
-			wd.parentElement.removeChild(wd);
+			wd.setAttribute("style","display:none");
 		}
 		catch(e){console.error(e)}
 	}	
@@ -1087,13 +1285,13 @@ function WagerSwitch(props){
 				onClick={props.updateWagerOption}
 			/>
 			<Label className="custom-control-label" htmlFor="modeSwitch"> <p id="modeText">{ props.wager ? "wager" : "classic" }</p> </Label>
-			{	props.wager && showDisc?
+			{	(props.wager && showDisclaimer)?
 					<p className="wagerDisclaimer">
 					Disclaimer: Wagers are not available in the U.S.A, E.U. or other prohibited jurisdictions. 
 					If you are located in, incorporated or otherwise established in, or a resident of the United States of America
 					or any nation part of the European Union, you are not permitted to wager on sol-talk.com. By using this 
 					service you acknowledge Sol-Talk bears no responsibility for any loss of funds.
-					<br/><button color="danger" onClick={removeDisc}>acknowledge</button>
+					<br/><button color="danger" onClick={removeDisclaimer}>acknowledge</button>
 					</p>
 				: null
 			}
@@ -1119,6 +1317,5 @@ function WagerSwitch(props){
 			}			
 	</div>)
 }
-
 
 export { Stage };

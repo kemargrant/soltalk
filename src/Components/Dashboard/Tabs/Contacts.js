@@ -66,16 +66,18 @@ class Contacts extends Component {
     }
 
     componentDidMount(){
-		this.props.getContacts()
-		.then((contacts)=>{
-			//Merge Unsaved Contacts
-			for(let i = 0;i < this.props.potentialContacts.length;i++){
-				contacts[ this.props.potentialContacts[i].publicKey ] = this.props.potentialContacts[i];
-			}
-			return this.updateContacts(contacts)
-		})
-		.then(this.sortContact)
-        .catch(console.warn)
+		if(window.location.pathname !== "/sol-survivor"){
+			this.props.getContacts()
+			.then((contacts)=>{
+				//Merge Unsaved Contacts
+				for(let i = 0;i < this.props.potentialContacts.length;i++){
+					contacts[ this.props.potentialContacts[i].publicKey ] = this.props.potentialContacts[i];
+				}
+				return this.updateContacts(contacts)
+			})
+			.then(this.sortContact)
+			.catch(console.warn);
+		}
     }
 
 	updateContacts(contacts){

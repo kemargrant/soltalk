@@ -46,6 +46,10 @@ var defaultChannel;
 //Classic
 var GAME_ID = "";
 var GAME_ACCOUNT = "";  
+//King of the Hill
+var KOR_ACCOUNT = "";
+var KOR_ID = "";
+var KOR_WALLET = "";
 //Wager
 var WAGER_GAME_ID = "";
 var WAGER_GAME_ACCOUNT = "";
@@ -75,6 +79,11 @@ const Sol_Talk = {
 const Sol_Survivor= {
 	"api.mainnet-beta":{id:"6FGsGdMg2V3XSEDsKFVLXpyE3CHxMZvpFwJGD5QnaFMB",account:"5ZArURxW2ze2kG5HEHXZEaeVKeNBaDo4tRtth4QnMDie"},
 	"testnet":{id:"H6ayLvwFXb9tB8vVY24Dd2FvjEoacDAxos3bE8B7JoMM",account:"8kDk8rQ4MuhkZrLA64NQBufhBhzSWM47FYNbSVJCQDE1"}
+}
+
+const Sol_Survivor_KOR= {
+	"api.mainnet-beta":{id:"",account:"",wallet:""},
+	"testnet":{id:"CbGbAMRQQ6rgxV6mxTrLgBDxZi1zpkTh5fGeKAo97Ux6",account:"8bqBf9X1VhPDfpwQsJdaMJzvM3Cq11UejxoBtXGxmjkd",wallet:"7EYTFEBQzECxoVUK35MjeEMd5jG8iGauUKqLkVt8gTMH"},
 }
 
 const Sol_Survivor_Wager= {
@@ -414,6 +423,9 @@ class App extends React.Component{
 			enableMusic:window.localStorage.getItem("enableMusic") ? JSON.parse(window.localStorage.getItem("enableMusic")) : false,
 			GAME_ACCOUNT,
 			GAME_ID,	
+			KOR_ACCOUNT,
+			KOR_ID,
+			KOR_WALLET,
 			loading:false,
 			loadingMessage:"",
 			loadingValue:0,
@@ -482,6 +494,7 @@ class App extends React.Component{
 		this.exportPrivateKey = this.exportPrivateKey.bind(this);
 		this.exportRSAKeys = this.exportRSAKeys.bind(this);
 		
+		this.generateFeeInstruction = this.generateFeeInstruction.bind(this);		
 		this.generateQRCode = this.generateQRCode.bind(this);
 		this.getBalance = this.getBalance.bind(this);
 		this.getContacts = this.getContacts.bind(this);
@@ -531,6 +544,7 @@ class App extends React.Component{
 		
 		this.toggleTransactionView = this.toggleTransactionView.bind(this);
 
+		this.withdrawFromProgram = this.withdrawFromProgram.bind(this);
 		this.writeLog= this.writeLog.bind(this);
 		
 		this.uploadAudioFile = this.uploadAudioFile.bind(this);	
@@ -743,6 +757,9 @@ class App extends React.Component{
 		BET_PROGRAM_ID = Bet[defaultNetwork].programId;
 		GAME_ACCOUNT = Sol_Survivor[defaultNetwork].account;
 		GAME_ID = Sol_Survivor[defaultNetwork].id;
+		KOR_ACCOUNT = Sol_Survivor_KOR[defaultNetwork].account;
+		KOR_ID = Sol_Survivor_KOR[defaultNetwork].id;
+		KOR_WALLET = Sol_Survivor_KOR[defaultNetwork].wallet;
 		WAGER_GAME_ACCOUNT = Sol_Survivor_Wager[defaultNetwork].account;
 		WAGER_GAME_ID = Sol_Survivor_Wager[defaultNetwork].id;
 		WAGER_TOKEN_MINT = Bet_Token_Mint[defaultNetwork].address;
@@ -754,6 +771,9 @@ class App extends React.Component{
 			defaultNetwork,
 			GAME_ACCOUNT,
 			GAME_ID,
+			KOR_ACCOUNT,
+			KOR_ID,
+			KOR_WALLET,
 			soltalkProgram:defaultProgram,
 			soltalkAccount:defaultChannel,
 			WAGER_GAME_ACCOUNT,			
@@ -911,6 +931,9 @@ class App extends React.Component{
 		BET_PROGRAM_ID = Bet[this.state.defaultNetwork].programId;
 		GAME_ACCOUNT = Sol_Survivor[this.state.defaultNetwork].account;
 		GAME_ID = Sol_Survivor[this.state.defaultNetwork].id;
+		KOR_ACCOUNT = Sol_Survivor_KOR[this.state.defaultNetwork].account;
+		KOR_ID = Sol_Survivor_KOR[this.state.defaultNetwork].id;
+		KOR_WALLET = Sol_Survivor_KOR[this.state.defaultNetwork].wallet;
 		WAGER_GAME_ACCOUNT = Sol_Survivor_Wager[this.state.defaultNetwork].account;		
 		WAGER_GAME_ID = Sol_Survivor_Wager[this.state.defaultNetwork].id;
 		WAGER_TOKEN_MINT = Bet_Token_Mint[this.state.defaultNetwork].address;
@@ -921,6 +944,9 @@ class App extends React.Component{
 			providerUrl: "https://www.sollet.io/#origin="+window.location.origin+"&network="+this.state.defaultNetwork,
 			GAME_ACCOUNT,
 			GAME_ID,
+			KOR_ACCOUNT,
+			KOR_ID,
+			KOR_WALLET,
 			soltalkProgram:defaultProgram,
 			soltalkAccount:defaultChannel,
 			WAGER_GAME_ACCOUNT,
@@ -1431,6 +1457,20 @@ class App extends React.Component{
 	}			
 	
 	/**
+	* Generate Fee Instruction
+	* @method generateFeeInstruction
+	* @param {Object} Solana Public Key
+	* @return {Object} Instruction  
+	*/	
+	generateFeeInstruction(to,feeInSol){
+		return SystemProgram.transfer({
+			fromPubkey: this.state.payerAccount ? this.state.payerAccount : this.state.localPayerAccount.publicKey,
+			toPubkey:to,
+			lamports:Math.ceil( feeInSol * LAMPORTS_PER_SOL),
+		});
+	}
+		
+	/**
 	* Generate QR Code dataURL
 	* @method generateQRCode
 	* @param {String} Input string
@@ -1561,34 +1601,34 @@ class App extends React.Component{
 				})
 				.then((r)=>{return r.json();})
 				.then(async(resp)=>{
-				if(resp && resp.result){
-					//reverse the list to get chronological order
-					resp.result = resp.result.reverse();
-					for(let i = 0;i < resp.result.length;i++){
-						//skip old messages
-						if(resp.result[i].slot <= cursor ){continue;}
-						//
-						getTransactions.params[0] = resp.result[i].signature;
-						await sleep(50);
-						console.log(i,resp.result.length,resp.result[i].signature);
-						await window.fetch(Endpoint, {
-							"headers": {"content-type": "application/json"},
-							"body":JSON.stringify(getTransactions),
-							"method": "POST",
-						})
-						.then((r)=>{return r.json();})
-						.then((json)=>{
-							if(json && json.result){
-								let data = json.result.transaction[0];
-								data = atob(data);
-								checkpoint(resp.result[i].slot);
-								return requestAnimationFrame(()=>{this.parseAccountData(data.slice(data.length-1028),true);})
-							}
-						})
-						.catch(console.warn);
+					if(resp && resp.result){
+						//reverse the list to get chronological order
+						resp.result = resp.result.reverse();
+						for(let i = 0;i < resp.result.length;i++){
+							//skip old messages
+							if(resp.result[i].slot <= cursor ){continue;}
+							//
+							getTransactions.params[0] = resp.result[i].signature;
+							await sleep(50);
+							console.log(i,resp.result.length,resp.result[i].signature);
+							await window.fetch(Endpoint, {
+								"headers": {"content-type": "application/json"},
+								"body":JSON.stringify(getTransactions),
+								"method": "POST",
+							})
+							.then((r)=>{return r.json();})
+							.then((json)=>{
+								if(json && json.result){
+									let data = json.result.transaction[0];
+									data = atob(data);
+									checkpoint(resp.result[i].slot);
+									return requestAnimationFrame(()=>{this.parseAccountData(data.slice(data.length-1028),true);})
+								}
+							})
+							.catch(console.warn);
+						}
 					}
-				}
-			})
+				})
 			})
 			resolve();
 		})
@@ -1704,7 +1744,7 @@ class App extends React.Component{
 		let chatRoomAccount = new Account();
 		let chatRoomPubkey = chatRoomAccount.publicKey;
 		let lamports;
-		let space = [1028,160,186]
+		let space = [1028,160,186,0]; //soltalk,ss,ss_wager,ss_kor_wallet
 		lamports = await connection.getMinimumBalanceForRentExemption(space[type]);				
 		console.log("Mininum lamports for rent free account:",lamports / LAMPORTS_PER_SOL);
 		let ppid = window.prompt("Program Address")
@@ -1714,7 +1754,7 @@ class App extends React.Component{
 			fromPubkey: this.state.localPayerAccount.publicKey,
 			newAccountPubkey:chatRoomAccount.publicKey,
 			lamports,
-			space:1028,
+			space:space[type],
 			programId,
 		});
 		let transaction = new Transaction().add(instruction);
@@ -2260,6 +2300,7 @@ class App extends React.Component{
 	* @return {Promise} Resolve to the transaction id
 	*/	
 	async sendSol(solanaPublicKey,solAmount){
+		this.setState({loading:true});
 		let instruction = SystemProgram.transfer({
 			fromPubkey: this.state.localPayerAccount.publicKey,
 			toPubkey:new PublicKey(solanaPublicKey),
@@ -2275,10 +2316,12 @@ class App extends React.Component{
 				this.state.localPayerAccount,
 			);
 			saveTransaction(txid,this.state.defaultNetwork,"sendSol").catch(console.warn);
+			this.setState({loading:false});
 		}
 		catch(e){
 			this.notify("Error Sending Sol","error");
 			console.error(e);
+			this.setState({loading:false});			
 			return null;
 		}
 		this.notify(solAmount+" sent to "+solanaPublicKey +" "+txid,"info");
@@ -2399,6 +2442,10 @@ class App extends React.Component{
 					if( account.params.result.value.owner === this.state.GAME_ID){
 						return bc.postMessage(accountData);
 					}
+					else if(account.params.result.value.owner === this.state.KOR_ID){
+						account.type = "kor";
+						return bc.postMessage(accountData)
+					}					
 					else if(account.params.result.value.owner === this.state.WAGER_GAME_ID){
 						account.type = "wager";
 						return bc.postMessage(accountData)
@@ -2531,6 +2578,58 @@ class App extends React.Component{
 		}
 		this.setState({viewTransactions:!this.state.viewTransactions});
 		return;
+	}
+	
+	/**
+	* withdraw fees from King of Ring Account
+	* @method withdrawFromProgram
+	* @return {Null}
+	*/		
+	async withdrawFromProgram(){
+		let gameAccount = this.state.KOR_ACCOUNT;
+		let programId = this.state.KOR_ID
+		let _transaction =  new Transaction();
+		let txid;
+		let instruction = new TransactionInstruction({
+			keys: [
+				{pubkey: gameAccount, isSigner: false, isWritable: true},
+				{pubkey: this.state.localPayerAccount.publicKey, isSigner: true, isWritable: false}
+			],
+			programId,
+			data: Buffer.from([5])
+		});
+		_transaction.add(instruction);
+		let { blockhash } = await connection.getRecentBlockhash();
+		_transaction.recentBlockhash = blockhash;				
+		_transaction.feePayer = this.state.localPayerAccount.publicKey;
+		let signature = await this.localSign(Buffer.from(_transaction.serializeMessage()),this.state.localPayerAccount,_transaction);
+		if(!signature){
+			return this.notify("Signing Error","error");
+		}
+		_transaction.addSignature(this.state.localPayerAccount.publicKey,signature);		
+		try{
+			txid = await connection.sendTransaction(
+				_transaction,
+				[ this.state.localPayerAccount ] ,
+				{
+					commitment: 'singleGossip',
+					preflightCommitment: 'singleGossip',  
+				},
+			);
+			const status = ( await connection.confirmTransaction(txid) ).value;
+			if(!status.err){
+				this.notify("Withdrawl Complete "+ txid);
+			}
+			else{
+				console.log(status);
+				this.notify("Withdrawl Error","error");
+			}
+		}
+		catch(e){
+			this.notify("Withdrawl Error","error");
+			this.setLoading(false);
+			return;
+		}
 	}
 	
 	/**
@@ -2725,8 +2824,12 @@ class App extends React.Component{
 				_connection={connection}
 				enableMusic={this.state.enableMusic}
 				closeWagerAccounts={this.closeWagerAccounts}
+				generateFeeInstruction={this.generateFeeInstruction}
+				GAME_ACCOUNT={this.state.GAME_ACCOUNT}				
 				GAME_ID={this.state.GAME_ID} 
-				GAME_ACCOUNT={this.state.GAME_ACCOUNT}
+				KOR_ACCOUNT={this.state.KOR_ACCOUNT}				
+				KOR_ID={this.state.KOR_ID} 
+				KOR_WALLET={this.state.KOR_WALLET} 				
 				WAGER_GAME_ACCOUNT={this.state.WAGER_GAME_ACCOUNT}				
 				WAGER_GAME_ID={this.state.WAGER_GAME_ID}
 				WAGER_TOKEN_MINT={this.state.WAGER_TOKEN_MINT}
@@ -2802,10 +2905,12 @@ class App extends React.Component{
 			<button onClick={()=>{ this.loadProgramControlledAccount(0);} }>stalk_account</button>
 			<button onClick={()=>{ this.loadProgramControlledAccount(1);} }>ss_account</button>			
 			<button onClick={()=>{ this.loadProgramControlledAccount(2);} }>ss_wager account</button>
+			<button onClick={()=>{ this.loadProgramControlledAccount(3);} }>kor_wallet</button>
 			<button onClick={()=>this.loadProgram(0)}>0 stalk</button>
 			<button onClick={()=>this.loadProgram(1)}>1 sol-survivor</button>
 			<button onClick={()=>this.loadProgram(2)}>2 sol-survivor-wager</button>
-			<button onClick={()=>this.loadProgram(3)}>3 wager</button>			
+			<button onClick={()=>this.loadProgram(3)}>3 wager</button>	
+			<button onClick={()=>this.withdrawFromProgram()}>withdraw</button>			
 		</div>
 		</div>)
 	}

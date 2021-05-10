@@ -292,20 +292,7 @@ class Stage extends React.Component{
 		_transaction.addSignature(wc.mintAccounts[1].publicKey,signatureMint2);	
 		_transaction.addSignature(wc.contractAccount.publicKey,signatureContractAccount);	
 	}
-
-	chooseCharacter(x){
-		return this.setState({chosenCharacter:x},()=>{
-			if(this.state.steps === 1.1){
-				if(this.state.wager === true){this.wagerStart();}
-				else{this.createChallenge();}
-			}
-			else if(this.state.steps === 1.2){
-				return this.setState({player2Character:x},this.acceptChallenge);
-			}
-			return;
-		});
-	}
-
+	
 	beginGame(asKing=false){
 		//When player 2 Accepts the challenge both players have full health
 		//or Player 2 looking to rejoin the match
@@ -321,6 +308,19 @@ class Stage extends React.Component{
 				return this.sendCharactersToUnity(this.state.player1Character,this.state.player2Character);
 			}
 		}
+	}
+
+	chooseCharacter(x){
+		return this.setState({chosenCharacter:x},()=>{
+			if(this.state.steps === 1.1){
+				if(this.state.wager === true){this.wagerStart();}
+				else{this.createChallenge();}
+			}
+			else if(this.state.steps === 1.2){
+				return this.setState({player2Character:x},this.acceptChallenge);
+			}
+			return;
+		});
 	}
 
 	async commit(action){
@@ -994,6 +994,8 @@ class Stage extends React.Component{
 	
 	translateGameState(state,dataInfo,data){
 		//Todo: cut down on uneccessary condtions
+		let actions = ["Reversal","Punch","Strike","","idle"];
+		let gameMessage = "";
 		if(
 			//Game Setup
 			( (!this.state.kor && state[0][0] === 2) || (this.state.kor && state[0][0] === 1)) &&
@@ -1006,8 +1008,6 @@ class Stage extends React.Component{
 			state[15][1] > 0
 		){
 			if(this.state.steps === 2){
-				let actions = ["Reversal","Punch","Strike","","idle"];
-				let gameMessage = "";
 				if(state[16][0] === 0 && state[18][0] > 0 ){ 
 					gameMessage = "p2"+ actions[state[21][0]].toLowerCase()[0];
 					//Forced Game Close
@@ -1048,6 +1048,31 @@ class Stage extends React.Component{
 					p1Action:actions[state[20][0]],
 					p2Action:actions[state[21][0]]
 				});
+			}
+		}
+		else{
+			if(state[16][0] > 0 && state[18][0] === 0 && state[0][0] === 1 && state[22][0] === 1){
+				//Force End P1 Wins
+				console.log("forced end p1 wins?");
+				gameMessage = "p1p";
+				if(port1){port1.postMessage(gameMessage);}
+				this.returnToMenu();
+				return;
+			}
+			if(state[16][0] === 0 && state[18][0] > 0 && state[0][0] === 1 && state[22][0] === 2){
+				//Force End P2 Wins
+				console.log("forced end p2 wins?");
+				gameMessage = "p2p";
+				if(port1){port1.postMessage(gameMessage);}
+				this.returnToMenu();
+				return;
+			}
+			if(state[16][0] === 0 && state[18][0] === 0 && state[0][0] === 3){
+				//Force End P2 Wins
+				console.log("forced end draw wins?");
+				if(port1){port1.postMessage("dko");}
+				this.returnToMenu();
+				return;
 			}
 		}
 		let player1;
@@ -1338,26 +1363,21 @@ class Stage extends React.Component{
 					
 					{
 						( this.state.isPlayer2 && (this.state.player2Health > 0 && this.state.player1Health > 0) ) ?
-						<div className="pressStart"> <Button color="info" block className="classicButton1" onClick={this.beginGame}>[CHALLENGER] Rejoin Match </Button> </div> : null
+						<div className="pressStart"> <Button color="info" block className="classicButton1" onClick={()=>this.beginGame(false)}>[CHALLENGER] Rejoin Match </Button> </div> : null
 					}
 					
 					{
 						(this.state.player1Health === 100 && this.state.player2Health === 100 &&
 						!this.state.isPlayer1 && this.state.player1.toString("hex") !== "0000000000000000000000000000000000000000000000000000000000000000" &&
 						!this.state.isPlayer2 && this.state.player2.toString("hex") !== "0000000000000000000000000000000000000000000000000000000000000000") ?
-						<div className="pressStart"> <Button color="info" block className="classicButton1" onClick={this.beginGame}>View Match </Button> </div> : null
+						<div className="pressStart"> <Button color="info" block className="classicButton1" onClick={()=>this.beginGame(false)}>View Match </Button> </div> : null
 					}	
 					
 					{
-						(this.state.player1.toString("hex") !== "0000000000000000000000000000000000000000000000000000000000000000") ?
-						<div>{
-							( !this.state.isPlayer1 && (this.state.player1Health === 0 || this.state.player2Health === 0) ) 
-							||  ( !this.state.isPlayer1 && this.state.player2.toString("hex") === "0000000000000000000000000000000000000000000000000000000000000000" )  ?
-							<div className="pressStart"> <Button color="warning" block className="classicButton1" onClick={()=>{this.setState({steps:1.2});}}> Challenge the King </Button> </div> : null
-						}
-						</div>
-						:null	
-					}			
+						(this.state.player1.toString("hex") !== "0000000000000000000000000000000000000000000000000000000000000000") &&(	( !this.state.isPlayer1 && (this.state.player1Health === 0 || this.state.player2Health === 0) ) 
+						||  ( !this.state.isPlayer1 && this.state.player2.toString("hex") === "0000000000000000000000000000000000000000000000000000000000000000" ) ) ?
+						<div className="pressStart"><Button color="warning" block className="classicButton1" onClick={()=>{this.setState({steps:1.2});}}> Challenge the King </Button></div>: null
+					}
 									
 				</div>
 				:null
@@ -1509,7 +1529,7 @@ class Game extends React.PureComponent {
 	}
 	
 	render(){
-		return(<div id="gameHolder" style={{"opacity":this.props.steps === 2 ? "1" : "0"}}>
+		return(<div id="gameHolder" style={{"opacity":this.props.steps === 2 ? "1" : "0","z-index":this.props.steps === 2 ? "99" : "-1" }}>
 			<div className="gameTimers">
 				<ProgressBar id="gameTimer" variant={this.props.timeLimit > 40 ? "primary" : "danger"} striped min={0} max={180} now={this.props.timeLimit < 0 ? 1 : this.props.timeLimit} label={"TIME: "+Math.floor(this.props.timeLimit)+"s"} />
 			</div>
@@ -1604,7 +1624,7 @@ function WagerSwitch(props){
 					<DropdownItem onClick={()=>{updateMode("KING OF THE RING");}} className="shine">
 						<div id="korOption"> 
 							<span role="img" aria-label="crown" className="largeEmoji">👑 </span> 
-							KING OF THE RING 
+							KING OF THE RING(Coming Soon)
 						</div> 
 					</DropdownItem>
 				  </DropdownMenu>

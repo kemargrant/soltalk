@@ -80,7 +80,15 @@ class LeftSidebarMenu extends Component {
 							</NavItem>
 							<UncontrolledTooltip target="TransactionHistory" placement="top">
 								Transactions
-							</UncontrolledTooltip>                        
+							</UncontrolledTooltip>  
+							<NavItem id="NFT">
+								<NavLink id="pills-transactionHistory-tab" className={classnames({ active: this.props.activeTab === 'NFT' })} onClick={() => { this.toggleTab('NFT'); }}>
+									<i className="ri-medal-fill"></i>
+								</NavLink>
+							</NavItem>
+							<UncontrolledTooltip target="NFT" placement="top">
+								NFT
+							</UncontrolledTooltip>                        							                      
 							{
 								(this.props.rsaKeyPair && this.props.rsaKeyPair.publicKey && ( this.props.localPayerAccount || this.props.payerAccount ) ) ? 
 									<NavItem id="Presence">

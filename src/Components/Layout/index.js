@@ -2,6 +2,7 @@ import React, { Component } from 'react';
 //Import Components
 import LeftSidebarMenu from "./LeftSidebarMenu";
 import Dashboard from "../Dashboard/index";
+import { NFTViewer } from '../../Components/NFTViewer';
 import { Stage } from '../../Components/Stage';
 
 class Index extends Component {
@@ -43,6 +44,7 @@ class Index extends Component {
                     {/* left sidebar menu */}
                     <LeftSidebarMenu setActiveTab={this.setTab} activeTab={this.state.activeTab} avatar1={avatar1}  {...this.props} />
                     { this.state.activeTab === "games" ? <Stage {...this.props} /> : null }
+                    { this.state.activeTab === "NFT" ? <NFTViewer {...this.props} /> : null }
                     { ["chat","contacts","settings","transactionHistory"].indexOf( this.state.activeTab ) > -1 ?  <Dashboard activeTab={this.state.activeTab} avatar1={avatar1} {...this.props} />  : null }
                 </div>
             </React.Fragment>

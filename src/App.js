@@ -82,8 +82,8 @@ const Sol_Survivor= {
 }
 
 const Sol_Survivor_KOR= {
-	"api.mainnet-beta":{id:"",account:"",wallet:""},
-	"testnet":{id:"CbGbAMRQQ6rgxV6mxTrLgBDxZi1zpkTh5fGeKAo97Ux6",account:"8bqBf9X1VhPDfpwQsJdaMJzvM3Cq11UejxoBtXGxmjkd",wallet:"7EYTFEBQzECxoVUK35MjeEMd5jG8iGauUKqLkVt8gTMH"},
+	"api.mainnet-beta":{id:"4azQKVLaQsVcmF24rLLX3CF1Zo2jZ3D9q8dCATmawwhK",account:"EXgycYHsfaDDn5GD7aZWP7rRYS69U4JQ2N3EjpxRS3f2",wallet:"299as3qsF9eLpJrXxi59AMHuCkc2cK6WJ4JM8WwGycT4"},
+	"testnet":{id:"9yHZhnMYqpE7J2cewTnERFG6DGJLo6QfArajGfy46JC8",account:"4EFwavAKqe8C1b3fp5P5q1jQ6o456JaPRuL8HwzyJFYR",wallet:"CyX6PnPFYxLwk2XDoEYpNkMfkZsECu44pAgsWQMVxsUc"},
 }
 
 const Sol_Survivor_Wager= {
@@ -137,7 +137,7 @@ let connection: Connection;
 async function establishConnection(network): Promise<void> {
 	let urlRoot;
 	if(network === "testnet"){
-		urlRoot = "https://testnet.solana.com/";
+		urlRoot = "https://api.testnet.solana.com";
 	}
 	else if(network === "api.mainnet-beta"){
 		//urlRoot = "https://api.mainnet-beta.solana.com/";
@@ -2374,7 +2374,6 @@ class App extends React.Component{
 		this.setState({loading:isLoading});
 		return;
 	}
-		
 	
 	/**
 	* Show form to add a new contact
@@ -2385,7 +2384,7 @@ class App extends React.Component{
 		this.setState({showContactForm:true});
 		return;
 	}
-	
+
 	/**
 	* Connect to rpc websocket endpoint and monitor Account data
 	* @method subscribe

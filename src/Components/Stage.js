@@ -1378,7 +1378,6 @@ class Stage extends React.Component{
 						||  ( !this.state.isPlayer1 && this.state.player2.toString("hex") === "0000000000000000000000000000000000000000000000000000000000000000" ) ) ?
 						<div className="pressStart"><Button color="warning" block className="classicButton1" onClick={()=>{this.setState({steps:1.2});}}> Challenge the King </Button></div>: null
 					}
-									
 				</div>
 				:null
 			}
@@ -1624,7 +1623,7 @@ function WagerSwitch(props){
 					<DropdownItem onClick={()=>{updateMode("KING OF THE RING");}} className="shine">
 						<div id="korOption"> 
 							<span role="img" aria-label="crown" className="largeEmoji">👑 </span> 
-							KING OF THE RING(Coming Soon)
+							KING OF THE RING
 						</div> 
 					</DropdownItem>
 				  </DropdownMenu>

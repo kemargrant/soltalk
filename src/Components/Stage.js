@@ -227,7 +227,7 @@ class Stage extends React.Component{
 			}
 			//
 			_transaction.add(instructions);	
-			let { blockhash } = await this.props._connection.getRecentBlockhash();
+			let { blockhash } = await this.props._connection.getRecentBlockhash("finalized");
 			_transaction.recentBlockhash = blockhash;		
 			_transaction.feePayer = this.props.localPayerAccount.publicKey;
 			let signature = await this.props.localSign(Buffer.from(_transaction.serializeMessage()),this.props.localPayerAccount,_transaction);
@@ -255,10 +255,12 @@ class Stage extends React.Component{
 		}
 		console.warn("challenge accpeted txid:",txid);
 		this.props.setLoading(false);
-		this.props.saveTransaction(txid,this.props.defaultNetwork,"Sol-Survivor").catch(console.warn);
-		//Start Unity Game
-		this.beginGame();
-		//
+		if(txid){
+			this.props.saveTransaction(txid,this.props.defaultNetwork,"Sol-Survivor").catch(console.warn);
+			//Start Unity Game
+			this.beginGame();
+			//
+		}
 		return txid;
 	}
 	
@@ -376,7 +378,7 @@ class Stage extends React.Component{
 				data: Buffer.concat([ Buffer.from([2]),_myCommit ])
 			});
 			let _transaction =  new Transaction().add(instruction);	
-			let { blockhash } = await this.props._connection.getRecentBlockhash();
+			let { blockhash } = await this.props._connection.getRecentBlockhash("finalized");
 			_transaction.recentBlockhash = blockhash;				
 			_transaction.feePayer = this.props.localPayerAccount.publicKey;
 			let signature = await this.props.localSign(Buffer.from(_transaction.serializeMessage()),this.props.localPayerAccount,_transaction);
@@ -474,7 +476,7 @@ class Stage extends React.Component{
 				data: Buffer.from([4])
 			});
 			let _transaction =  new Transaction().add(instruction);	
-			let { blockhash } = await this.props._connection.getRecentBlockhash();
+			let { blockhash } = await this.props._connection.getRecentBlockhash("finalized");
 			_transaction.recentBlockhash = blockhash;				
 			_transaction.feePayer = this.props.localPayerAccount.publicKey;
 			let signature = await this.props.localSign(Buffer.from(_transaction.serializeMessage()),this.props.localPayerAccount,_transaction);
@@ -585,7 +587,7 @@ class Stage extends React.Component{
 				_transaction.add(feeInstruction);
 			}
 			_transaction.add(instruction);	
-			let { blockhash } = await this.props._connection.getRecentBlockhash();
+			let { blockhash } = await this.props._connection.getRecentBlockhash("finalized");
 			_transaction.recentBlockhash = blockhash;	
 			_transaction.feePayer = this.props.localPayerAccount.publicKey;
 			let signature = await this.props.localSign(Buffer.from(_transaction.serializeMessage()),this.props.localPayerAccount,_transaction);
@@ -845,7 +847,7 @@ class Stage extends React.Component{
 			if(this.state.wager){addKeys(instruction);}
 			//
 			let _transaction =  new Transaction().add(instruction);	
-			let { blockhash } = await this.props._connection.getRecentBlockhash();
+			let { blockhash } = await this.props._connection.getRecentBlockhash("finalized");
 			_transaction.recentBlockhash = blockhash;				
 			_transaction.feePayer = this.props.localPayerAccount.publicKey;
 			let signature = await this.props.localSign(Buffer.from(_transaction.serializeMessage()),this.props.localPayerAccount,_transaction);
@@ -918,19 +920,19 @@ class Stage extends React.Component{
 			transaction.add(instructionList[i]);
 		}	
 		try{ 
-			let { blockhash } = await this.props.connection.getRecentBlockhash();
+			let { blockhash } = await this.props.connection.getRecentBlockhash("finalized");
 			transaction.recentBlockhash = blockhash;		
-			transaction.setSigners(this.props.payerAccount);
+			transaction.feePayer = this.props.payerAccount;
 			let signed = await this.props.wallet.signTransaction(transaction);
-			txid = await this.props.connection.sendRawTransaction(signed.serialize());
-			await this.props.connection.confirmTransaction(txid);	
+			txid =  await this.props.connection.sendRawTransaction(signed.serialize());
+			await this.props.connection.confirmTransaction(txid) 
 		}
 		catch(e){
 			let canRecover = await this.props.recoverFromTimeout(e,0);
 			if(!canRecover){
 				this.props.notify(e.message,"error");
 				this.props.setLoading(false);
-				return;
+				return false;
 			}
 		}
 		return txid
@@ -948,7 +950,7 @@ class Stage extends React.Component{
 			"params":[]
 		}
 		if(this.state.classic){
-			message.params = [this.props.GAME_ACCOUNT,{"encoding":"jsonParsed","commitment":"singleGossip"} ]; 
+			message.params = [this.props.GAME_ACCOUNT,{"encoding":"jsonParsed","commitment":"confirmed"} ]; 
 			this.props.ws.send(JSON.stringify(message));	
 			//unsubscribe from other accounts
 			message.method = "accountUnsubscribe";	
@@ -957,7 +959,7 @@ class Stage extends React.Component{
 		}
 		else if(this.state.wager){
 			message.id = 910;
-			message.params = [this.props.WAGER_GAME_ACCOUNT,{"encoding":"jsonParsed","commitment":"singleGossip"} ]; 
+			message.params = [this.props.WAGER_GAME_ACCOUNT,{"encoding":"jsonParsed","commitment":"confirmed"} ]; 
 			this.props.ws.send(JSON.stringify(message));
 			message.method = "accountUnsubscribe";	
 			message.params = [909,911];
@@ -965,7 +967,7 @@ class Stage extends React.Component{
 		}
 		else if(this.state.kor){
 			message.id = 911;
-			message.params = [this.props.KOR_ACCOUNT,{"encoding":"jsonParsed","commitment":"singleGossip"} ]; 
+			message.params = [this.props.KOR_ACCOUNT,{"encoding":"jsonParsed","commitment":"confirmed"} ]; 
 			this.props.ws.send(JSON.stringify(message));
 			message.method = "accountUnsubscribe";	
 			message.params = [909,910];
@@ -1225,7 +1227,7 @@ class Stage extends React.Component{
 		}				
 
 		if(this.props.payerAccount){	
-			let { blockhash } = await this.props.connection.getRecentBlockhash();
+			let { blockhash } = await this.props.connection.getRecentBlockhash("finalized");
 			_transaction.recentBlockhash = blockhash;
 			_transaction.setSigners(this.props.payerAccount);
 			let signed = await this.props.wallet.signTransaction(_transaction);
@@ -1242,7 +1244,7 @@ class Stage extends React.Component{
 			}
 		}
 		else{
-			let { blockhash } = await this.props._connection.getRecentBlockhash();
+			let { blockhash } = await this.props._connection.getRecentBlockhash("finalized");
 			_transaction.recentBlockhash = blockhash;		
 			_transaction.feePayer = this.props.localPayerAccount.publicKey;
 			let signature = await this.props.localSign(Buffer.from(_transaction.serializeMessage()),this.props.localPayerAccount,_transaction);
@@ -1258,8 +1260,8 @@ class Stage extends React.Component{
 					signers,
 					{
 						skipPreflight:true,
-					  commitment: 'root',
-					  //preflightCommitment: 'max',  
+					  commitment: 'finalized',
+					  //preflightCommitment: 'finalized',  
 					},
 				  );
 				let status = ( await this.props._connection.confirmTransaction(txid) ).value;

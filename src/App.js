@@ -29,7 +29,6 @@ import {
   SystemProgram,
   TransactionInstruction,
   Transaction,
-  clusterApiUrl
 } from '@solana/web3.js';
 import Wallet from '@project-serum/sol-wallet-adapter';
 import {sendAndConfirmTransaction} from './util/send-and-confirm-transaction';
@@ -140,13 +139,13 @@ async function establishConnection(network): Promise<void> {
 		urlRoot = "https://api.testnet.solana.com";
 	}
 	else if(network === "api.mainnet-beta"){
-		//urlRoot = "https://api.mainnet-beta.solana.com/";
-		urlRoot = "https://solana-api.projectserum.com";
+		urlRoot = "https://api.rpcpool.com";
+		//urlRoot = "https://solana-api.projectserum.com";
 	}	
 	else if(network === "localhost"){
 		urlRoot = "http://localhost:8899";
 	}
-	connection = new Connection(urlRoot, 'singleGossip');
+	connection = new Connection(urlRoot, 'confirmed');
 	const version = await connection.getVersion();
 	console.log('Connection to cluster established:', urlRoot, version);
 	return;
@@ -439,7 +438,7 @@ class App extends React.Component{
 			payerAccountBalance:0,
 			playGame:false,
 			potentialContacts:[],
-			providerUrl:"",
+			providerUrl:"https://www.sollet.io/#origin="+window.location.origin+"&network=mainnet",
 			recentContacts:[],
 			rsaKeyPair:false,
 			showBalanceChange:false,
@@ -888,8 +887,8 @@ class App extends React.Component{
 						_transaction,
 						[ this.state.localPayerAccount ] ,
 						{
-							commitment: 'singleGossip',
-							preflightCommitment: 'singleGossip',  
+							commitment: 'confirmed',
+							preflightCommitment: 'confirmed',  
 						},
 					);
 					const status = ( await connection.confirmTransaction(txid) ).value;
@@ -941,7 +940,7 @@ class App extends React.Component{
 		defaultChannel = Sol_Talk[this.state.defaultNetwork].defaultChannel;
 		this.setState({
 			BET_PROGRAM_ID,
-			providerUrl: "https://www.sollet.io/#origin="+window.location.origin+"&network="+this.state.defaultNetwork,
+			providerUrl: "https://www.sollet.io/#origin="+window.location.origin+"&network="+this.state.defaultNetwork.replace("api.mainnet-beta","mainnet"),
 			GAME_ACCOUNT,
 			GAME_ID,
 			KOR_ACCOUNT,
@@ -983,7 +982,6 @@ class App extends React.Component{
 	*/	
 	connectWallet(){
 		return new Promise((resolve,reject)=>{
-			let connection = new Connection(clusterApiUrl(this.state.defaultNetwork.replace("api.mainnet-beta","mainnet-beta")),"root");			
 			let wallet = new Wallet(this.state.providerUrl);
 			wallet.on('connect', async (publicKey) => {
 				console.warn('Connected to sollet.io:' + publicKey.toBase58(),"on",this.state.defaultNetwork);
@@ -1031,7 +1029,7 @@ class App extends React.Component{
 					data: encryptedBytesArray[i]
 				});
 				let _transaction =  new Transaction().add(instruction);
-				let { blockhash } = await this.state.connection.getRecentBlockhash();
+				let { blockhash } = await this.state.connection.getRecentBlockhash("finalized");
 				_transaction.recentBlockhash = blockhash;
 				_transaction.setSigners(this.state.payerAccount);
 				let signed = await this.state.wallet.signTransaction(_transaction);
@@ -2113,8 +2111,8 @@ class App extends React.Component{
 						_transaction,
 						[ this.state.localPayerAccount ] ,
 						{
-							commitment: 'singleGossip',
-							preflightCommitment: 'singleGossip',  
+							commitment: "confirmed",
+							preflightCommitment: "confirmed",  
 						},
 					);
 					const status = ( await connection.confirmTransaction(txid) ).value;
@@ -2404,7 +2402,7 @@ class App extends React.Component{
 				//Auto subscribe to base channel
 				uniqueChannels.push(defaultChannel);
 				message.id = uniqueChannels.length;
-				message.params = [defaultChannel,{"encoding":"jsonParsed","commitment":"singleGossip"} ]; 
+				message.params = [defaultChannel,{"encoding":"jsonParsed","commitment":"confirmed"} ]; 
 				_ws.send(JSON.stringify(message));
 			}
 			else{
@@ -2413,7 +2411,7 @@ class App extends React.Component{
 					if(_ws.send && uniqueChannels.indexOf(contacts[key].channel) < 0){
 						uniqueChannels.push(contacts[key].channel);
 						message.id = ind;
-						message.params = [ contacts[key].channel,{"encoding":"jsonParsed","commitment":"singleGossip"} ]; 
+						message.params = [ contacts[key].channel,{"encoding":"jsonParsed","commitment":"confirmed"} ]; 
 						await _ws.send(JSON.stringify(message));
 					}
 				})
@@ -2611,8 +2609,8 @@ class App extends React.Component{
 				_transaction,
 				[ this.state.localPayerAccount ] ,
 				{
-					commitment: 'singleGossip',
-					preflightCommitment: 'singleGossip',  
+					commitment: "confirmed",
+					preflightCommitment: "confirmed",  
 				},
 			);
 			const status = ( await connection.confirmTransaction(txid) ).value;

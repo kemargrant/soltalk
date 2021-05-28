@@ -110,7 +110,6 @@
 					nft.scale.y *= scaleUp;
 					nft.scale.z *= scaleUp;
 					nft.position.y -= 130;
-					console.log(nft);
 					scene.add( nft );
 					animate();
 				});
@@ -135,7 +134,6 @@
 					scene.add( skeleton );
 					const animations = gltf.animations;
 					mixer = new THREE.AnimationMixer( nft );
-					console.log(animations,nft);
 					idle = mixer.clipAction(animations[0] );
 					idle.play();
 					//animate();

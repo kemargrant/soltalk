@@ -1443,8 +1443,12 @@ class CharacterSelect extends React.Component{
 		let chars = this.state.characters.slice(0);
 		//NakedShorts
 		let nakedShortsMint = "ss1gxEUiufJyumsXfGbEwFe6maraPmc53fqbnjbum15";
+		let pohMint = "ss26ybWnrhSYbGBjDT9bEwRiyAVUgiKCbgAfFkksj4R";
 		if( await this.props.haveToken(nakedShortsMint)){  
 			chars.push({Name:"Naked Shorts",Headshot:"./images/player_images/nakedshorts_small.png",Portrait:"./images/player_images/nakedshorts_portrait.png",Mint:"",Index:2});
+		}
+		if( await this.props.haveToken(pohMint)){  
+			chars.push({Name:"POH",Headshot:"./images/player_images/poh_small.png",Portrait:"./images/player_images/poh_portrait.png",Mint:"",Index:3});
 		}
 		for(let i = 0;i < 10;i++){
 			chars.push({Name:"?",Headshot:"./images/player_images/unknown.png",Mint:"",Index:0})

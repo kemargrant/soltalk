@@ -4,6 +4,7 @@ import { TokenBalance } from '../util/TokenBalance';
 function WebGLView(props){
 	return (<iframe
 		className="nftIframe"
+		id={props.id}
 		title="nftIframe" 
 		src={props.src} 
 		width={document.body.clientWidth} 
@@ -34,20 +35,22 @@ class NFTViewer extends React.Component {
 	}
 	
 	async loadNFTs(){
-		console.log("loading")
 		let nakedShortsMint = "ss1gxEUiufJyumsXfGbEwFe6maraPmc53fqbnjbum15";
+		let pohMint = "ss26ybWnrhSYbGBjDT9bEwRiyAVUgiKCbgAfFkksj4R";
 		let obj = {}
 		if( await this.haveToken(nakedShortsMint)){  
 			obj.nakedshorts = true;
 		}
-		console.log("loading nft complete:",obj);
+		if( await this.haveToken(pohMint)){  
+			obj.poh = true;
+		}
 		this.setState(obj);
 	}
 	
 	render(){
 		return(<div style={{width:"100%"}}>
-			{ this.state.nakedshorts ? <WebGLView src="./solsurvivor/nakedshorts.html" /> : null }
-			<br/>
+			{ this.state.nakedshorts ? <WebGLView id="nakedshorts" src="./solsurvivor/nakedshorts.html" /> : null }
+			{ this.state.poh? <WebGLView id="poh" src="./solsurvivor/poh.html" /> : null }
 		</div>)
 	}
 }

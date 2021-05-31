@@ -134,7 +134,7 @@
 					scene.add( skeleton );
 					const animations = gltf.animations;
 					mixer = new THREE.AnimationMixer( nft );
-					reverseKick = mixer.clipAction(animations[1] );
+					reverseKick = mixer.clipAction(animations[0] );
 					reverseKick.play();
 				});
 

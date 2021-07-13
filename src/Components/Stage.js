@@ -673,10 +673,10 @@ class Stage extends React.Component{
 		.catch(console.warn);
 	}
 	
-	async haveToken(mintAddress){
+	async haveToken(mintAddress,isPrintTokenMint=false){
 		let hasCharacter = false;
 		if(this.props.payerAccount || this.props.localPayerAccount){
-			if(await TokenBalance(this.props,mintAddress)){hasCharacter = true;}
+			if(await TokenBalance(this.props,mintAddress,isPrintTokenMint)){hasCharacter = true;}
 		}
 		return hasCharacter;
 	}
@@ -1442,6 +1442,7 @@ class CharacterSelect extends React.Component{
 	async loadAdditionalCharacters(){
 		let chars = this.state.characters.slice(0);
 		//NakedShorts
+		let jayBeezyPrintTokenMint = "GyTF8PoMBYivkba8shFyjhW3hcJvUPEDv3GHQU87yJiq";		
 		let nakedShortsMint = "ss1gxEUiufJyumsXfGbEwFe6maraPmc53fqbnjbum15";
 		let pohMint = "ss26ybWnrhSYbGBjDT9bEwRiyAVUgiKCbgAfFkksj4R";
 		if( await this.props.haveToken(nakedShortsMint)){  
@@ -1450,6 +1451,9 @@ class CharacterSelect extends React.Component{
 		if( await this.props.haveToken(pohMint)){  
 			chars.push({Name:"POH",Headshot:"./images/player_images/poh_small.png",Portrait:"./images/player_images/poh_portrait.png",Mint:"",Index:3});
 		}
+		if( await this.props.haveToken(jayBeezyPrintTokenMint,true)){  
+			chars.push({Name:"Jay Beezy",Headshot:"./images/player_images/jaybeezy_small.png",Portrait:"./images/player_images/jaybeezy_portrait.png",Mint:"",Index:4});
+		}		
 		for(let i = 0;i < 10;i++){
 			chars.push({Name:"?",Headshot:"./images/player_images/unknown.png",Mint:"",Index:0})
 		}

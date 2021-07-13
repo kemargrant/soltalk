@@ -23,12 +23,17 @@ function get64Value(array){
 	return big;
 }
 
-async function TokenBalance(props,mintAddress){
+async function TokenBalance(props,mintAddress,isPrintTokenMint=false){
 	let balance = 0;
 	try{
 		let associatedTokenAccount = await findAssociatedTokenAccountPublicKey(props.payerAccount ? props.payerAccount : props.localPayerAccount.publicKey,new PublicKey(mintAddress));
 		let info = await props._connection.getAccountInfo(associatedTokenAccount);
-		balance = get64Value(info.data.slice(64,72).reverse());
+		if(info && info.data && !isPrintTokenMint){
+			balance = get64Value(info.data.slice(64,72).reverse());
+		}
+		else if(info && info.data && isPrintTokenMint){
+			balance  = 1;
+		}
 	}
 	catch(e){
 		console.warn(e);

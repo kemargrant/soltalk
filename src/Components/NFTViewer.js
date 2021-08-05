@@ -20,6 +20,7 @@ class NFTViewer extends React.Component {
 		this.state = {
 			jaybeezy:false,
 			nakedshorts:false,
+			olga:false,
 			poh:false,
 		}
 		this.haveToken = this.haveToken.bind(this);
@@ -43,6 +44,7 @@ class NFTViewer extends React.Component {
 	async loadNFTs(){
 		let jayBeezyPrintTokenMint = "GyTF8PoMBYivkba8shFyjhW3hcJvUPEDv3GHQU87yJiq";
 		let nakedShortsMint = "ss1gxEUiufJyumsXfGbEwFe6maraPmc53fqbnjbum15";
+		let olgaPrintTokenMint = "4XhhS3n2ATMPzS5aWY658FsuPzmp4FiXF4rHuruQ4mdq";				
 		let pohMint = "ss26ybWnrhSYbGBjDT9bEwRiyAVUgiKCbgAfFkksj4R";
 		let obj = {}
 		if( await this.haveToken(nakedShortsMint)){  
@@ -54,6 +56,9 @@ class NFTViewer extends React.Component {
 		if( await this.haveToken(jayBeezyPrintTokenMint,true)){  
 			obj.jaybeezy = true;
 		}
+		if( await this.haveToken(olgaPrintTokenMint,true)){  
+			obj.olga = true;
+		}		
 		this.setState(obj);
 	}
 	
@@ -61,10 +66,9 @@ class NFTViewer extends React.Component {
 		return(<div style={{width:"100%"}}>
 			{ this.state.nakedshorts ? <WebGLView id="nakedshorts" src="./solsurvivor/nakedshorts.html" /> : null }
 			{ this.state.poh? <WebGLView id="poh" src="./solsurvivor/poh.html" /> : null }
-			{ this.state.jaybeezy? <WebGLView id="jaybeezy" src="./solsurvivor/jaybeezy.html" /> : null }
+			{ this.state.jaybeezy? <WebGLView id="jaybeezy" src="./solsurvivor/jaybeezy.html" /> : null }		
+			{ this.state.olga? <WebGLView id="olga" src="./solsurvivor/olga.html" /> : null }
 		</div>)
 	}
 }
-
-
 export { NFTViewer };

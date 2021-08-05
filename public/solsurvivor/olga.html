@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>sol survivor nft - poh</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			a {
+				color: #f00;
+			}
+			body{width:100vw;height:100vh;overflow:hidden;}
+			.ac {  /* prevent dat-gui from being selected */
+				-webkit-user-select: none;
+				-moz-user-select: none;
+				-ms-user-select: none;
+				user-select: none;
+			}
+			#container{
+				background-size: auto;
+				background-position: bottom;
+			}
+			.no-pointer-events {
+				pointer-events: none;
+			}
+			#recordButton{
+				background:red;
+				color:black;
+				position:absolute;
+				bottom:0vh;
+				left:1vw;
+			}
+			.control-disabled {
+				color: #888;
+				text-decoration: line-through;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="container" style="overflow:hidden;height:100vh"></div>
+		<script type="module">
+			function runningLocal(){
+				if(location.host.search("localhost") < 0){
+					return false;
+				}
+				return true;
+			}
+			if(!runningLocal()){
+				console.log = function(){}
+				console.warn = function(){}
+			}
+			import * as THREE from './three.js';
+			import { GUI } from './dat.gui.module.js';
+			import { GLTFLoader } from './GLTFLoader.js';
+			import { OrbitControls } from './OrbitControls.js';
+
+			let scene, renderer, camera;
+			let model, skeleton, mixer,clock;
+			let standUp;
+	
+			init();
+			function init() {
+
+				const container = document.getElementById( 'container' );
+
+				camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 1000 );
+
+				camera.position.set( -299.7774832758518, -10.445960103414468, 95.89058434317982 );
+
+				camera.lookAt( 0, 1, 0 );
+				clock = new THREE.Clock();
+				scene = new THREE.Scene();	
+				
+				const hemiLight = new THREE.HemisphereLight( 0xffffff, 0x444444 );
+				hemiLight.position.set( 0, 20, 0 );
+				scene.add( hemiLight );
+
+				const dirLight = new THREE.DirectionalLight( 0xffffff );
+				dirLight.position.set( - 3, 10, - 10 );
+				dirLight.castShadow = true;
+				dirLight.shadow.camera.top = 2;
+				dirLight.shadow.camera.bottom = - 2;
+				dirLight.shadow.camera.left = - 2;
+				dirLight.shadow.camera.right = 2;
+				dirLight.shadow.camera.near = 0.1;
+				dirLight.shadow.camera.far = 40;
+				scene.add( dirLight );
+
+
+				const mesh = new THREE.Mesh( new THREE.PlaneBufferGeometry( 100, 100 ), new THREE.MeshPhongMaterial( { color: 0x999999, depthWrite: false } ) );
+				mesh.rotation.x = - Math.PI / 2;
+				mesh.receiveShadow = true;
+				scene.add( mesh );
+
+				const loader = new GLTFLoader();
+				
+				//displaybox
+				loader.load( 'models/olga_nft.glb', function ( gltf ) {
+					let nft = gltf.scene;
+					let scaleUp = 60;
+					nft.scale.x *= scaleUp;
+					nft.scale.y *= scaleUp;
+					nft.scale.z *= scaleUp;
+					nft.position.y -= 110;				
+					scene.add( nft );
+					nft.traverse( function ( object ) {
+						if ( object.isMesh ) object.castShadow = true;
+					});
+					//
+					mixer = new THREE.AnimationMixer( nft );
+					const animations = gltf.animations;
+					mixer = new THREE.AnimationMixer( nft );
+					standUp = mixer.clipAction(animations[0] );
+					//standUp.setLoop( THREE.LoopOnce )
+					standUp.clampWhenFinished = true
+					//standUp.play();
+					standUp.repetitions = 3;
+					standUp.play();
+					standUp.time = 0.2;
+					//setInterval(()=>{standUp.play();},2000);
+					animate();
+				});
+
+				renderer = new THREE.WebGLRenderer( { antialias: true,alpha:false } );
+
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				renderer.outputEncoding = THREE.sRGBEncoding;
+				renderer.shadowMap.enabled = true;
+				container.appendChild( renderer.domElement );
+				//camera touch controls
+				if(runningLocal()){
+					//const controls = new OrbitControls( camera, renderer.domElement );
+				}
+			}
+			
+			function onWindowResize() {
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+				renderer.setSize( window.innerWidth, window.innerHeight );
+			}
+			
+			let count = 0;
+			let normalRate = 1000/15
+			function animate() {
+				let mixerUpdateDelta = clock.getDelta();
+				mixer.update( mixerUpdateDelta );
+				renderer.render( scene, camera );
+				//rotate
+				let target = scene;
+				let radius = 400;
+				let constant = -2;
+				count++;;
+				camera.position.x = target.position.x + radius * Math.cos( constant * count/100 );         
+				camera.position.z = target.position.z + radius * Math.sin( constant * count/100 );
+				camera.lookAt( target.position );
+				setTimeout(()=>{requestAnimationFrame( animate );},normalRate);
+			}
+		</script>
+	</body>
+</html>

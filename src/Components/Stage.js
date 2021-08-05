@@ -1442,7 +1442,8 @@ class CharacterSelect extends React.Component{
 	async loadAdditionalCharacters(){
 		let chars = this.state.characters.slice(0);
 		//NakedShorts
-		let jayBeezyPrintTokenMint = "GyTF8PoMBYivkba8shFyjhW3hcJvUPEDv3GHQU87yJiq";		
+		let jayBeezyPrintTokenMint = "GyTF8PoMBYivkba8shFyjhW3hcJvUPEDv3GHQU87yJiq";	
+		let olgaPrintTokenMint = "4XhhS3n2ATMPzS5aWY658FsuPzmp4FiXF4rHuruQ4mdq";							
 		let nakedShortsMint = "ss1gxEUiufJyumsXfGbEwFe6maraPmc53fqbnjbum15";
 		let pohMint = "ss26ybWnrhSYbGBjDT9bEwRiyAVUgiKCbgAfFkksj4R";
 		if( await this.props.haveToken(nakedShortsMint)){  
@@ -1453,8 +1454,11 @@ class CharacterSelect extends React.Component{
 		}
 		if( await this.props.haveToken(jayBeezyPrintTokenMint,true)){  
 			chars.push({Name:"Jay Beezy",Headshot:"./images/player_images/jaybeezy_small.png",Portrait:"./images/player_images/jaybeezy_portrait.png",Mint:"",Index:4});
+		}	
+		if( await this.props.haveToken(olgaPrintTokenMint,true)){  
+			chars.push({Name:"Olga",Headshot:"./images/player_images/olga_small.png",Portrait:"./images/player_images/olga_portrait.png",Mint:"",Index:5});
 		}		
-		for(let i = 0;i < 10;i++){
+		for(let i = 0;i < 3;i++){
 			chars.push({Name:"?",Headshot:"./images/player_images/unknown.png",Mint:"",Index:0})
 		}
 		return this.setState({characters:chars});

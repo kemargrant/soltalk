@@ -11,8 +11,11 @@ function LandingPage(props){
 					FIGHTING EVOLVED
 					<br/>
 					<br/>
+					
 					<a href="https://sol-survivor.gitbook.io/docs/" target="_blank" rel="noopener noreferrer"><button className="landingButton">Read The Docs</button></a>
-						<button  className="landingButton" onClick={props.goToApp}>Launch APP</button>
+					<button className="landingButton" onClick={props.goToApp}>Launch APP</button>
+					<a href="https://nft.solsurvivor.net/" target="_blank" rel="noopener noreferrer"><button className="landingButton">NFTs</button></a>
+					
 					<br/>
 					<br/>
 				</p>	

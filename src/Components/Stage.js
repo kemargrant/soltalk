@@ -12,7 +12,6 @@ import bs58 from 'bs58';
 import * as BufferLayout from 'buffer-layout';
 import { TokenBalance } from '../util/TokenBalance';
 import { WagerClient } from '../util/wager';
-import { Wizard } from './Wizard';
 import { ContractView } from './ContractView';
 import DeleteIcon from '@material-ui/icons/Delete';
 import LinearProgress from '@material-ui/core/LinearProgress';
@@ -1596,7 +1595,6 @@ class Game extends React.PureComponent {
 					</div>:null
 				}
 			    <WebGLView src={"https://solsurvivor.s3.amazonaws.com/index.html"} onLoad={this.bindChannel}/>	
-				<Wizard open={this.props.survivorHelpOpen} close={this.props.toggleSurvivorHelpOpen}/>
 			</div>
 	</div>)}
 }

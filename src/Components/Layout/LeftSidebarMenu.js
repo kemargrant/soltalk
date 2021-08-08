@@ -108,8 +108,8 @@ class LeftSidebarMenu extends Component {
 							{
 								this.props.activeTab === "games"? 
 									<NavItem id="gameHelp">
-										<NavLink id="pills-wizard-tab" onClick={this.props.toggleSurvivorHelpOpen}>
-											<i className="ri-question-line"></i>
+										<NavLink id="pills-wizard-tab">
+											<a href="https://sol-survivor.gitbook.io/docs/" target="_blank"><i className="ri-question-line"></i></a>
 										</NavLink>
 									</NavItem>
 								:null

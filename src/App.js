@@ -33,6 +33,7 @@ import {
 import Wallet from '@project-serum/sol-wallet-adapter';
 import {sendAndConfirmTransaction} from './util/send-and-confirm-transaction';
 //Components
+import { LandingPage } from './Components/LandingPage';
 import { SecureWallet } from './Components/SecureWallet';
 import { TransactionInfo } from './Components/TransactionInfo';
 
@@ -434,6 +435,7 @@ class App extends React.Component{
 			notificationMessage:"",
 			notificationOpen:false,
 			notificationSeverity:"info",
+			pageVisited:false,
 			payerAccount:false,
 			payerAccountBalance:0,
 			playGame:false,
@@ -449,7 +451,6 @@ class App extends React.Component{
 			soltalkProgram:defaultProgram,
 			soltalkAccount:defaultChannel,
 			syncingHistory:false,
-			survivorHelpOpen:false,
 			transactionSignature:false,
 			usdtBalance:0,
 			WAGER_GAME_ACCOUNT,
@@ -493,6 +494,8 @@ class App extends React.Component{
 		this.exportPrivateKey = this.exportPrivateKey.bind(this);
 		this.exportRSAKeys = this.exportRSAKeys.bind(this);
 		
+		this.fullRender = this.fullRender.bind(this);
+		
 		this.generateFeeInstruction = this.generateFeeInstruction.bind(this);		
 		this.generateQRCode = this.generateQRCode.bind(this);
 		this.getBalance = this.getBalance.bind(this);
@@ -500,10 +503,12 @@ class App extends React.Component{
 		this.getContractInformation = this.getContractInformation.bind(this);
 		this.getHistory = this.getHistory.bind(this);
 		this.getLocalAccount = this.getLocalAccount.bind(this);
+		this.goToApp = this.goToApp.bind(this);
 		
 		this.importKey = this.importKey.bind(this);
 		this.importRSAKeys_JSON = this.importRSAKeys_JSON.bind(this);
 		
+		this.landingRender = this.landingRender.bind(this);
 		this.loadProgram = this.loadProgram.bind(this);
 		this.loadProgramControlledAccount = this.loadProgramControlledAccount.bind(this);
 		this.localSign = this.localSign.bind(this);
@@ -539,7 +544,6 @@ class App extends React.Component{
 		this.toggleLoginButtons = this.toggleLoginButtons.bind(this);		
 		this.toggleSettingsView = this.toggleSettingsView.bind(this);
 		this.toggleShowSolanaQR = this.toggleShowSolanaQR.bind(this);
-		this.toggleSurvivorHelpOpen = this.toggleSurvivorHelpOpen.bind(this);
 		
 		this.toggleTransactionView = this.toggleTransactionView.bind(this);
 
@@ -1633,6 +1637,16 @@ class App extends React.Component{
 	}
 	
 	/**
+	* Mark landing page as visited
+	* @method goToApp
+	* @return {null}
+	*/	
+	goToApp(){
+		window.history.pushState({},"","/sol-survivor");
+		return this.setState({pageVisited:true});
+	}
+	
+	/**
 	* Import user Solana private key and save to localStorage
 	* @method importKey
 	* @param {String} base64 Solana private key
@@ -2551,17 +2565,6 @@ class App extends React.Component{
 		this.setState({viewSettings:!this.state.viewSettings});
 		return;
 	}	
-	
-	/**
-	* Toggle sol-survivor help wizard
-	* @method toggleSurvivorHelp
-	* @return {Null}
-	*/			
-	toggleSurvivorHelpOpen(){
-		this.setState({survivorHelpOpen:!this.state.survivorHelpOpen});
-		return;
-	}			
-			
 
 	/**
 	* Toggle transaction history view
@@ -2792,9 +2795,16 @@ class App extends React.Component{
 		let rpcMessage = {"jsonrpc":"2.0", "id":id, "method":"accountUnsubscribe", "params":[0]}
 		this.state.ws.send(JSON.stringify(rpcMessage));
 		return;
+	}
+		
+	landingRender(){
+		if( (window.location.pathname === "/" && !this.state.pageVisited)){
+			return (<LandingPage goToApp={this.goToApp}/>);
+		}
+		return this.fullRender();
 	}	
 	
-	render(){
+	fullRender(){
 		return (<div>
 			<Snackbar
 				anchorOrigin={{
@@ -2833,8 +2843,6 @@ class App extends React.Component{
 				recoverFromTimeout={this.recoverFromTimeout}
 				setLoading={this.setLoading}
 				stringToBytes={stringToBytes}
-				survivorHelpOpen={this.state.survivorHelpOpen}
-				toggleSurvivorHelpOpen={this.toggleSurvivorHelpOpen}
 				urlRoot={"https://"+this.state.defaultNetwork+".solana.com"}
 				usdtBalance={this.state.usdtBalance}
 				wallet={this.state.wallet}
@@ -2911,6 +2919,7 @@ class App extends React.Component{
 		</div>
 		</div>)
 	}
+	render(){return this.landingRender();}
 }
 
 export default App;

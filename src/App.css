@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Righteous');
 .App{
 	height:100vh;
 	overflow-x:hidden;
@@ -440,21 +441,6 @@ body {
 	word-break:break-all;
 }
 
-.wizardCard{
-	position:absolute;
-	top:10vh;
-	left:30vw;
-	z-index:999;
-}
-
-.wizardCard .MuiCardActions-root{
-	display:block;
-}
-
-.wizardCard .MuiTypography-body1{
-	text-align:center;
-}
-
 .wizardCard .wizardContent img{
 	background:black;
 	display:block;
@@ -891,4 +877,104 @@ iframe{
         background-repeat:no-repeat;
         background-position:250px 250px;
     }
+}
+
+/*** Landing Page ***/
+
+.landingBody{
+	height:100vh;
+	margin:0px;
+	width:100vw;
+	overflow-x:hidden;
+}
+
+.landingButton {
+	animation-name:contrastx !important;
+	background: linear-gradient(#dd578f, blue) !important;
+	color:white;
+	text-transform: uppercase;
+	text-decoration: none;
+	padding: 20px;
+	border-radius: 5px;
+	display: inline-block;
+	border: none;
+	font-size:large;
+	margin-left:1em;
+	transition: all 0.4s ease 0s;
+}
+.landingButton:hover {
+	background: #434343;
+	letter-spacing: 0.1px;
+	-webkit-box-shadow: 0px 5px 40px -10px rgba(0,0,0,0.57);
+	-moz-box-shadow: 0px 5px 40px -10px rgba(0,0,0,0.57);
+	box-shadow: 5px 40px -10px rgba(0,0,0,0.57);
+	transition: all 0.4s ease 0s;
+}	
+
+#landingLogo{
+	filter: opacity(90%);
+	height:100%;
+	width:auto;
+	animation-name:contrast;
+	animation-duration:1s;
+	animation-iteration-count: infinite;
+	animation-timing-function: ease;
+	animation-direction:alternate;
+}
+
+#landingLogoDiv{
+	height:15%;
+	left:30vw;
+	position:absolute;
+	top:1vh;
+	width:50%;
+	z-index:99;
+}
+
+#landingLowerBody{
+	background:rgba(0,0,0,0.5);
+	bottom:1vh;
+	height:4vh;
+	left:45vw;
+	overflow:hidden;
+	position:absolute;
+}
+
+#landingLowerBody img{
+	height:100%;
+	margin-left:1vw;
+}
+
+#landingMainMessage{
+	color:#dd578f;
+	position: absolute;
+	top: 40%;
+	left: 40%;
+	font-size:1.5em;
+	font-family: 'Righteous',cursive;
+	text-align:center;
+}
+
+#landingMidBody p{
+	font-size:xxx-large;
+	font-family: 'Righteous',cursive;
+	text-align:center;
+}
+
+#landingMidBody{
+	background:url("/images/grid1.jpg");
+	background-repeat:no-repeat;
+	background-size:cover;
+	height:100vh;
+	width:100%;
+	animation-name:contrast;
+	animation-duration:0.75s;
+	animation-iteration-count: infinite;
+	animation-timing-function: linear;
+	animation-direction:alternate;
+}
+
+@keyframes contrast{
+	from { filter: saturate(85%); }
+	to {filter :saturate(105%); }
 }

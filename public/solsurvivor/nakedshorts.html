@@ -34,6 +34,7 @@
 				text-decoration: line-through;
 			}
 		</style>
+		<script src='https://mrdoob.github.io/stats.js/build/stats.min.js'></script>		
 	</head>
 	<body>
 		<div id="container" style="overflow:hidden;height:100vh"></div>
@@ -147,9 +148,7 @@
 				renderer.shadowMap.enabled = true;
 				container.appendChild( renderer.domElement );
 				//camera touch controls
-				if(runningLocal()){
-					//const controls = new OrbitControls( camera, renderer.domElement );
-				}
+				if(window.loaction.search.search("controls")> -1){const controls = new OrbitControls( camera, renderer.domElement );}
 			}
 			
 			function onWindowResize() {
@@ -160,7 +159,13 @@
 			
 			let count = 0;
 			let normalRate = 1000/15
+			var stats = new Stats();
+			stats.showPanel( 1 ); // 0: fps, 1: ms, 2: mb, 3+: custom
+			document.body.appendChild( stats.dom );
+
 			function animate() {
+				stats.begin();
+
 				let mixerUpdateDelta = clock.getDelta();
 				mixer.update( mixerUpdateDelta );
 				renderer.render( scene, camera );
@@ -172,6 +177,7 @@
 				camera.position.x = target.position.x + radius * Math.cos( constant * count/100 );         
 				camera.position.z = target.position.z + radius * Math.sin( constant * count/100 );
 				camera.lookAt( target.position );
+				stats.end();
 				setTimeout(()=>{requestAnimationFrame( animate );},normalRate);
 			}
 		</script>

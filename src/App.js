@@ -141,6 +141,7 @@ async function establishConnection(network): Promise<void> {
 	}
 	else if(network === "api.mainnet-beta"){
 		urlRoot = "https://api.rpcpool.com";
+		urlRoot = "https://cope.rpcpool.com";		
 		//urlRoot = "https://solana-api.projectserum.com";
 	}	
 	else if(network === "localhost"){

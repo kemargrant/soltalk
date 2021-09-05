@@ -48,6 +48,16 @@ function addChannel(){
 	connectPort = true;
 }
 
+let lastTime = new Date().getTime();
+let speed = "";
+function rpcSpeedTest(reset=false){
+	if(reset){
+		speed = (new Date().getTime() - lastTime)/1000;
+		console.error("%cRPC speed:"+speed+"s","background:black;color:white");
+	}
+	lastTime = new Date().getTime();
+}
+
 function WebGLView(props){
 	return (<iframe
 		id="gameIframe"
@@ -254,6 +264,7 @@ class Stage extends React.Component{
 		}
 		console.warn("challenge accpeted txid:",txid);
 		this.props.setLoading(false);
+		rpcSpeedTest();		
 		if(txid){
 			this.props.saveTransaction(txid,this.props.defaultNetwork,"Sol-Survivor").catch(console.warn);
 			//Start Unity Game
@@ -406,6 +417,7 @@ class Stage extends React.Component{
 
 		this.props.setLoading(false);
 		this.props.saveTransaction(txid,this.props.defaultNetwork,"Sol-Survivor").catch(console.warn);
+		rpcSpeedTest();
 		return txid;
 	}
 		
@@ -504,6 +516,7 @@ class Stage extends React.Component{
 
 		this.props.setLoading(false);
 		this.props.saveTransaction(txid,this.props.defaultNetwork,"Sol-Survivor").catch(console.warn);
+		rpcSpeedTest();
 		return txid;
 	}	
 	
@@ -620,12 +633,14 @@ class Stage extends React.Component{
 		this.props.setLoading(false);
 		this.setState({steps:1.3})
 		this.props.saveTransaction(txid,this.props.defaultNetwork,"Sol-Survivor").catch(console.warn);		
+		rpcSpeedTest();
 		return txid;
 	}
 	
 	gameSetup(){
 		react_game_channel.onmessage = (ev)=> { 
 			if(ev && ev.data){
+				rpcSpeedTest(true);
 				return this.parseState(ev.data[0]).catch(console.warn);
 			}
 			else{
@@ -671,7 +686,7 @@ class Stage extends React.Component{
 		})
 		.catch(console.warn);
 	}
-	
+		
 	async haveToken(mintAddress,isPrintTokenMint=false){
 		let hasCharacter = false;
 		if(this.props.payerAccount || this.props.localPayerAccount){
@@ -874,6 +889,7 @@ class Stage extends React.Component{
 			}
 		}
 		this.props.setLoading(false);
+		rpcSpeedTest();		
 		this.props.saveTransaction(txid,this.props.defaultNetwork,"Sol-Survivor").catch(console.warn);
 		return txid;
 	}
@@ -1594,7 +1610,7 @@ class Game extends React.PureComponent {
 						</div>
 					</div>:null
 				}
-			    <WebGLView src={"https://solsurvivor.s3.amazonaws.com/index.html"} onLoad={this.bindChannel}/>	
+				<WebGLView src={"https://solsurvivor.s3.amazonaws.com/index.html"} onLoad={this.bindChannel}/>	
 			</div>
 	</div>)}
 }

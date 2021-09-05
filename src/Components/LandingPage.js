@@ -30,7 +30,7 @@ function LandingPage(props){
 				<a href="https://solana.com" target="_blank" rel="noopener noreferrer">
 					<img src="/images/built_for_solana.svg" alt="solana logo"/>								
 				</a>
-				<a href="https://www.unlimitedcope.com/" target="_blank"> Powered by <img src="https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/8HGyAAB1yoM1ttS7pXjHMa3dukTFGQggnFFH3hJZgzQh/logo.png" id="copeLogo"/> </a>
+				<a href="https://www.unlimitedcope.com/" target="_blank" rel="noopener noreferrer"> Powered by <img alt="cope logo" src="https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/8HGyAAB1yoM1ttS7pXjHMa3dukTFGQggnFFH3hJZgzQh/logo.png" id="copeLogo"/> </a>
 			</div>
 		</div>
 		)

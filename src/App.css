@@ -441,25 +441,17 @@ body {
 	word-break:break-all;
 }
 
-.wizardCard .wizardContent img{
+#walletConnectButton{
+	background: black;
+	height:50px;
+	text-align:right;
+	-moz-text-align:right !important;
+	-webkit-text-align:right;
+	-o-text-align:right;
+}
+
+#walletConnectButton button{
 	background:black;
-	display:block;
-	height:100%;
-	margin:auto;
-	width:auto;
-}
-
-.wizardCard h4{
-	text-align:center;
-}
-
-#wizardImgDiv{
-	background:black;
-	height:40vh;
-	width:50vw;
-}
-
-#wizardForward{
 	float:right;
 }
 

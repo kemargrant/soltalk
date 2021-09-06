@@ -30,12 +30,13 @@ import {
   TransactionInstruction,
   Transaction,
 } from '@solana/web3.js';
-import Wallet from '@project-serum/sol-wallet-adapter';
 import {sendAndConfirmTransaction} from './util/send-and-confirm-transaction';
+//wallet adapter
+
 //Components
 import { LandingPage } from './Components/LandingPage';
-import { SecureWallet } from './Components/SecureWallet';
 import { TransactionInfo } from './Components/TransactionInfo';
+import { Wallet } from './Components/Wallet';
 
 import Layout from './Components/Layout/index.js';
 
@@ -521,6 +522,7 @@ class App extends React.Component{
 		
 		this.notify = this.notify.bind(this);
 		
+		
 		this.messageKeyDown = this.messageKeyDown.bind(this);
 		
 		this.recoverFromTimeout = this.recoverFromTimeout.bind(this);		
@@ -957,7 +959,7 @@ class App extends React.Component{
 			WAGER_GAME_ID,
 			WAGER_TOKEN_MINT
 		});
-		establishConnection(this.state.defaultNetwork).catch(console.warn);;	
+		establishConnection(this.state.defaultNetwork).catch(console.warn);	
 		let contacts = await this.getContacts(true);
 		this.subscribe(contacts,this.state.defaultNetwork);
 
@@ -977,36 +979,41 @@ class App extends React.Component{
 		.catch(console.warn)
 		.finally(()=>{
 			this.setState({syncingHistory:false});
-		})
+		});
+				
 	}
 	
 	/**
 	* Connect to Solana wallet using sollet wallet adapter
 	* @method connectWallet
+	* @params {solanaPublicKey,function}
 	* @return {Promise} Resolve to boolean
 	*/	
-	connectWallet(){
-		return new Promise((resolve,reject)=>{
-			let wallet = new Wallet(this.state.providerUrl);
-			wallet.on('connect', async (publicKey) => {
-				console.warn('Connected to sollet.io:' + publicKey.toBase58(),"on",this.state.defaultNetwork);
+	connectWallet(publicKey=false,_wallet=false,signTx,sendTx){
+		return new Promise(async(resolve,reject)=>{
+			if(!publicKey){
+				this.setState({wallet:false,payerAccount:false});
+			}
+			else if(publicKey && _wallet){
 				//Set qr code
 				let solanaQRURL = await this.generateQRCode(publicKey.toBase58());
 				if(this.state.rsaKeyPair && this.state.rsaKeyPair.publicKey && this.state.rsaKeyPair.publicKey.n){
 					solanaQRURL += " "+this.state.rsaKeyPair.publicKey.n;
 				}
-				//
-				return this.setState({wallet,connection,payerAccount:publicKey,solanaQRURL},()=>{
+				//mod the wallet
+				_wallet.signTransaction = (tx)=>{
+					return signTx(tx);
+				}
+				_wallet.sendTransaction = (tx)=>{
+					return sendTx(tx,this.state.connection);
+				}				
+				this.setState({wallet:_wallet,connection,payerAccount:publicKey,solanaQRURL},()=>{
 					this.getBalance().catch(console.warn);
-					if(!this.state.ws){this.subscribe();}
+					if(!this.state.ws){this.subscribe(false,this.state.defaultNetwork);}
 					return resolve(true);
 				});
-			});
-			wallet.on('disconnect', () => {
-				console.warn('Wallet Disconnected');
-				this.setState({wallet:false,payerAccount:false});
-			});
-			wallet.connect();
+			}
+			return;
 		})
 	}
 	
@@ -2405,6 +2412,7 @@ class App extends React.Component{
 	* @return {Null}
 	*/	
 	subscribe(contacts,network){
+		//if(!network){return}
 		const attachChannels = (_ws)=>{
 			let uniqueChannels = this.state.connected.slice(0);
 			let message = {
@@ -2804,9 +2812,17 @@ class App extends React.Component{
 		}
 		return this.fullRender();
 	}	
-	
+
+
 	fullRender(){
+		if(!this.state.pageVisited){this.setState({pageVisited:true});}
 		return (<div>
+			<div id="walletConnectButton">
+				<Wallet 
+				connection={connection} 
+				connectWallet={this.connectWallet}
+				defaultNetwork={this.state.defaultNetwork}/> 
+			</div>
 			<Snackbar
 				anchorOrigin={{
 					vertical: 'top',
@@ -2822,10 +2838,6 @@ class App extends React.Component{
 			</Snackbar>
 			{ this.state.transactionSignature ? <TransactionInfo resolveSignature={this.state.resolveSignature}/> : null }
 			{ this.state.loading ? <LinearProgress id="progressBar" now={this.state.loadingValue} label={this.state.loadingMessage}/>: null }
-			{ 
-				this.state.showLoginButtons && (!this.state.payerAccount && !this.state.localPayerAccount) ? 
-				<SecureWallet connectWallet={this.connectWallet} importKey={this.importKey} notify={this.notify} toggleLoginButtons={this.toggleLoginButtons}/> : null 
-			}
 			<Layout 
 				//Stage
 				BET_PROGRAM_ID={this.state.BET_PROGRAM_ID}

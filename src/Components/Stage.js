@@ -149,7 +149,7 @@ class Stage extends React.Component{
 	
 	async acceptChallenge(){
 		if(!this.props.payerAccount && !this.props.localPayerAccount){
-			return alert("Please Log In!");
+			return alert("Please Connect Wallet First!");
 		}		
 		this.props.setLoading(true);
 		this.setState({gameStart:false});

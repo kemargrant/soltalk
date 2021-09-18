@@ -162,6 +162,34 @@ async function Record(){
 		timer++;
 	},1000);
 }
+let images = 0;
+let recordButton = 0;
+async function Record2(){
+	let seconds = 2;
+	let fps = 30;
+	let canvas = document.getElementsByTagName("canvas")[0];		
+	function download(i,dataURL) {
+	  let url = canvas.toDataURL("image/png");	
+	  let a = document.createElement("a");
+	  document.body.appendChild(a);
+	  a.style = "display: none";
+	  a.href = url;
+	  a.download = i+".png";
+	  a.click();
+	  //window.URL.revokeObjectURL(dataURL);
+	}
+	if(images > fps * seconds){return}
+	if(recordButton === 0){
+		recordButton = 1;
+		let button = document.createElement("button");
+		button.innerHTML = "record";
+		button.style = "position:absolute;bottom:10vh;"
+		document.body.appendChild(button);
+		button.onclick = ()=>{ recordButton = 2; images = 0; }
+	}
+	if(recordButton === 2){ await download(images++);	 }	
+}
+
 
 function rotateCamera(camera){
 	camera.position.applyQuaternion( new THREE.Quaternion().setFromAxisAngle(
@@ -171,4 +199,4 @@ function rotateCamera(camera){
 	camera.lookAt( 0,0,0 );
 }
 
-export default { createCommands,createSphere,routline,trackSphere,Record }
+export default { createCommands,createSphere,routline,trackSphere,Record,Record2 }

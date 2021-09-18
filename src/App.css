@@ -1,18 +1,33 @@
 @import url('https://fonts.googleapis.com/css2?family=Righteous');
 .App{
-	height:100vh;
+	height:100%;
 	overflow-x:hidden;
 	overflow-y:hidden;
+	width:100%;
+}
+
+html{
+	height:100vh;
 	width:100vw;
 }
 
 body {
 	font-family: system-ui;
+	height:100%;
+	width:100%;
+	overflow-y:scroll;
     text-rendering: optimizeLegibility;
     font-feature-settings: "kern";
     text-rendering:optimizeLegibility;
     -webkit-font-feature-settings: "kern";
     -moz-font-feature-settings: "kern";
+}
+#debug{
+	background:black;
+	color:white;
+	position:absolute;
+	top:0px;
+	left:0px;
 }
 /*legacy*/
 
@@ -208,12 +223,10 @@ body {
 .comrev{
 	background:black;
     color: white;
-    border: 5px solid palevioletred;
     font-family: system-ui;
-    font-size: large;
+    font-size: x-large;
     overflow: hidden;
-    padding:0.5em;
-    border-radius: 0.5em;
+    padding:0.4em;
 }
 
 .contactCol{
@@ -509,22 +522,18 @@ body {
 }
 
 .characterSelect{
-	background-image: url(/images/characterSelect.png);
-    background-size: auto;
-    background-repeat: no-repeat;
-    background-position: center;
-    height: 90vh;
+    background-image:url(/images/vs3.jpg);
+	background-repeat:no-repeat;
+	background-position:center;
+	background-size:cover;
+    overflow:hidden;
+    width:100vw;    	
 }
 
 .characterSelectRow{
 	display:flex;
-	left:25vw;
-    margin-left: 4.5em;
-    margin-right: 1em;
-    position: relative;
-    top: 17vh;
-    width: 38vw;
 	overflow-x:scroll;
+    width: 100%;
 }
 
 .characterSelectRow div img{
@@ -540,22 +549,148 @@ body {
 	width:7vh;
 }
 
-.characterBoutCard{
-	display:table;
-	height:100vh;
-	margin-left: 29vw;
-    margin-top: 13vh;
+/* character name button CSS */
+.button-64 {
+  align-items: center;
+  background-image: linear-gradient(144deg,#AF40FF, #5B42F3 50%,#00DDEB);
+  border: 0;
+  border-radius: 8px;
+  box-shadow: rgba(151, 65, 252, 0.2) 0 15px 30px -5px;
+  box-sizing: border-box;
+  color: #FFFFFF;
+  display: flex;
+  font-family: Phantomsans, sans-serif;
+  font-size: 20px;
+  justify-content: center;
+  line-height: 1em;
+  max-width: 100%;
+  min-width: 140px;
+  padding: 3px;
+  text-decoration: none;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  white-space: nowrap;
+  cursor: pointer;
+  margin:3px;
+}
+
+.button-64:active,
+.button-64:hover {
+  outline: 0;
+}
+
+.button-64 span {
+  background-color: rgb(5, 6, 45);
+  padding: 16px 24px;
+  border-radius: 6px;
+  width: 100%;
+  height: 100%;
+  transition: 300ms;
+}
+
+.button-64:hover span {
+  background: none;
+}
+
+@media (min-width: 768px) {
+  .button-64 {
+    font-size: 1.2em;
+    min-width: 8vw;
+  }
+}
+
+
+.button-65 {
+  align-items: center;
+  background-image: linear-gradient(144deg,indigo, darkred 50%,red);
+  border: 0;
+  border-radius: 8px;
+  box-shadow: rgba(151, 65, 252, 0.2) 0 15px 30px -5px;
+  box-sizing: border-box;
+  color: #FFFFFF;
+  display: flex;
+  font-family: Phantomsans, sans-serif;
+  font-size: 3vw;
+  justify-content: center;
+  line-height: 1em;
+  max-width: 100%;
+  min-width: 4vw;
+  padding: 0.2vw;
+  text-decoration: none;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  white-space: nowrap;
+  cursor: pointer;
+  margin:3px;
+}
+
+.button-65:active,
+.button-65:hover {
+  outline: 0;
+}
+
+.button-65 span {
+  background-color: rgb(5, 6, 45);
+  padding: 1.5vh 1vw;
+  border-radius: 6px;
+  width: 100%;
+  height: 100%;
+  transition: 300ms;
+}
+
+.button-65:hover span {
+  background: "none";
+  background-color:darkred;
+}
+
+@media (min-width: 768px) {
+  .button-65 {
+    font-size: 1.5em;
+    min-width: 10vw;
+  }
+}
+/* character name button */
+
+#playerPortraitHolder{
+	display:block;
+	width:100%;
+	overflow:hidden;
+	align-items:center;
+	text-align:center;
+	padding-top:15vh;
+
 }
 
 #player1Portrait{
-	height:38vh;
-	width:17vw;
+	margin-right:38vw;
+	margin-bottom:5vh;
+	width:25vw;
+	overflow:hidden;
 }
 
 #player2Portrait{
-	height:38vh;
-	width:17vw;
+	margin-left:0vw;
+	width:25vw;
+	margin-bottom:5vh;	
 	transform:rotateY(180deg);
+}
+
+@media only screen and (max-width: 600px) {
+	#player1Portrait {
+		margin-right:30vw;
+		margin-bottom:8vh;
+		
+	}
+	#player2Portrait{
+		width:25vw;
+		margin-bottom:8vh;
+	}
+}
+
+.player2Waiting{
+	font-size:x-large !important;
 }
 
 .contractView{
@@ -609,7 +744,18 @@ body {
 }
 */
 
-#homeButton{position:sticky}
+#homeButtons{
+	display:flex;
+	margin-left:33%;
+	float:center;
+	text-align:center;
+}
+
+#homeButton{
+	display:flex;
+	padding-left:45vw;
+	width:100%;
+}
 
 iframe{
 	border:0em solid black;
@@ -620,12 +766,20 @@ iframe{
 	height:100vh;
 }
 
-.mainMenu{
-	background-image: url(/images/background.gif);
-    background-size: auto;
-    background-repeat: no-repeat;
-    background-position: center;
-    height: 90vh;
+.mainStartButton{
+	display:block;
+	height:95vh;
+	width:100%;
+	margin:auto;
+	overflow:hidden;
+}
+
+.mainStartButton button{
+	font-size:2.5vh;
+	height:5vh;
+	display:block;
+	margin:auto;
+	margin-top:15%;
 }
 
 #moveTimeout{
@@ -641,19 +795,12 @@ iframe{
 }
 
 #playerOptions button{
-	color:#221ec7;
-	font-size:x-large;
+	font-size:xx-large;
 }
 
 #playerOptions div{
 	display:flex;
 	margin:auto;
-}
-
-#playerOptions div .btn-group{
-	background:yellow;
-	border:0px solid white;
-	border-radius:5em;
 }
 
 #player1Stats b{
@@ -671,8 +818,11 @@ iframe{
 }
 
 .stageHolder{
-	background-image: url(/images/grid1.jpg);
-	background-size:cover;
+	background:black;
+	background-image:url(/images/landing_logo.png);
+	background-repeat:no-repeat;
+	background-position:center;
+	background-size:auto;
     height:100vh;
 	width:100%;
 	overflow:hidden;
@@ -680,38 +830,6 @@ iframe{
 
 #title{
 	display:flex;
-}
-
-.classicButton1{
-  background: radial-gradient(circle,#dd71f5 50%, #dd71f5 100%);
-  border:3px solid black !important;
-  left:32vw;
-  position:relative;
-  top:22vh;
-}
-
-.classicButton2{
-  background: radial-gradient(circle,#271f98 10%, #7269ef 100%);
-  border:3px solid black !important;
-  left:32vw;
-  position:relative;
-  top:22vh;
-}
-
-.classicButton3{
-  background: radial-gradient(circle,#dd71f5 10%,#dd71f5 100%);
-  border:0px solid black !important;
-  font-size:2.2vh !important;
-}
-
-.classicButton4{
-  left:32vw;
-  position:relative;
-  top:22vh;
-}
-
-.classicButton5{
-  background: radial-gradient(circle,#dd71f5 50%, #dd71f5 100%);
 }
 
 .classicDiv1{
@@ -801,21 +919,6 @@ iframe{
 #wagerStats{
 	background: linear-gradient(45deg,white 0%, lightblue 40%, grey 100%);
 	width:30vw;
-}
-
-.pressStart{
-	width:30vw;
-	margin:0.5vw;
-}
-
-.pressStart button:hover{
-  border:3px solid blue !important;
-}
-
-#vs{
-	margin:3vw;
-	margin-left: 1vw;
-	width:3vw;
 }
 
 /*End Stage*/

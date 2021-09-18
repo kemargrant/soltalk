@@ -1,5 +1,5 @@
-import React,{useState} from 'react';
-import { Button,ButtonGroup,Dropdown,DropdownItem,DropdownMenu,DropdownToggle,Input } from 'reactstrap';
+import React from 'react';
+import { Button,ButtonGroup,Input } from 'reactstrap';
 import { ProgressBar } from 'react-bootstrap';
 import {
   PublicKey,  
@@ -14,9 +14,22 @@ import { TokenBalance } from '../util/TokenBalance';
 import { WagerClient } from '../util/wager';
 import { ContractView } from './ContractView';
 import DeleteIcon from '@material-ui/icons/Delete';
-import LinearProgress from '@material-ui/core/LinearProgress';
+import LinearProgress,{ linearProgressClasses } from '@mui/material/LinearProgress';
 import LineStyleIcon from '@material-ui/icons/LineStyle';
 import MonetizationOnIcon from '@material-ui/icons/MonetizationOn';
+import { styled } from '@mui/material/styles';
+
+const HealthLinearProgress = styled(LinearProgress)(({ theme }) => ({
+  height: 10,
+  borderRadius: 5,
+  [`&.${linearProgressClasses.colorPrimary}`]: {
+    backgroundColor: theme.palette.grey[theme.palette.mode === 'light' ? 200 : 800],
+  },
+  [`& .${linearProgressClasses.bar}`]: {
+    borderRadius: 5,
+    backgroundColor: theme.palette.mode === 'light' ? '#06D6A0' : '#308fe8',
+  },
+}));
 
 const sdbm = require('sdbm');
 
@@ -68,7 +81,7 @@ function WebGLView(props){
 		style={{frameBorder:0}}
 		onLoad={props.onLoad}
 	/>);
-}     
+}       
      
 class Stage extends React.Component{ 
 	constructor(props){
@@ -80,6 +93,7 @@ class Stage extends React.Component{
 			classic:true,
 			gameStart:false,
 			gameStatus:0,
+			initialLoadingCompleted:false,			
 			isPlayer1:false,
 			isPlayer2:false,
 			isWagerGame:false,
@@ -251,6 +265,7 @@ class Stage extends React.Component{
 					_transaction,
 					this.props.localPayerAccount,			
 				);
+				this.props.notify("Success:"+txid);
 			}
 			catch(e){
 				console.warn(e);
@@ -403,6 +418,7 @@ class Stage extends React.Component{
 					_transaction,
 					this.props.localPayerAccount,
 				);
+				this.props.notify("Success:"+txid);
 			}
 			catch(e){
 				console.warn(e);
@@ -502,6 +518,7 @@ class Stage extends React.Component{
 					_transaction,
 					this.props.localPayerAccount,
 				);
+				this.props.notify("Success:"+txid);				
 			}
 			catch(e){
 				console.warn(e);
@@ -619,6 +636,9 @@ class Stage extends React.Component{
 				if(status.err){
 					this.props.notify("Wager TX Error","error");
 				}
+				else{
+					this.props.notify("Success:"+txid);
+				}
 			}
 			catch(e){
 				console.warn(e);
@@ -656,7 +676,13 @@ class Stage extends React.Component{
 		//Enable timer
 		this.countDownTimer();
 		//Get Game data
-		return this.getAccountInfo().then(this.subscribeToGame).catch(console.warn);
+		return this.getAccountInfo()
+			.then(this.subscribeToGame)
+			.then(()=>{
+				this.setState({initialLoadingCompleted:true});
+			})
+			.catch(console.warn)
+			
 	}
 	
 	getAccountInfo(){
@@ -876,6 +902,7 @@ class Stage extends React.Component{
 					_transaction,
 					this.props.localPayerAccount,
 				);
+				this.props.notify("Success:"+txid);				
 				console.log("reveal txid",txid);
 			}
 			catch(e){
@@ -940,7 +967,8 @@ class Stage extends React.Component{
 			transaction.feePayer = this.props.payerAccount;
 			let signed = await this.props.wallet.signTransaction(transaction);
 			txid =  await this.props.connection.sendRawTransaction(signed.serialize());
-			await this.props.connection.confirmTransaction(txid) 
+			await this.props.connection.confirmTransaction(txid);
+			this.props.notify("Success:"+txid,"success");
 		}
 		catch(e){
 			let canRecover = await this.props.recoverFromTimeout(e,0);
@@ -955,8 +983,8 @@ class Stage extends React.Component{
 	
 	subscribeToGame(){
 		if(!this.props.ws){
-			console.warn("Websocket connection not ready");
-			return setTimeout(this.subscribeToGame,1000);
+			console.warn("Websocket connection not ready:",this.props.ws);
+			return setTimeout(this.subscribeToGame,2500);
 		}
 		let message = {
 			"jsonrpc":"2.0", 
@@ -1307,7 +1335,23 @@ class Stage extends React.Component{
 	}
 	
 	render(){
-		return(<div className="stageHolder">
+		return(<div className="stageHolder">		
+			<div id="debug"> RPC Speed:{speed}s </div>
+			{
+				this.state.steps < 1 ?
+				<div id="homeButtons">
+					<button className="button-65" onClick={()=>this.updateWagerOption("CLASSIC")}> 
+						<span className="text" style={{background:this.state.classic ? "none":""}} > CLASSIC </span>
+					</button>
+					<button className="button-65" onClick={()=>this.updateWagerOption("WAGER")}> 
+						<span className="text" style={{background:this.state.wager ? "none":""}}> WAGER </span>
+					</button>
+					<button className="button-65" onClick={()=>this.updateWagerOption("KING OF THE RING")}> 
+						<span className="text" style={{background:this.state.kor ? "none":""}}> KING OF THE RING </span>
+					</button>
+				</div>
+				: null
+			}		
 			<WagerSwitch
 				bet={this.state.bet}
 				mode={this.state.classic ? "CLASSIC" : "KING OF THE RING"}
@@ -1320,33 +1364,33 @@ class Stage extends React.Component{
 				updateWagerOption={this.updateWagerOption}
 				updateSteps={this.updateSteps} 
 				viewBet={this.state.viewBet}
-			/>
+			/>	
+			{ (!this.state.initialLoadingCompleted && this.state.timeLimit ===  -1) ?  <div className="mainStartButton"> <Button color="info" className="button-64"> LOADING <br/> PLEASE WAIT <br/> <LinearProgress/> </Button></div> : null }
 			{
-				(this.state.steps === 0  && this.state.kor === false) ?
-				<div className="mainMenu"> 
+				(this.state.steps === 0  && this.state.kor === false && this.state.initialLoadingCompleted) ?
+				<> 
 					{
-						(this.state.timeLimit < 1 || (this.state.player2Health < 1 || this.state.player1Health < 1 ) ) ?
-						 <div className="pressStart"> 
+						(this.state.timeLimit < -1 || (this.state.player2Health < 1 || this.state.player1Health < 1 ) ) ?
+						 <div className="mainStartButton"> 
 							{ 
 								this.state.wager ?
 								<ButtonGroup className="classicDiv1">
-									<Button color="info" className="classicButton5" onClick={()=>{this.setState({steps:1.1});}}> Player1 </Button>	
+									<Button color="info" className="button-64" onClick={()=>{this.setState({steps:1.1});}}> Player1 </Button>	
 									<Button color="default" id="wagerInputButton">
 										<b> Wager $</b><Input min={0} type="number" value={this.state.wagerAmount} id="wagerAmount" onChange={this.updateWagerAmount}/> / {this.props.usdtBalance.toFixed(2)} USDT
 									</Button>
-																		
 								</ButtonGroup>	
-								:<Button color="info" block className="classicButton1" onClick={()=>{this.setState({steps:1.1});}}> Player1 Press Start </Button>
+								:<Button color="info" className="button-64" onClick={()=>{this.setState({steps:1.1});}}> Player1 Press Start</Button>
 							}
 						 </div> : null
 					}
 					
 					{
 						(this.state.timeLimit > 0 &&  this.state.player1.toString("hex") !== "0000000000000000000000000000000000000000000000000000000000000000" && this.state.player2.toString("hex") === "0000000000000000000000000000000000000000000000000000000000000000" ) ?
-						<div className="pressStart"> 
-						<Button color="info" block className="classicButton1" onClick={()=>{this.setState({steps:1.2});}}> 
+						<div className="mainStartButton"> 
+						<Button color="info" className="button-64" onClick={()=>{this.setState({steps:1.2});}}> 
 							Player2 
-							{ (this.state.wager && this.state.bet && this.state.bet.minimumBet) ? <b> Wager ${(this.state.bet.minimumBet / Math.pow(10,6))} USDT</b> : "Press Start "}
+							{ (this.state.wager && this.state.bet && this.state.bet.minimumBet) ? <b> Wager ${(this.state.bet.minimumBet / Math.pow(10,6))} USDT</b> : " Press Start "}
 						</Button>  
 						</div> 
 						: null
@@ -1354,57 +1398,63 @@ class Stage extends React.Component{
 					
 					{
 						(this.state.timeLimit > 0 && (this.state.player2Health > 0 && this.state.player1Health > 0) && this.state.player2.toString("hex") !== "0000000000000000000000000000000000000000000000000000000000000000" )?
-						<div className="pressStart"> 
-							<Button color="danger" block className="classicButton4">
+						<div className="mainStartButton"> 
+							<Button color="danger" className="button-64">
 								MATCH IN PROGRESS 
 								Time Remaining: {this.state.timeLimit.toFixed(0)}s
 							</Button>   
 						 </div>					
 						: null
 					}
-				</div>
+				</>
 				:null
 			}
 			{
-				(this.state.steps === 0 && this.state.kor === true) ?
-				<div className="mainMenu"> 
+				(this.state.steps === 0 && this.state.kor === true && this.state.initialLoadingCompleted) ?
+				<> 
 					{
 						(this.state.player1.toString("hex") === "0000000000000000000000000000000000000000000000000000000000000000") ?
-						<div className="pressStart"> <Button color="info" block className="classicButton1" onClick={()=>{this.setState({steps:1.1});}}> Start as King </Button> </div> : null
+						<div className="mainStartButton"> <Button color="info" className="button-64" onClick={()=>{this.setState({steps:1.1});}}> Start as King </Button> </div> : null
 					}
 					
 					{
 						(this.state.isPlayer1) ?
-						<div className="pressStart"> <Button color="info" block className="classicButton1" onClick={()=>{this.beginGame(true);}}>  <span role="img" aria-label="crown">👑</span> Defend The Crown  <span role="img" aria-label="crown">👑</span> </Button> </div> : null
+						<div className="mainStartButton"> <Button color="info" className="button-64" onClick={()=>{this.beginGame(true);}}>  <span role="img" aria-label="crown">👑</span> Defend The Crown  <span role="img" aria-label="crown">👑</span> </Button> </div> : null
 					}
 					
 					{
 						( this.state.isPlayer2 && (this.state.player2Health > 0 && this.state.player1Health > 0) ) ?
-						<div className="pressStart"> <Button color="info" block className="classicButton1" onClick={()=>this.beginGame(false)}>[CHALLENGER] Rejoin Match </Button> </div> : null
+						<div className="mainStartButton"> <Button color="info" className="button-64" onClick={()=>this.beginGame(false)}>[CHALLENGER] Rejoin Match </Button> </div> : null
 					}
 					
 					{
 						(this.state.player1Health === 100 && this.state.player2Health === 100 &&
 						!this.state.isPlayer1 && this.state.player1.toString("hex") !== "0000000000000000000000000000000000000000000000000000000000000000" &&
 						!this.state.isPlayer2 && this.state.player2.toString("hex") !== "0000000000000000000000000000000000000000000000000000000000000000") ?
-						<div className="pressStart"> <Button color="info" block className="classicButton1" onClick={()=>this.beginGame(false)}>View Match </Button> </div> : null
+						<div className="mainStartButton"> <Button color="info" className="button-64" onClick={()=>this.beginGame(false)}>View Match </Button> </div> : null
 					}	
 					
 					{
 						(this.state.player1.toString("hex") !== "0000000000000000000000000000000000000000000000000000000000000000") &&(	( !this.state.isPlayer1 && (this.state.player1Health === 0 || this.state.player2Health === 0) ) 
 						||  ( !this.state.isPlayer1 && this.state.player2.toString("hex") === "0000000000000000000000000000000000000000000000000000000000000000" ) ) ?
-						<div className="pressStart"><Button color="warning" block className="classicButton1" onClick={()=>{this.setState({steps:1.2});}}> Challenge the King </Button></div>: null
+						<div className="mainStartButton"><Button color="info" block className="button-64" onClick={()=>{this.setState({steps:1.2});}}> Challenge the King </Button></div>: null
 					}
-				</div>
+				</>
 				:null
 			}
 			{ (this.state.steps > 1 && this.state.steps < 2) ? 
 				<CharacterSelect 
-				chooseCharacter={this.chooseCharacter} 
-				haveToken={this.haveToken}
-				player1Character={this.state.player1Character}
-				updateSteps={this.updateSteps} 
-				steps={this.state.steps}/> 
+					classic={this.state.classic}
+					chooseCharacter={this.chooseCharacter} 
+					haveToken={this.haveToken}
+					kor={this.state.kor}
+					loggedIn={this.props.payerAccount}				
+					player1Character={this.state.player1Character}
+					updateSteps={this.updateSteps} 
+					updateWagerOption={this.updateWagerOption}					
+					steps={this.state.steps}
+					wager={this.state.wager}
+				/> 
 				:null 
 			}
 			<Game
@@ -1439,7 +1489,8 @@ class CharacterSelect extends React.Component{
 	constructor(props){
 		super(props);
 		this.state = {
-			characters:[]
+			characters:[],
+			loadedCharacters:false,
 		}
 		this.loadAdditionalCharachers = this.loadAdditionalCharacters.bind(this);
 		this.select = this.select.bind(this);
@@ -1448,13 +1499,14 @@ class CharacterSelect extends React.Component{
 	
 	componentDidMount(){
 		let characters = [
-			{Name:"Master Chef",Headshot:"./images/player_images/masterchef_small.png",Portrait:"./images/player_images/masterchef_portrait.png", Mint:"",Index:0},
-			{Name:"Assassin",Headshot:"./images/player_images/assassin_small.png",Portrait:"./images/player_images/assassin_portrait.png",Mint:"",Index:1},
+			{Name:"Master Chef",Headshot:"./images/player_images/masterchef_small.png",Portrait:"./images/player_images/mc.apng", Mint:"",Index:0},
+			{Name:"Assassin",Headshot:"./images/player_images/assassin_small.png",Portrait:"./images/player_images/assassin.apng",Mint:"",Index:1},
 		]
 		return this.setState({characters},this.loadAdditionalCharacters);
 	}
 	
 	async loadAdditionalCharacters(){
+		if(!this.props.loggedIn){return;}
 		let chars = this.state.characters.slice(0);
 		//NakedShorts
 		let jayBeezyPrintTokenMint = "GyTF8PoMBYivkba8shFyjhW3hcJvUPEDv3GHQU87yJiq";	
@@ -1462,27 +1514,30 @@ class CharacterSelect extends React.Component{
 		let nakedShortsMint = "ss1gxEUiufJyumsXfGbEwFe6maraPmc53fqbnjbum15";
 		let pohMint = "ss26ybWnrhSYbGBjDT9bEwRiyAVUgiKCbgAfFkksj4R";
 		if( await this.props.haveToken(nakedShortsMint)){  
-			chars.push({Name:"Naked Shorts",Headshot:"./images/player_images/nakedshorts_small.png",Portrait:"./images/player_images/nakedshorts_portrait.png",Mint:"",Index:2});
+			chars.push({Name:"Naked Shorts",Headshot:"./images/player_images/nakedshorts_small.png",Portrait:"./images/player_images/nakedshorts.apng",Mint:"",Index:2});
 		}
 		if( await this.props.haveToken(pohMint)){  
-			chars.push({Name:"POH",Headshot:"./images/player_images/poh_small.png",Portrait:"./images/player_images/poh_portrait.png",Mint:"",Index:3});
+			chars.push({Name:"POH",Headshot:"./images/player_images/poh_small.png",Portrait:"./images/player_images/poh.apng",Mint:"",Index:3});
 		}
 		if( await this.props.haveToken(jayBeezyPrintTokenMint,true)){  
-			chars.push({Name:"Jay Beezy",Headshot:"./images/player_images/jaybeezy_small.png",Portrait:"./images/player_images/jaybeezy_portrait.png",Mint:"",Index:4});
+			chars.push({Name:"Jay Beezy",Headshot:"./images/player_images/jaybeezy_small.png",Portrait:"./images/player_images/jaybeezy.apng",Mint:"",Index:4});
 		}	
 		if( await this.props.haveToken(olgaPrintTokenMint,true)){  
-			chars.push({Name:"Olga",Headshot:"./images/player_images/olga_small.png",Portrait:"./images/player_images/olga_portrait.png",Mint:"",Index:5});
+			chars.push({Name:"Olga",Headshot:"./images/player_images/olga_small.png",Portrait:"./images/player_images/olga.apng",Mint:"",Index:5});
 		}		
 		for(let i = 0;i < 3;i++){
 			chars.push({Name:"?",Headshot:"./images/player_images/unknown.png",Mint:"",Index:0})
 		}
-		return this.setState({characters:chars});
+		return this.setState({characters:chars,loadedCharacters:true});
 	}
 	
 	select(char){
 		this.props.chooseCharacter(char.Index);
-		document.getElementById("char"+char.Index).setAttribute("style","border:0.2em solid red");
-		this.updatePortrait = function(){}
+		let ele = document.getElementById("char"+char.Index);
+		if(ele){
+			ele.setAttribute("style","border:0.2em solid red");
+			this.updatePortrait = function(){}
+		}
 		return;
 	}
 	
@@ -1497,34 +1552,38 @@ class CharacterSelect extends React.Component{
 	}
 	
 	render(){
+		if(!this.state.loadedCharacters && this.props.loggedIn){this.loadAdditionalCharacters().catch(console.warn);}
 		return (<div className="characterSelect">
-			<Button color="danger" block id="homeButton" onClick={()=>{return this.props.updateSteps(0);}}> MAIN MENU </Button> 
+			<div id="homeButton">
+				<button className="button-65" onClick={()=>this.props.updateSteps(0)}> 
+					<span className="text" style={{background:"none"}}> Main Menu </span>
+				</button>
+			</div>			
 			<div className="characterSelectRow">
 				{ 
 					this.state.characters.map((char,ind)=>(
 						<div key={ind} onMouseOver={()=>{this.updatePortrait(char)}} onClick={()=>{this.select(char)}}> 
-							<img id={"char"+ind} src={char.Headshot} alt="player headshot" title={char.Name}/> 
+							<button className="button-64" ><span className="text"> {char.Name} </span></button>
 						</div>
 					))
 				}
 			</div>
 			{
 				this.state.characters.length > 0 ?
-				<div className="characterBoutCard">
-					<div>
+					<div id="playerPortraitHolder">
 						{
 							this.props.steps !== 1.2 ?
 							<img id="player1Portrait" src={this.state.characters[0].Portrait} alt="player1Portrait" /> 
 							:<img id="player1Portrait" src={this.state.characters[this.props.player1Character]? this.state.characters[this.props.player1Character].Portrait : ""} alt="player1Portrait" /> 
 						}
-						<img id="vs" src="./images/player_images/vs.png" alt="vs"/> 
 						{
 							this.props.steps !== 1.2? 
-							<Button color="info" className="classicButton3"> WAITING FOR PLAYER2 <br/> <LinearProgress/> </Button>
+							<Button color="info" className="player2Waiting"> WAITING FOR PLAYER2 <br/> <LinearProgress/> </Button>
 							:<img id="player2Portrait" src={this.state.characters[1].Portrait}  alt="player2Portrait"/>
 						}
+						<div className="selectFloor1" alt="floor"></div>
+						<div className="selectFloor2" alt="floor"></div>
 					</div>
-				</div>
 				: null
 			}
 			<audio id="cssEffect" src="./Sounds/button-16.ogg" crossOrigin="anonymous"/>
@@ -1557,9 +1616,10 @@ class Game extends React.PureComponent {
 	}
 	
 	render(){
-		return(<div id="gameHolder" style={{"opacity":this.props.steps === 2 ? "1" : "0","z-index":this.props.steps === 2 ? "99" : "-1" }}>
+		if(this.props.steps !== 2 ){return null;}
+		return(<div id="gameHolder" style={{"opacity":this.props.steps === 2 ? "1" : "0","zIndex":this.props.steps === 2 ? "99" : "-99" }}>
 			<div className="gameTimers">
-				<ProgressBar id="gameTimer" variant={this.props.timeLimit > 40 ? "primary" : "danger"} striped min={0} max={180} now={this.props.timeLimit < 0 ? 1 : this.props.timeLimit} label={"TIME: "+Math.floor(this.props.timeLimit)+"s"} />
+				<ProgressBar id="gameTimer" variant={this.props.timeLimit > 40 ? "primary" : "danger"} min={0} max={180} now={this.props.timeLimit < 0 ? 1 : this.props.timeLimit} label={"TIME: "+Math.floor(this.props.timeLimit)+"s"} />
 			</div>
 			<div>
 				<div id="player1Stats">
@@ -1567,29 +1627,29 @@ class Game extends React.PureComponent {
 						<div style={{float:"left"}}>
 							<b> {this.props.kor ? <span role="img" aria-label="crown">👑</span>: null} {this.props.player1 ? this.props.player1.slice(0,15) : null}</b>
 							<br/>
-							<ProgressBar variant="success" now={this.props.player1Health} />
+							<HealthLinearProgress variant="determinate" value={this.props.player1Health}/> 
 							<br/>Status: <b>{(this.props.player1HonestReveal > 0 && this.props.player1HonestReveal === 8) ? " HONEST" : null }{this.props.player1DidCommit === 1 ? " COMMIT" : null }</b>
 							<br/>Action: <b>{this.props.p1Action? this.props.p1Action.toUpperCase() : ""}</b>
 						</div>
 						<div style={{float:"right",textAlign:"right"}}>
 							<b>{this.props.player2 ? this.props.player2.slice(0,15) : null}</b>
-							<ProgressBar variant="success" now={this.props.player2Health} />
+							<HealthLinearProgress variant="determinate" value={this.props.player2Health}/> 
 							<br/>Status: <b>{(this.props.player2HonestReveal > 0 && this.props.player2HonestReveal === 8) ? " HONEST" : null } {this.props.player2DidCommit === 1 ? " COMMIT" : null } </b>
 							<br/>Action: <b>{this.props.p2Action? this.props.p2Action.toUpperCase() : ""}</b>		
 						</div>	
 						<div id="moveTimeout">
 							{
 								this.props.timeLimit > 0 ?
-								<ProgressBar variant="info"
+								<ProgressBar variant="primary"
 									style={{fontSize:"large",height:"1.5vh"}}
-									striped min={0} max={30} 
 									now={this.props.moveTimeoutValue} 
+									max={30}
 									label={Math.floor(this.props.moveTimeoutValue)+"s"}
 								/>:null
 							}
 							{
 								(this.props.player1Health > 0 && this.props.player2Health > 0 && this.props.timeLimit < 1 ) ? 
-								<Button block color="danger" onClick={this.props.crankIt}> End Game </Button> 
+								<Button color="danger" className="button-65" onClick={this.props.crankIt}> End Game </Button> 
 								:null
 
 							}
@@ -1601,25 +1661,36 @@ class Game extends React.PureComponent {
 					<div id="playerOptions">
 						<div>
 							<ButtonGroup>
-								{ this.props.isPlayer1 && this.props.player1DidCommit === 1 ? <Button block color="danger" onClick={()=>{this.props.reveal("attack")}}>UNLEASH </Button>  : null }
-								<Button color="success" onClick={()=>{this.props.commit("rock")}}> Reversal </Button>
-								<Button color="default" onClick={()=>{this.props.commit("paper")}}> Punch </Button>
-								<Button color="warning" onClick={()=>{this.props.commit("scissors")}}> Strike </Button>
-								{ this.props.isPlayer2 && this.props.player2DidCommit === 1 ? <Button block color="danger" onClick={()=>{this.props.reveal("attack")}}>UNLEASH </Button>  : null }
+								{ this.props.isPlayer1 && this.props.player1DidCommit === 1 ? <button className="button-65" onClick={()=>{this.props.reveal("attack")}}>UNLEASH </button>  : null }
+								
+								{
+									(this.props.isPlayer1 && this.props.player1DidCommit === 1) || (this.props.isPlayer2 && this.props.player1DidCommit === 2) ? null :
+									<>
+										<button className="button-64" onClick={()=>{this.props.commit("rock")}}>
+											<span className="text"> Reversal </span>
+										</button>
+										
+										<button className="button-64" onClick={()=>{this.props.commit("paper")}}>
+											<span className="text"> Punch </span>
+										</button>
+										
+										<button className="button-64" onClick={()=>{this.props.commit("scissors")}}>
+											<span className="text"> Strike </span>
+										</button>
+									</>
+								}
+								{ this.props.isPlayer2 && this.props.player2DidCommit === 1 ? <button className="button-65" onClick={()=>{this.props.reveal("attack")}}>UNLEASH </button>  : null }
 							</ButtonGroup>
 						</div>
 					</div>:null
 				}
-				<WebGLView src={"https://solsurvivor.s3.amazonaws.com/index.html"} onLoad={this.bindChannel}/>	
+				<WebGLView src={"https://solsurvivor.s3.amazonaws.com/index.html"} onLoad={this.bindChannel}/>
 			</div>
 	</div>)}
 }
 
 function WagerSwitch(props){
 	let showDisclaimer = true;
-	const [isOpen, setIsOpen] = useState(false);
-	//Initial mode either Classic or King of the Ring
-	const [Mode, setMode] = useState(props.mode);
 
 	function removeDisclaimer(){
 		try{
@@ -1628,34 +1699,8 @@ function WagerSwitch(props){
 		}
 		catch(e){console.error(e)}
 	}	
-	
-	function updateMode(mode){
-		props.updateWagerOption(mode);
-		return setMode(mode);
-	}
-	
-	function toggleCollapse() {
-		return setIsOpen(!isOpen);	
-	};
 		
 	return(<div>
-			<Dropdown toggle={toggleCollapse} isOpen={isOpen} className="d-inline-block mb-1">
-				<DropdownToggle tag="a" className="text-muted pb-1 d-block"> GAME MODE: {Mode} <i className="mdi mdi-chevron-right"></i> </DropdownToggle>
-				  <DropdownMenu>
-					<DropdownItem onClick={()=>{updateMode("CLASSIC");}}> 
-						<span role="img" aria-label="crown" className="largeEmoji">🕹 </span>CLASSIC 
-					</DropdownItem>
-					<DropdownItem onClick={()=>{updateMode("WAGER");}}> 
-						<div id="wagerOption"><span role="img" aria-label="crown" className="largeEmoji">💵 </span>WAGER </div> 
-					</DropdownItem>
-					<DropdownItem onClick={()=>{updateMode("KING OF THE RING");}} className="shine">
-						<div id="korOption"> 
-							<span role="img" aria-label="crown" className="largeEmoji">👑 </span> 
-							KING OF THE RING
-						</div> 
-					</DropdownItem>
-				  </DropdownMenu>
-			</Dropdown>
 			{	(props.wager && showDisclaimer)?
 					<p className="wagerDisclaimer">
 					Disclaimer: Wagers are not available in the U.S.A, E.U. or other prohibited jurisdictions. 

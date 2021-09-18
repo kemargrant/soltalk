@@ -792,10 +792,7 @@ class App extends React.Component{
 			await establishConnection(defaultNetwork);
 			let contacts = await this.getContacts(true);
 			this.subscribe(contacts,defaultNetwork);
-			if(this.state.payerAccount){
-				await this.connectWallet();
-			}
-			else if(this.state.localPayerAccount){
+			if(this.state.localPayerAccount){
 				await setTimeout(this.getBalance,1000);
 			}
 			//Update sol-survior information
@@ -2412,7 +2409,6 @@ class App extends React.Component{
 	* @return {Null}
 	*/	
 	subscribe(contacts,network){
-		//if(!network){return}
 		const attachChannels = (_ws)=>{
 			let uniqueChannels = this.state.connected.slice(0);
 			let message = {
@@ -2499,7 +2495,7 @@ class App extends React.Component{
 		  console.error(evt.data);
 		}
 		let endpoints = {
-			"testnet": "wss://testnet.solana.com",
+			"testnet": "wss://api.testnet.solana.com",
 			"api.mainnet-beta": "wss://solana-api.projectserum.com"
 		}
 		let socketRoot = endpoints[network];

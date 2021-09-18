@@ -82,6 +82,9 @@ function WebGLView(props){
 		onLoad={props.onLoad}
 	/>);
 }       
+
+var loadingCharactersBouncer = 0;     
+     
      
 class Stage extends React.Component{ 
 	constructor(props){
@@ -90,14 +93,14 @@ class Stage extends React.Component{
 			backroundMusic:"",
 			bet:{},
 			chosenCharacter:0,
-			classic:true,
+			classic:false,
 			gameStart:false,
 			gameStatus:0,
 			initialLoadingCompleted:false,			
 			isPlayer1:false,
 			isPlayer2:false,
 			isWagerGame:false,
-			kor:false,
+			kor:true,
 			loadingAccountData:true,
 			moveTimer:-1,
 			moveTimerExpiration:-1,
@@ -144,6 +147,7 @@ class Stage extends React.Component{
 		this.getAccountInfo = this.getAccountInfo.bind(this);
 		this.getWagerInfo = this.getWagerInfo.bind(this);
 		this.muteMusic = this.muteMusic.bind(this);
+		this.onWalletUpdate = this.onWalletUpdate.bind(this);
 		this.parseState = this.parseState.bind(this);
 		this.playMusic = this.playMusic.bind(this);
 		this.reveal = this.reveal.bind(this);
@@ -456,6 +460,10 @@ class Stage extends React.Component{
 				let timeLimit = ((this.state.gameStart+(180*1000)) - now)/1000;
 				this.setState({timeLimit});
 			}
+			//todo use ref in App.js
+			//monitor wallet change
+			this.onWalletUpdate();
+			//
 			return this.countDownTimer();
 		},1000);
 	}
@@ -583,7 +591,7 @@ class Stage extends React.Component{
 				//
 			}
 			if(this.state.kor){
-				let feeInstruction = this.props.generateFeeInstruction(gameWallet,1/40);
+				let feeInstruction = this.props.generateFeeInstruction(gameWallet,1/20);
 				txid = await this.solletSign([feeInstruction,instruction]);
 			}
 			else{
@@ -713,12 +721,15 @@ class Stage extends React.Component{
 		.catch(console.warn);
 	}
 		
-	async haveToken(mintAddress,isPrintTokenMint=false){
-		let hasCharacter = false;
-		if(this.props.payerAccount || this.props.localPayerAccount){
-			if(await TokenBalance(this.props,mintAddress,isPrintTokenMint)){hasCharacter = true;}
-		}
-		return hasCharacter;
+	haveToken(mintAddress,isPrintTokenMint=false){
+		//slow down requests to rpc server
+		return new Promise(async(resolve,reject)=>{
+			let hasCharacter = false;
+			if(this.props.payerAccount || this.props.localPayerAccount){
+				if(await TokenBalance(this.props,mintAddress,isPrintTokenMint)){hasCharacter = true;}
+			}
+			setTimeout(()=>{resolve(hasCharacter);},400);
+		});
 	}
 	
 	async getWagerInfo(address){
@@ -739,6 +750,18 @@ class Stage extends React.Component{
 			await audio.play();
 			this.setState({muted:audio.muted});
 		}
+		return;
+	}
+	
+	onWalletUpdate(){
+		if(!this.props.payerAccount){return;}
+		let isPlayer1 = false;
+		let isPlayer2 = false;
+		if(this.state.player1 === this.props.payerAccount.toBase58()){ isPlayer1 = true; }
+		if(this.state.player2 === this.props.payerAccount.toBase58()){ isPlayer2 = true; }
+		if( (isPlayer1 && !this.state.isPlayer1) || (isPlayer2 && !this.state.isPlayer2)){
+			this.setState({isPlayer1,isPlayer2});			
+		}	
 		return;
 	}
 	
@@ -1159,7 +1182,9 @@ class Stage extends React.Component{
 				}
 			}
 		}
-		try{ console.warn(newState.player1.toString(),this.state.player1Character,"vs",newState.player2.toString("hex"),this.state.player2Character); }
+		try{ 
+			console.warn(newState.player1.toString(),this.state.player1Character,"vs",newState.player2.toString("hex"),this.state.player2Character); 
+		}
 		catch(e){}
 		//Move Time
 		if(state[15][0] > 0 && this.state.moveTimer !== -1){
@@ -1419,7 +1444,7 @@ class Stage extends React.Component{
 					
 					{
 						(this.state.isPlayer1) ?
-						<div className="mainStartButton"> <Button color="info" className="button-64" onClick={()=>{this.beginGame(true);}}>  <span role="img" aria-label="crown">👑</span> Defend The Crown  <span role="img" aria-label="crown">👑</span> </Button> </div> : null
+						<div className="mainStartButton"> <Button color="info" className="button-64" onClick={()=>{this.beginGame(true);}}>  Defend The Crown  </Button> </div> : null
 					}
 					
 					{
@@ -1437,7 +1462,7 @@ class Stage extends React.Component{
 					{
 						(this.state.player1.toString("hex") !== "0000000000000000000000000000000000000000000000000000000000000000") &&(	( !this.state.isPlayer1 && (this.state.player1Health === 0 || this.state.player2Health === 0) ) 
 						||  ( !this.state.isPlayer1 && this.state.player2.toString("hex") === "0000000000000000000000000000000000000000000000000000000000000000" ) ) ?
-						<div className="mainStartButton"><Button color="info" block className="button-64" onClick={()=>{this.setState({steps:1.2});}}> Challenge the King </Button></div>: null
+						<div className="mainStartButton"><Button color="info" className="button-64" onClick={()=>{this.setState({steps:1.2});}}> Challenge the King </Button></div>: null
 					}
 				</>
 				:null
@@ -1507,6 +1532,10 @@ class CharacterSelect extends React.Component{
 	
 	async loadAdditionalCharacters(){
 		if(!this.props.loggedIn){return;}
+		if(loadingCharactersBouncer > 2){ return; }
+		loadingCharactersBouncer++;
+		setTimeout(()=>{ loadingCharactersBouncer--; },1500);
+		console.warn("LOADING ADDITIONAL CHARACTERS");
 		let chars = this.state.characters.slice(0);
 		//NakedShorts
 		let jayBeezyPrintTokenMint = "GyTF8PoMBYivkba8shFyjhW3hcJvUPEDv3GHQU87yJiq";	
@@ -1664,7 +1693,7 @@ class Game extends React.PureComponent {
 								{ this.props.isPlayer1 && this.props.player1DidCommit === 1 ? <button className="button-65" onClick={()=>{this.props.reveal("attack")}}>UNLEASH </button>  : null }
 								
 								{
-									(this.props.isPlayer1 && this.props.player1DidCommit === 1) || (this.props.isPlayer2 && this.props.player1DidCommit === 2) ? null :
+									(this.props.isPlayer1 && this.props.player1DidCommit === 1) || (this.props.isPlayer2 && this.props.player2DidCommit === 1) ? null :
 									<>
 										<button className="button-64" onClick={()=>{this.props.commit("rock")}}>
 											<span className="text"> Reversal </span>

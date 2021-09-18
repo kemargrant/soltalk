@@ -57,7 +57,7 @@
 			let scene, renderer, camera;
 			let model, skeleton, mixer,clock;
 			let idle;
-	
+			let controls;
 			init();
 			function init() {
 
@@ -87,7 +87,7 @@
 				scene.add( dirLight );
 
 
-				const mesh = new THREE.Mesh( new THREE.PlaneBufferGeometry( 100, 100 ), new THREE.MeshPhongMaterial( { color: 0x999999, depthWrite: false } ) );
+				const mesh = new THREE.Mesh( new THREE.PlaneBufferGeometry( 1, 1 ), new THREE.MeshPhongMaterial( { color: "black", depthWrite: false } ) );
 				mesh.rotation.x = - Math.PI / 2;
 				mesh.receiveShadow = true;
 				scene.add( mesh );
@@ -148,7 +148,7 @@
 				renderer.shadowMap.enabled = true;
 				container.appendChild( renderer.domElement );
 				//camera touch controls
-				if(window.loaction.search.search("controls")> -1){const controls = new OrbitControls( camera, renderer.domElement );}
+				if( window.location.search === "?controls=true" ){controls = new OrbitControls( camera, renderer.domElement );}
 			}
 			
 			function onWindowResize() {
@@ -162,23 +162,25 @@
 			var stats = new Stats();
 			stats.showPanel( 1 ); // 0: fps, 1: ms, 2: mb, 3+: custom
 			document.body.appendChild( stats.dom );
-
 			function animate() {
-				stats.begin();
-
+				if(runningLocal()){stats.begin();}
 				let mixerUpdateDelta = clock.getDelta();
 				mixer.update( mixerUpdateDelta );
 				renderer.render( scene, camera );
-				//rotate
-				let target = scene;
-				let radius = 400;
-				let constant = -2;
-				count++;;
-				camera.position.x = target.position.x + radius * Math.cos( constant * count/100 );         
-				camera.position.z = target.position.z + radius * Math.sin( constant * count/100 );
-				camera.lookAt( target.position );
-				stats.end();
-				setTimeout(()=>{requestAnimationFrame( animate );},normalRate);
+				if(!controls){
+					//rotate
+					let target = scene;
+					let radius = 400;
+					let constant = -2;
+					count++;;
+					camera.position.x = target.position.x + radius * Math.cos( constant * count/100 );         
+					camera.position.z = target.position.z + radius * Math.sin( constant * count/100 );
+					camera.lookAt( target.position );
+				}
+				if(runningLocal()){stats.end();}
+				setTimeout(()=>{
+					requestAnimationFrame( animate );
+				},normalRate);
 			}
 		</script>
 	</body>

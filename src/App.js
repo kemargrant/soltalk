@@ -83,8 +83,8 @@ const Sol_Survivor= {
 }
 
 const Sol_Survivor_KOR= {
-	"api.mainnet-beta":{id:"4azQKVLaQsVcmF24rLLX3CF1Zo2jZ3D9q8dCATmawwhK",account:"EXgycYHsfaDDn5GD7aZWP7rRYS69U4JQ2N3EjpxRS3f2",wallet:"299as3qsF9eLpJrXxi59AMHuCkc2cK6WJ4JM8WwGycT4"},
-	"testnet":{id:"9yHZhnMYqpE7J2cewTnERFG6DGJLo6QfArajGfy46JC8",account:"4EFwavAKqe8C1b3fp5P5q1jQ6o456JaPRuL8HwzyJFYR",wallet:"CyX6PnPFYxLwk2XDoEYpNkMfkZsECu44pAgsWQMVxsUc"},
+	"api.mainnet-beta":{id:"4azQKVLaQsVcmF24rLLX3CF1Zo2jZ3D9q8dCATmawwhK",account:"563QFTEAzMiaBAezJ6RWJXhyEqrHJk2fwxqnYaWR4DoC",wallet:"BoQ7rso6y1pqH3vyfrVHKcQ7v15AwHUBPW2FHViYq28B"},
+	"testnet":{id:"9ramtGELNc1cdxtCo6sXuRbSNTEzPai7LBvXWirYb3Wg",account:"G9MMjYF7Y2EfZMSXQ7HD3Z5eNDrHLQDdvCXuxu1e9hJY",wallet:"CVMXpvwecXLvRtotZXvPvomNz4mG3Wa3LH5jugCgYq8n"},
 }
 
 const Sol_Survivor_Wager= {
@@ -970,13 +970,14 @@ class App extends React.Component{
 			this.createRSAKeyPair().catch(console.warn);
 		}
 		//sync previous messages
+		/*
 		this.setState({syncingHistory:true});
 		this.getHistory()
 		.then(this.processQue)
 		.catch(console.warn)
 		.finally(()=>{
 			this.setState({syncingHistory:false});
-		});
+		});*/
 				
 	}
 	
@@ -1580,7 +1581,7 @@ class App extends React.Component{
 	*/
 	getHistory(){
 		let endpoints = {
-			"testnet": "https://testnet.solana.com/",
+			"testnet": "https://api.testnet.solana.com/",
 			"api.mainnet-beta": "https://solana-api.projectserum.com"
 		}
 		let Endpoint = endpoints[this.state.defaultNetwork];
@@ -2590,9 +2591,9 @@ class App extends React.Component{
 	* @method withdrawFromProgram
 	* @return {Null}
 	*/		
-	async withdrawFromProgram(){
+	async withdrawFromProgram(){		
 		let gameAccount = this.state.KOR_ACCOUNT;
-		let programId = this.state.KOR_ID
+		let programId = this.state.KOR_ID;
 		let _transaction =  new Transaction();
 		let txid;
 		let instruction = new TransactionInstruction({
@@ -2915,7 +2916,7 @@ class App extends React.Component{
 				updateEnableMusic={this.updateEnableMusic}
 				updateViewStyle={this.updateViewStyle}
 		/>
-		<div style={{"display":"none"}}> 
+		<div style={{"display": window.location.host.search("localhost") > -1 ? "block" : "none"}}> 
 			<button onClick={()=>{ this.loadProgramControlledAccount(0);} }>stalk_account</button>
 			<button onClick={()=>{ this.loadProgramControlledAccount(1);} }>ss_account</button>			
 			<button onClick={()=>{ this.loadProgramControlledAccount(2);} }>ss_wager account</button>

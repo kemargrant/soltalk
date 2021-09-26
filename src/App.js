@@ -1769,21 +1769,32 @@ class App extends React.Component{
 		if(!ppid){return}
 		let programId = new PublicKey(ppid.trim());
 		let instruction = SystemProgram.createAccount({
-			fromPubkey: this.state.localPayerAccount.publicKey,
+			fromPubkey: this.state.payerAccount,
 			newAccountPubkey:chatRoomAccount.publicKey,
 			lamports,
 			space:space[type],
 			programId,
 		});
 		let transaction = new Transaction().add(instruction);
-		try{
-			await sendAndConfirmTransaction(
-				'createAccount',
-				connection,
-				transaction,
-				this.state.localPayerAccount,
-				chatRoomAccount
-			);
+		let { blockhash } = await this.state.connection.getRecentBlockhash("finalized");
+		transaction.recentBlockhash = blockhash;
+		transaction.setSigners(this.state.payerAccount,chatRoomPubkey);
+		let signature = await this.localSign(Buffer.from(transaction.serializeMessage()),chatRoomAccount,transaction);
+		if(!signature){
+			return this.notify("Signing Error","error");
+		}
+		transaction.addSignature(chatRoomPubkey,signature);			
+		let signed = await this.state.wallet.signTransaction(transaction);
+		try{ 
+			let txid = await this.state.connection.sendRawTransaction(signed.serialize()); 
+			const status = ( await this.state.connection.confirmTransaction(txid) ).value;
+			if(!status.err){
+				this.notify("Account Creation Complete "+ txid);
+			}
+			else{
+				console.log(status);
+				this.notify("Account Creation Error","error");
+			}
 		}
 		catch(e){
 			this.notify("Error Creating Account","error");
@@ -2605,7 +2616,7 @@ class App extends React.Component{
 			data: Buffer.from([5])
 		});
 		_transaction.add(instruction);
-		let { blockhash } = await connection.getRecentBlockhash();
+		let { blockhash } = await connection.getRecentBlockhash("confirmed");
 		_transaction.recentBlockhash = blockhash;				
 		_transaction.feePayer = this.state.localPayerAccount.publicKey;
 		let signature = await this.localSign(Buffer.from(_transaction.serializeMessage()),this.state.localPayerAccount,_transaction);

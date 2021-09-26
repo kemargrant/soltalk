@@ -51,8 +51,8 @@ const Wallet: FC = (props) => {
     ], [network]);
 	
     return (
-        <ConnectionProvider endpoint={endpoint} >
-            <WalletProvider wallets={wallets}>
+        <ConnectionProvider endpoint={endpoint}>
+            <WalletProvider wallets={wallets} autoConnect>
                 <WalletModalProvider logo="./logo192.png">
                     <WalletMultiButton />
                     <IsWalletConnected {...props} />

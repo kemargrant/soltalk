@@ -685,11 +685,11 @@ class Stage extends React.Component{
 		this.countDownTimer();
 		//Get Game data
 		return this.getAccountInfo()
-			.then(this.subscribeToGame)
-			.then(()=>{
-				this.setState({initialLoadingCompleted:true});
-			})
-			.catch(console.warn)
+		.then(this.subscribeToGame)
+		.then(()=>{
+			this.setState({initialLoadingCompleted:true});
+		})
+		.catch(console.warn)
 			
 	}
 	
@@ -698,9 +698,11 @@ class Stage extends React.Component{
 		if(this.state.wager){ account = this.props.WAGER_GAME_ACCOUNT; }
 		else if(this.state.classic){ account = this.props.GAME_ACCOUNT; }
 		else if(this.state.kor){ account = this.props.KOR_ACCOUNT; }
-		return this.props._connection.getAccountInfo( new PublicKey(account) )
+		return this.props._connection.getAccountInfo( new PublicKey(account),"confirmed" )
 		.then((resp)=>{
-			if(!resp.data){return}
+			if(!resp || !resp.data){
+				return console.error("Unable to get account data");
+			}
 			let data = new Buffer(resp.data).toString("base64");
 			this.parseState(data);
 		})
@@ -1006,8 +1008,9 @@ class Stage extends React.Component{
 	
 	subscribeToGame(){
 		if(!this.props.ws){
-			console.warn("Websocket connection not ready:",this.props.ws);
-			return setTimeout(this.subscribeToGame,2500);
+			console.warn("websocket not ready");
+			setTimeout(this.subscribeToGame,2500);
+			return;
 		}
 		let message = {
 			"jsonrpc":"2.0", 
@@ -1016,7 +1019,7 @@ class Stage extends React.Component{
 			"params":[]
 		}
 		if(this.state.classic){
-			message.params = [this.props.GAME_ACCOUNT,{"encoding":"jsonParsed","commitment":"confirmed"} ]; 
+			message.params = [this.props.GAME_ACCOUNT,{"encoding":"jsonParsed","commitment":"processed"} ]; 
 			this.props.ws.send(JSON.stringify(message));	
 			//unsubscribe from other accounts
 			message.method = "accountUnsubscribe";	
@@ -1025,7 +1028,7 @@ class Stage extends React.Component{
 		}
 		else if(this.state.wager){
 			message.id = 910;
-			message.params = [this.props.WAGER_GAME_ACCOUNT,{"encoding":"jsonParsed","commitment":"confirmed"} ]; 
+			message.params = [this.props.WAGER_GAME_ACCOUNT,{"encoding":"jsonParsed","commitment":"processed"} ]; 
 			this.props.ws.send(JSON.stringify(message));
 			message.method = "accountUnsubscribe";	
 			message.params = [909,911];
@@ -1033,7 +1036,7 @@ class Stage extends React.Component{
 		}
 		else if(this.state.kor){
 			message.id = 911;
-			message.params = [this.props.KOR_ACCOUNT,{"encoding":"jsonParsed","commitment":"confirmed"} ]; 
+			message.params = [this.props.KOR_ACCOUNT,{"encoding":"jsonParsed","commitment":"processed"} ]; 
 			this.props.ws.send(JSON.stringify(message));
 			message.method = "accountUnsubscribe";	
 			message.params = [909,910];
@@ -1390,7 +1393,7 @@ class Stage extends React.Component{
 				updateSteps={this.updateSteps} 
 				viewBet={this.state.viewBet}
 			/>	
-			{ (!this.state.initialLoadingCompleted && this.state.timeLimit ===  -1) ?  <div className="mainStartButton"> <Button color="info" className="button-64"> LOADING <br/> PLEASE WAIT <br/> <LinearProgress/> </Button></div> : null }
+			{ (!this.state.initialLoadingCompleted && this.state.timeLimit ===  -1) ?  <div className="mainStartButton"> <Button color="info" className="button-64"> LOADING PLEASE WAIT <br/> <LinearProgress/> </Button></div> : null }
 			{
 				(this.state.steps === 0  && this.state.kor === false && this.state.initialLoadingCompleted) ?
 				<> 
@@ -1462,7 +1465,7 @@ class Stage extends React.Component{
 					{
 						(this.state.player1.toString("hex") !== "0000000000000000000000000000000000000000000000000000000000000000") &&(	( !this.state.isPlayer1 && (this.state.player1Health === 0 || this.state.player2Health === 0) ) 
 						||  ( !this.state.isPlayer1 && this.state.player2.toString("hex") === "0000000000000000000000000000000000000000000000000000000000000000" ) ) ?
-						<div className="mainStartButton"><Button color="info" className="button-64" onClick={()=>{this.setState({steps:1.2});}}> Challenge the King </Button></div>: null
+						<div className="mainStartButton"><Button color="info" className="button-64" onClick={()=>{this.setState({steps:1.2});}}> Challenge the King</Button> </div>: null
 					}
 				</>
 				:null
@@ -1623,6 +1626,17 @@ class CharacterSelect extends React.Component{
 class Game extends React.PureComponent {
 	constructor(props){
 		super(props);
+		this.state = {
+			hideStyle:{
+				opacity:0,
+				position:"absolute",
+				paddingTop:"99vh",
+			},
+			showStyle:{
+				opacity:1,
+				paddingTop:"0vh",				
+			},
+		}		
 		this.bindChannel = this.bindChannel.bind(this);
 	}	
 	
@@ -1645,8 +1659,7 @@ class Game extends React.PureComponent {
 	}
 	
 	render(){
-		if(this.props.steps !== 2 ){return null;}
-		return(<div id="gameHolder" style={{"opacity":this.props.steps === 2 ? "1" : "0","zIndex":this.props.steps === 2 ? "99" : "-99" }}>
+		return(<div id="gameHolder" style={this.props.steps === 2 ? this.state.showStyle : this.state.hideStyle}>
 			<div className="gameTimers">
 				<ProgressBar id="gameTimer" variant={this.props.timeLimit > 40 ? "primary" : "danger"} min={0} max={180} now={this.props.timeLimit < 0 ? 1 : this.props.timeLimit} label={"TIME: "+Math.floor(this.props.timeLimit)+"s"} />
 			</div>

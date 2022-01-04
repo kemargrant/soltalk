@@ -210,10 +210,27 @@
 					//~ standUp.play();
 					//~ animate();
 				//~ });
-				
-				loader.load( 'models/poh.glb', function ( gltf ) {
+				//~ loader.load( 'models/poh.glb', function ( gltf ) {
+					//~ let model = gltf.scene;
+					//~ let scaleUp = 65;
+					//~ model.scale.x *= scaleUp;
+					//~ model.scale.y *= scaleUp;
+					//~ model.scale.z *= scaleUp;
+					//~ model.position.y -= 95;
+					//~ model.position.z += 0;					
+					//~ scene.add( model );
+					//~ const animations = gltf.animations;
+					//~ mixer = new THREE.AnimationMixer( model );
+					//~ let reverseKick = mixer.clipAction(animations[0] );
+					//~ reverseKick.timeScale /= 1.2
+					//~ reverseKick.play();
+					//~ animate();
+				//~ });	
+				loader.load( 'models/matos_nft_optimized.glb', function ( gltf ) {
 					let model = gltf.scene;
-					let scaleUp = 65;
+					let box = model.children[0].children[1];
+					box.visible = false;
+					let scaleUp = 45;
 					model.scale.x *= scaleUp;
 					model.scale.y *= scaleUp;
 					model.scale.z *= scaleUp;
@@ -223,10 +240,9 @@
 					const animations = gltf.animations;
 					mixer = new THREE.AnimationMixer( model );
 					let reverseKick = mixer.clipAction(animations[0] );
-					reverseKick.timeScale /= 1.2
 					reverseKick.play();
 					animate();
-				});				
+				});							
 				
 				renderer = new THREE.WebGLRenderer( { antialias: true,alpha:true } );
 				renderer.setPixelRatio( window.devicePixelRatio );

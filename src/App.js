@@ -16,6 +16,8 @@ import Snackbar from '@material-ui/core/Snackbar';
 
 //
 import { WagerClient } from './util/wager';
+//Metaplex
+import { Metadata } from "@metaplex-foundation/mpl-token-metadata";
 
 
 //Solana imports
@@ -103,6 +105,8 @@ const Bet_Token_Mint = {
 	"api.mainnet-beta":{address:"BQcdHdAQW1hczDbBi9hiegXAR7A98Q9jx3X3iBBBDiq4"}
 }
 
+let TokenProgram = new PublicKey( 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+const solsurvivor_author = "3zGj5APpxCwvviAjiT6reN8siWdgfBWSAnbPU7TDszuP";
 ///////////////////////////
 
 /**
@@ -440,6 +444,7 @@ class App extends React.Component{
 			pageVisited:false,
 			payerAccount:false,
 			payerAccountBalance:0,
+			payerNFTsOwned:[],
 			playGame:false,
 			potentialContacts:[],
 			providerUrl:"https://www.sollet.io/#origin="+window.location.origin+"&network=mainnet",
@@ -505,6 +510,7 @@ class App extends React.Component{
 		this.getContractInformation = this.getContractInformation.bind(this);
 		this.getHistory = this.getHistory.bind(this);
 		this.getLocalAccount = this.getLocalAccount.bind(this);
+		this.getNFTsOwned = this.getNFTsOwned.bind(this);
 		this.goToApp = this.goToApp.bind(this);
 		
 		this.importKey = this.importKey.bind(this);
@@ -1642,6 +1648,44 @@ class App extends React.Component{
 		})
 	}
 	
+	/**
+	* Get NFTs Owned
+	* @method getNFTsOwned
+	* @return [nftname1,nftname2,..]
+	*/	
+	async getNFTsOwned(){
+		let owned = this.state.payerNFTsOwned;
+		if(owned.length < 1){
+			let tkns = await this.state.connection.getParsedTokenAccountsByOwner(this.state.payerAccount,{programId:TokenProgram});
+			if(tkns && tkns.value){
+				tkns = tkns.value;
+				let tknmint;
+				let amount;
+				let info;
+				let pda;
+				let ownedMetadata;
+				for (let i = 0;i < tkns.length;i++){
+					try{
+						amount = tkns[i].account.data.parsed.info.tokenAmount.uiAmount;
+						if( amount < 1){continue;}
+						tknmint = tkns[i].account.data.parsed.info.mint;
+						pda = await Metadata.getPDA(tknmint);				
+						ownedMetadata = await Metadata.load(this.state.connection,pda);
+						info = ownedMetadata.data;
+						if(ownedMetadata && info.updateAuthority === solsurvivor_author){
+							if ( info.data.uri === "https://arweave.net/scdfpoIZ6UxDLoTkLRdMx0xY8TMXbd8OM72Q1p5pUok" && info.data.name === "Jay Beezy") { owned.push("jaybeezy"); }
+							if ( info.data.uri === "https://arweave.net/ZU3SETz4BEsKw_ro3oExRhymsqDrpYGCk7yOlsRaths" && info.data.name === "Olga") { owned.push("olga"); }
+							if ( info.data.uri === "https://arweave.net/T1QrKdNAGXhfF5EExoGk23WmUctq-KLL5qBin0504cc" && info.data.name === "Matos") { owned.push("matos"); }
+						}
+					}
+					catch(e){}
+				}			
+			}
+			this.setState({payerNFTsOwned:owned});
+		}
+		return owned;
+	}
+		
 	/**
 	* Mark landing page as visited
 	* @method goToApp
@@ -2878,6 +2922,7 @@ class App extends React.Component{
 				contacts={this.state.contacts}
 				currentContact={this.state.currentContact}
 				getContacts={this.getContacts}
+				getNFTsOwned={this.getNFTsOwned}
 				importKey={this.importKey}
 				messageKeyDown={this.messageKeyDown}
 				loading={this.state.loading}

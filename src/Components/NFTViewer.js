@@ -69,7 +69,7 @@ class NFTViewer extends React.Component {
 	}
 	
 	render(){
-		return(<div style={{width:"100%"}}>
+		return(<div style={{width:"100%",overflowY:"scroll",height:"99vh"}}>
 			{ this.state.matos ? <WebGLView id="matos" src="./solsurvivor/matos.html" /> : null }		
 			{ this.state.nakedshorts ? <WebGLView id="nakedshorts" src="./solsurvivor/nakedshorts.html" /> : null }
 			{ this.state.poh? <WebGLView id="poh" src="./solsurvivor/poh.html" /> : null }

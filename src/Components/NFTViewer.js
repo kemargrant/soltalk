@@ -42,28 +42,35 @@ class NFTViewer extends React.Component {
 	}
 	
 	async loadNFTs(){
-		let jayBeezyPrintTokenMint = "GyTF8PoMBYivkba8shFyjhW3hcJvUPEDv3GHQU87yJiq";
+		//get token accounts
+		let nfts = await this.props.getNFTsOwned()
+		//pre-metaplex og nfts
 		let nakedShortsMint = "ss1gxEUiufJyumsXfGbEwFe6maraPmc53fqbnjbum15";
-		let olgaPrintTokenMint = "4XhhS3n2ATMPzS5aWY658FsuPzmp4FiXF4rHuruQ4mdq";				
 		let pohMint = "ss26ybWnrhSYbGBjDT9bEwRiyAVUgiKCbgAfFkksj4R";
-		let obj = {}
+		let obj = {
+			nakedshorts:false,
+			poh:false,
+			jaybeezy:false,
+			olga:false,
+			matos:false
+		}
+		if(nfts.length > 0){
+			for (let i = 0;i < nfts.length;i++){
+				obj[ nfts[i] ] = true;
+			}
+		}
 		if( await this.haveToken(nakedShortsMint)){  
 			obj.nakedshorts = true;
 		}
-		if( await this.haveToken(pohMint)){  
+		if( await this.haveToken(pohMint) ){  
 			obj.poh = true;
-		}
-		if( await this.haveToken(jayBeezyPrintTokenMint,true)){  
-			obj.jaybeezy = true;
-		}
-		if( await this.haveToken(olgaPrintTokenMint,true)){  
-			obj.olga = true;
 		}		
 		this.setState(obj);
 	}
 	
 	render(){
 		return(<div style={{width:"100%"}}>
+			{ this.state.matos ? <WebGLView id="matos" src="./solsurvivor/matos.html" /> : null }		
 			{ this.state.nakedshorts ? <WebGLView id="nakedshorts" src="./solsurvivor/nakedshorts.html" /> : null }
 			{ this.state.poh? <WebGLView id="poh" src="./solsurvivor/poh.html" /> : null }
 			{ this.state.jaybeezy? <WebGLView id="jaybeezy" src="./solsurvivor/jaybeezy.html" /> : null }		

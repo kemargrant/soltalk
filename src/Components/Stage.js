@@ -1474,12 +1474,14 @@ class Stage extends React.Component{
 				<CharacterSelect 
 					classic={this.state.classic}
 					chooseCharacter={this.chooseCharacter} 
+					getNFTsOwned={this.props.getNFTsOwned}
 					haveToken={this.haveToken}
 					kor={this.state.kor}
 					loggedIn={this.props.payerAccount}				
 					player1Character={this.state.player1Character}
 					updateSteps={this.updateSteps} 
-					updateWagerOption={this.updateWagerOption}					
+					updateWagerOption={this.updateWagerOption}	
+					setLoading={this.props.setLoading}				
 					steps={this.state.steps}
 					wager={this.state.wager}
 				/> 
@@ -1535,31 +1537,54 @@ class CharacterSelect extends React.Component{
 	
 	async loadAdditionalCharacters(){
 		if(!this.props.loggedIn){return;}
-		if(loadingCharactersBouncer > 2){ return; }
+		if(loadingCharactersBouncer > 0){ return 	console.warn("LOADING ADDITIONAL CHARACTERS:",loadingCharactersBouncer); }
+		this.props.setLoading(true);
 		loadingCharactersBouncer++;
-		setTimeout(()=>{ loadingCharactersBouncer--; },1500);
 		console.warn("LOADING ADDITIONAL CHARACTERS");
-		let chars = this.state.characters.slice(0);
+		let chars = this.state.characters.slice(0)
 		//NakedShorts
-		let jayBeezyPrintTokenMint = "GyTF8PoMBYivkba8shFyjhW3hcJvUPEDv3GHQU87yJiq";	
-		let olgaPrintTokenMint = "4XhhS3n2ATMPzS5aWY658FsuPzmp4FiXF4rHuruQ4mdq";							
+		let nfts = await this.props.getNFTsOwned()
+		//pre-metaplex og nfts
 		let nakedShortsMint = "ss1gxEUiufJyumsXfGbEwFe6maraPmc53fqbnjbum15";
 		let pohMint = "ss26ybWnrhSYbGBjDT9bEwRiyAVUgiKCbgAfFkksj4R";
+		let obj = {
+			nakedshorts:false,
+			poh:false,
+			jaybeezy:false,
+			olga:false,
+			matos:false
+		}
+		if(nfts.length > 0){
+			for (let i = 0;i < nfts.length;i++){
+				obj[ nfts[i] ] = true;
+			}
+		}
 		if( await this.props.haveToken(nakedShortsMint)){  
+			obj.nakedshorts = true;
+		}
+		if( await this.props.haveToken(pohMint) ){  
+			obj.poh = true;
+		}		
+		if( obj.nakedshorts ){  
 			chars.push({Name:"Naked Shorts",Headshot:"./images/player_images/nakedshorts_small.png",Portrait:"./images/player_images/nakedshorts.apng",Mint:"",Index:2});
 		}
-		if( await this.props.haveToken(pohMint)){  
+		if( obj.poh ){  
 			chars.push({Name:"POH",Headshot:"./images/player_images/poh_small.png",Portrait:"./images/player_images/poh.apng",Mint:"",Index:3});
 		}
-		if( await this.props.haveToken(jayBeezyPrintTokenMint,true)){  
+		if( obj.jaybeezy ){  
 			chars.push({Name:"Jay Beezy",Headshot:"./images/player_images/jaybeezy_small.png",Portrait:"./images/player_images/jaybeezy.apng",Mint:"",Index:4});
 		}	
-		if( await this.props.haveToken(olgaPrintTokenMint,true)){  
+		if( obj.olga ){  
 			chars.push({Name:"Olga",Headshot:"./images/player_images/olga_small.png",Portrait:"./images/player_images/olga.apng",Mint:"",Index:5});
-		}		
-		for(let i = 0;i < 3;i++){
-			chars.push({Name:"?",Headshot:"./images/player_images/unknown.png",Mint:"",Index:0})
+		}	
+		if( obj.matos ){  
+			chars.push({Name:"Matos",Headshot:"./images/player_images/matos_small.png",Portrait:"./images/player_images/matos.apng",Mint:"",Index:6});
 		}
+		loadingCharactersBouncer--;
+		for(let i = 0;i < 3;i++){
+			chars.push({Name:"?",Headshot:"./images/player_images/unknown.png",Mint:"",Index:chars.length-1})
+		}
+		this.props.setLoading(false);
 		return this.setState({characters:chars,loadedCharacters:true});
 	}
 	

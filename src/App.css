@@ -976,100 +976,75 @@ iframe{
 
 /*** Landing Page ***/
 
-.landingBody{
+#Landing_body{
+	background-color:#131416;
 	height:100vh;
-	margin:0px;
-	width:100vw;
-	overflow-x:hidden;
+	min-height:100vh;
+	overflow:hidden;
+	-webkit-font-smoothing:antialiased;
 }
 
-.landingButton {
-	animation-name:contrastx !important;
-	background: linear-gradient(#dd578f, blue) !important;
+.Landing_card{
+	background:black;
+	border:0.3vw solid #411733;
+	padding:0.9vh;
+	margin-left:30vw;
+	margin-top:5vh;
 	color:white;
-	text-transform: uppercase;
-	text-decoration: none;
-	padding: 20px;
-	border-radius: 5px;
-	display: inline-block;
-	border: none;
-	font-size:large;
-	margin-left:1em;
-	transition: all 0.4s ease 0s;
+	cursor:pointer;
+	font-size:xx-large;
+	text-align:center;
+	transition:1.5s;
 }
-.landingButton:hover {
-	background: #434343;
-	letter-spacing: 0.1px;
-	-webkit-box-shadow: 0px 5px 40px -10px rgba(0,0,0,0.57);
-	-moz-box-shadow: 0px 5px 40px -10px rgba(0,0,0,0.57);
-	box-shadow: 5px 40px -10px rgba(0,0,0,0.57);
-	transition: all 0.4s ease 0s;
+
+.Landing_card:hover{
+	border:0.3vw solid white;
 }	
 
-#landingLogo{
-	filter: opacity(90%);
-	height:100%;
-	width:auto;
-	animation-name:contrast;
-	animation-duration:1s;
-	animation-iteration-count: infinite;
-	animation-timing-function: ease;
-	animation-direction:alternate;
-}
+.Landing_card a{
+	color:white;
+}			
 
-#landingLogoDiv{
-	height:15%;
-	left:30vw;
-	position:absolute;
-	top:1vh;
-	width:50%;
-	z-index:99;
-}
-
-#landingLowerBody{
-	background:rgba(0,0,0,0.5);
-	bottom:1vh;
-	height:4vh;
-	left:45vw;
-	overflow:hidden;
-	position:absolute;
-}
-
-#landingLowerBody img{
-	height:100%;
-	margin-left:1vw;
-}
-
-#landingMainMessage{
-	color:#dd578f;
+#Landing_cards{
+	top:20vh;
+	left:12.5vw;
 	position: absolute;
-	top: 40%;
-	left: 40%;
-	font-size:1.5em;
-	font-family: 'Righteous',cursive;
-	text-align:center;
 }
 
-#landingMidBody p{
-	font-size:xxx-large;
-	font-family: 'Righteous',cursive;
-	text-align:center;
+#Landing_movie{
+	display: block;
+	width: 25%;
+	border:0.1vw solid #411733;
+	border-radius:1vh;
+	overflow: hidden;
+	position: absolute;
+	left:12vw;
+	top:25vh;
+	height:15vw;
+	overflow:hidden;
 }
 
-#landingMidBody{
-	background:url("/images/grid1.jpg");
+#Landing_movie video{
+	height:105%;
+	width:auto;
+}
+
+#Landing_site{
+	background:url("/images/l337a_moshed.jpg");
+	background-position:right;
+	background-size:contain;
 	background-repeat:no-repeat;
-	background-size:cover;
-	height:100vh;
-	width:100%;
-	animation-name:contrast;
-	animation-duration:0.75s;
-	animation-iteration-count: infinite;
-	animation-timing-function: linear;
-	animation-direction:alternate;
+	height:95%;
+	width:80%;
+	display:block;
+}	
+#Landing_support{
+	display:table;
+	margin:auto;
+	align-items:center;
 }
-
-@keyframes contrast{
-	from { filter: saturate(85%); }
-	to {filter :saturate(105%); }
+#Landing_support img{
+	margin-left:1vw;
+	height:4vh;
+	width:auto;
 }

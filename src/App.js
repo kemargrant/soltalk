@@ -80,7 +80,7 @@ const Sol_Talk = {
 }
 
 const Sol_Survivor= {
-	"api.mainnet-beta":{id:"6FGsGdMg2V3XSEDsKFVLXpyE3CHxMZvpFwJGD5QnaFMB",account:"5ZArURxW2ze2kG5HEHXZEaeVKeNBaDo4tRtth4QnMDie"},
+	"api.mainnet-beta":{id:"6FGsGdMg2V3XSEDsKFVLXpyE3CHxMZvpFwJGD5QnaFMB",account:"7XQGyGosQsHJkTNJFUPg7vr9EBrGEJ64cpCkcEvyc9N1"},
 	"testnet":{id:"H6ayLvwFXb9tB8vVY24Dd2FvjEoacDAxos3bE8B7JoMM",account:"8kDk8rQ4MuhkZrLA64NQBufhBhzSWM47FYNbSVJCQDE1"}
 }
 
@@ -90,7 +90,7 @@ const Sol_Survivor_KOR= {
 }
 
 const Sol_Survivor_Wager= {
-	"api.mainnet-beta":{id:"C6Mdyy5H9qsyF2GA5ekaTqTMh9FpGUr7MzytYm6p9J6i",account:"Co8HSYhX9TKbjXax8yr1quYLaz6GsujAWHxQNYN8Ztx8"},
+	"api.mainnet-beta":{id:"C6Mdyy5H9qsyF2GA5ekaTqTMh9FpGUr7MzytYm6p9J6i",account:"5SWfeFMdnQPW9G9dNWsvCy9hktxSvtf1WPbFUo3474DW"},
 	"testnet":{id:"GkinWyvMM2nJ3QmZkuipre9XSzqswwffvhou8txSmvkX",account:"9MteT6rDcsdqQPy41gbo1aqtt6iDGAjduDxFNUoMkejr"}
 }
 

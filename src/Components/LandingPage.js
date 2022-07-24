@@ -10,7 +10,7 @@ function LandingPage(props){
 					!isMobile ?	
 					<div id="Landing_movie">
 						<video autoplay="" loop id="video1"> 
-							<source src="https://nft.solsurvivor.net/demofight.mp4" type="video/webm" /> 
+							<source src="images/kor.webm" controls type="video/webm" /> 
 						</video>
 					</div>
 					:null
@@ -23,8 +23,11 @@ function LandingPage(props){
 						<a href="https://sol-survivor.gitbook.io/docs"> TUTORIAL </a>
 					</div>				
 					<div className="Landing_card" >
-						<a href="https://nft.solsurvivor.net"> NFTs </a>
-					</div>				
+						<a href="https://digitaleyes.market/collections/Survivor"> NFTs [DigitalEyes] </a>
+					</div>	
+					<div className="Landing_card" >
+						<a href="https://artz.ai/u/SolSurvivor"> NFTs [Artz.ai] </a>
+					</div>												
 				</div>
 			</div>
 			<div className="row" id="Landing_support"> 
